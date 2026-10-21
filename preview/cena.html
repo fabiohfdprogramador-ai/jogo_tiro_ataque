@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Prévia do jogo</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #000; font-family: "Segoe UI", Arial, sans-serif; }
+  canvas { display: block; }
+  .hud { position: fixed; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.8); user-select: none; }
+  .panel { background: rgba(10,12,16,.55); border-radius: 4px; }
+  #top { top: 10px; left: 50%; transform: translateX(-50%); display: flex; align-items: stretch; gap: 2px; }
+  #top div { padding: 6px 16px; font-weight: 700; font-size: 22px; }
+  #top .ct { background: rgba(60,110,180,.75); }
+  #top .t  { background: rgba(190,140,40,.75); }
+  #top .time { background: rgba(10,12,16,.7); min-width: 70px; text-align: center; }
+  #radar { top: 14px; left: 14px; width: 190px; height: 190px; border-radius: 50%; overflow: hidden;
+           background: rgba(30,30,25,.6); border: 2px solid rgba(255,255,255,.25); }
+  #radar canvas { width: 100%; height: 100%; }
+  #feed { top: 14px; right: 14px; display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
+  #feed div { padding: 5px 10px; font-size: 14px; font-weight: 600; }
+  #feed .me { border: 1px solid #d33; }
+  .c { color: #8fb8ee; } .tt { color: #f0c060; } .w { color: #ddd; font-weight: 400; margin: 0 8px; }
+  #vitals { left: 14px; bottom: 14px; display: flex; gap: 18px; padding: 8px 16px; font-size: 30px; font-weight: 700; align-items: center; }
+  #vitals small { font-size: 13px; opacity: .7; margin-right: 6px; font-weight: 600; }
+  #money { left: 14px; bottom: 74px; padding: 4px 12px; font-size: 20px; font-weight: 700; color: #8fdc6a; }
+  #ammo { right: 14px; bottom: 14px; padding: 8px 18px; font-size: 34px; font-weight: 700; }
+  #ammo span { font-size: 18px; opacity: .7; }
+  #weapon { right: 14px; bottom: 76px; padding: 4px 12px; font-size: 14px; letter-spacing: 1px; opacity: .9; }
+  #cross { left: 50%; top: 50%; width: 0; height: 0; }
+  #cross i { position: absolute; background: #5fff5f; box-shadow: 0 0 0 1px rgba(0,0,0,.6); }
+  #cross .a { width: 2px; height: 8px; left: -1px; top: -13px; }
+  #cross .b { width: 2px; height: 8px; left: -1px; top: 5px; }
+  #cross .l { width: 8px; height: 2px; top: -1px; left: -13px; }
+  #cross .r { width: 8px; height: 2px; top: -1px; left: 5px; }
+  #bomb { left: 14px; bottom: 116px; padding: 4px 10px; font-size: 13px; color: #f0c060; }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div id="top" class="hud"><div class="ct">7</div><div class="time">1:42</div><div class="t">5</div></div>
+<div id="radar" class="hud"><canvas id="radarc" width="190" height="190"></canvas></div>
+<div id="feed" class="hud">
+  <div class="panel me"><span class="c">Você</span><span class="w">AK-47 ⌖</span><span class="tt">Bot_Zé</span></div>
+  <div class="panel"><span class="tt">Bot_Leo</span><span class="w">AWP</span><span class="c">Ana_CT</span></div>
+</div>
+<div id="bomb" class="hud panel">● C4 plantável no bomb A</div>
+<div id="money" class="hud panel">$ 2.750</div>
+<div id="vitals" class="hud panel"><div><small>✚</small>100</div><div><small>⛨</small>75</div></div>
+<div id="weapon" class="hud panel">AK-47</div>
+<div id="ammo" class="hud panel">24 <span>/ 90</span></div>
+<div id="cross" class="hud"><i class="a"></i><i class="b"></i><i class="l"></i><i class="r"></i></div>
+
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { SAOPass } from 'three/addons/postprocessing/SAOPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { Sky } from 'three/addons/objects/Sky.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { createViewModel } from './arma.js';
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.62;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0xe8d8b8, 40, 140);
+const camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.03, 400);
+camera.position.set(0, 1.7, 22);
+camera.lookAt(0.6, 1.55, -10);
+scene.add(camera);
+
+// ---------- céu e sol ----------
+const sky = new Sky();
+sky.scale.setScalar(1000);
+const sun = new THREE.Vector3().setFromSphericalCoords(1, THREE.MathUtils.degToRad(52), THREE.MathUtils.degToRad(135));
+Object.assign(sky.material.uniforms, {});
+sky.material.uniforms.turbidity.value = 6;
+sky.material.uniforms.rayleigh.value = 1.4;
+sky.material.uniforms.mieCoefficient.value = 0.004;
+sky.material.uniforms.mieDirectionalG.value = 0.85;
+sky.material.uniforms.sunPosition.value.copy(sun);
+scene.add(sky);
+const pmrem = new THREE.PMREMGenerator(renderer);
+const envScene = new THREE.Scene(); const envSky = sky.clone(); envScene.add(envSky);
+scene.environment = pmrem.fromScene(envScene).texture;
+
+const sunLight = new THREE.DirectionalLight(0xfff0d6, 4.2);
+sunLight.position.copy(sun).multiplyScalar(60);
+sunLight.castShadow = true;
+sunLight.shadow.mapSize.set(4096, 4096);
+const sc = sunLight.shadow.camera; sc.left = -45; sc.right = 45; sc.top = 45; sc.bottom = -45; sc.far = 200;
+sunLight.shadow.bias = -0.0004; sunLight.shadow.normalBias = 0.03;
+scene.add(sunLight);
+scene.add(new THREE.HemisphereLight(0xd8e4f5, 0xd0a868, 0.75));
+
+// ---------- texturas procedurais ----------
+function rand(seed) { let s = seed; return () => (s = (s * 16807) % 2147483647) / 2147483647; }
+function makeTex(draw, size = 1024, repeat = [1, 1]) {
+  const c = document.createElement('canvas'); c.width = c.height = size;
+  const g = c.getContext('2d'); draw(g, size);
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(...repeat);
+  t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+  return t;
+}
+function grain(g, s, r, n, a, colors) {
+  for (let i = 0; i < n; i++) {
+    g.fillStyle = colors[Math.floor(r() * colors.length)]; g.globalAlpha = a * r();
+    const w = 1 + r() * 3; g.fillRect(r() * s, r() * s, w, w);
+  }
+  g.globalAlpha = 1;
+}
+function blotches(g, s, r, n, colors, maxR) {
+  for (let i = 0; i < n; i++) {
+    const x = r() * s, y = r() * s, rad = 10 + r() * maxR;
+    const grd = g.createRadialGradient(x, y, 0, x, y, rad);
+    const col = colors[Math.floor(r() * colors.length)];
+    grd.addColorStop(0, col); grd.addColorStop(1, 'rgba(0,0,0,0)');
+    g.globalAlpha = 0.18 + r() * 0.2; g.fillStyle = grd; g.fillRect(x - rad, y - rad, rad * 2, rad * 2);
+  }
+  g.globalAlpha = 1;
+}
+// reboco de areia com blocos de pedra aparecendo
+const plasterTex = (seed) => makeTex((g, s) => {
+  const r = rand(seed);
+  g.fillStyle = '#d6b98a'; g.fillRect(0, 0, s, s);
+  blotches(g, s, r, 140, ['#c9a674', '#e2c99c', '#b8945f', '#dcc297'], 160);
+  // pedras expostas
+  for (let i = 0; i < 9; i++) {
+    const bx = r() * s, by = r() * s;
+    for (let y = 0; y < 4; y++) for (let x = 0; x < 3; x++) {
+      if (r() < 0.35) continue;
+      const px = bx + x * 70 + (y % 2) * 35, py = by + y * 34;
+      g.fillStyle = ['#bf9d68', '#c8a874', '#b08a55'][Math.floor(r() * 3)];
+      g.fillRect(px, py, 66, 30);
+      g.strokeStyle = 'rgba(80,55,25,.45)'; g.lineWidth = 3; g.strokeRect(px, py, 66, 30);
+    }
+  }
+  // sujeira na base
+  const gr = g.createLinearGradient(0, s * 0.75, 0, s);
+  gr.addColorStop(0, 'rgba(110,80,40,0)'); gr.addColorStop(1, 'rgba(110,80,40,.45)');
+  g.fillStyle = gr; g.fillRect(0, 0, s, s);
+  // rachaduras
+  g.strokeStyle = 'rgba(70,50,25,.5)'; g.lineWidth = 1.5;
+  for (let i = 0; i < 14; i++) {
+    let x = r() * s, y = r() * s; g.beginPath(); g.moveTo(x, y);
+    for (let k = 0; k < 8; k++) { x += (r() - .5) * 40; y += r() * 30; g.lineTo(x, y); } g.stroke();
+  }
+  grain(g, s, r, 60000, 0.35, ['#8a6a3c', '#f2dfb8', '#a07c48']);
+});
+const wallTexA = plasterTex(11), wallTexB = plasterTex(37);
+
+const floorTex = makeTex((g, s) => {
+  const r = rand(5);
+  g.fillStyle = '#c9ab78'; g.fillRect(0, 0, s, s);
+  blotches(g, s, r, 220, ['#b8955f', '#d8bd8c', '#a88452', '#c2a06a'], 120);
+  // lajes de pedra
+  g.strokeStyle = 'rgba(90,65,35,.35)'; g.lineWidth = 3;
+  for (let y = 0; y < s; y += 128) for (let x = 0; x < s; x += 128) {
+    const o = (y / 128) % 2 ? 64 : 0; g.strokeRect(x + o + r() * 4, y + r() * 4, 124, 124);
+  }
+  grain(g, s, r, 90000, 0.4, ['#7a5a30', '#efd9ae', '#9b7846', '#5e4424']);
+}, 1024, [10, 30]);
+
+const crateTex = makeTex((g, s) => {
+  const r = rand(21);
+  g.fillStyle = '#8a6237'; g.fillRect(0, 0, s, s);
+  for (let i = 0; i < 9; i++) { // tábuas
+    const y = i * s / 9;
+    g.fillStyle = ['#8d6438', '#7f582f', '#96703f', '#84603a'][i % 4]; g.fillRect(0, y, s, s / 9);
+    g.strokeStyle = 'rgba(40,25,10,.6)'; g.lineWidth = 4; g.beginPath(); g.moveTo(0, y); g.lineTo(s, y); g.stroke();
+    g.strokeStyle = 'rgba(50,30,12,.25)'; g.lineWidth = 1;
+    for (let k = 0; k < 14; k++) { g.beginPath(); const yy = y + r() * s / 9; g.moveTo(0, yy); g.bezierCurveTo(s * .3, yy + (r() - .5) * 8, s * .6, yy + (r() - .5) * 8, s, yy); g.stroke(); }
+  }
+  // moldura e X
+  g.fillStyle = '#6b4a28';
+  const b = 70; g.fillRect(0, 0, s, b); g.fillRect(0, s - b, s, b); g.fillRect(0, 0, b, s); g.fillRect(s - b, 0, b, s);
+  g.save(); g.translate(s / 2, s / 2); g.rotate(Math.PI / 4); g.fillRect(-s * .7, -32, s * 1.4, 64); g.restore();
+  g.strokeStyle = 'rgba(25,15,5,.7)'; g.lineWidth = 5; g.strokeRect(b, b, s - 2 * b, s - 2 * b); g.strokeRect(2, 2, s - 4, s - 4);
+  g.fillStyle = '#2b2b2b'; [[35, 35], [s - 35, 35], [35, s - 35], [s - 35, s - 35]].forEach(([x, y]) => { g.beginPath(); g.arc(x, y, 9, 0, 7); g.fill(); });
+  grain(g, s, r, 30000, 0.3, ['#3d2810', '#b08858']);
+});
+
+const doorTex = makeTex((g, s) => {
+  const r = rand(8);
+  g.fillStyle = '#2f5f86'; g.fillRect(0, 0, s, s);
+  for (let x = 0; x < s; x += 64) { g.fillStyle = x % 128 ? '#2b5a80' : '#336792'; g.fillRect(x, 0, 60, s); g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(x + 60, 0, 4, s); }
+  blotches(g, s, r, 120, ['#6b5a3e', '#8a7a5a', '#1d3c56'], 70); // tinta descascada
+  grain(g, s, r, 40000, 0.35, ['#13293c', '#7aa0c0', '#6b5a3e']);
+});
+
+const metalTex = makeTex((g, s) => {
+  const r = rand(3); g.fillStyle = '#2a2b2d'; g.fillRect(0, 0, s, s);
+  grain(g, s, r, 40000, 0.25, ['#111', '#555', '#3a3a3a']);
+}, 256);
+
+const woodGunTex = makeTex((g, s) => {
+  const r = rand(14); g.fillStyle = '#6e3a1c'; g.fillRect(0, 0, s, s);
+  g.strokeStyle = 'rgba(30,12,4,.4)';
+  for (let i = 0; i < 60; i++) { g.lineWidth = 1 + r() * 2; g.beginPath(); const y = r() * s; g.moveTo(0, y); g.bezierCurveTo(s * .3, y + (r() - .5) * 30, s * .7, y + (r() - .5) * 30, s, y); g.stroke(); }
+  grain(g, s, r, 8000, 0.2, ['#2a1205', '#9a5a30']);
+}, 256);
+
+const mat = (map, rough = 0.95, extra = {}) => new THREE.MeshStandardMaterial({ map, bumpMap: map, bumpScale: 2.2, roughness: rough, metalness: 0, ...extra });
+
+// ---------- mapa ----------
+function box(w, h, d, material, x, y, z, uv = 4) {
+  const geo = new THREE.BoxGeometry(w, h, d);
+  // escala UV de acordo com o tamanho para manter densidade de textura
+  const uvAttr = geo.attributes.uv, nrm = geo.attributes.normal;
+  for (let i = 0; i < uvAttr.count; i++) {
+    const nx = Math.abs(nrm.getX(i)), ny = Math.abs(nrm.getY(i));
+    const su = nx > .5 ? d : w, sv = ny > .5 ? d : h;
+    uvAttr.setXY(i, uvAttr.getX(i) * su / uv, uvAttr.getY(i) * sv / uv);
+  }
+  const m = new THREE.Mesh(geo, material);
+  m.position.set(x, y + h / 2, z); m.castShadow = m.receiveShadow = true;
+  scene.add(m); return m;
+}
+const wallA = mat(wallTexA), wallB = mat(wallTexB);
+const trim = new THREE.MeshStandardMaterial({ color: 0xb8976a, roughness: .9 });
+
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(60, 180), mat(floorTex, 1, { bumpScale: 1.5 }));
+floor.rotation.x = -Math.PI / 2; floor.position.z = -40; floor.receiveShadow = true; scene.add(floor);
+
+// corredor tipo "Long A": paredes altas dos dois lados
+box(1.5, 7, 46, wallA, -6.5, 0, 2, 5);
+box(1.5, 9, 20, wallB, -6.5, 0, -32, 5);
+box(1.6, 0.35, 46.2, trim, -6.4, 7, 2);
+box(1.5, 5.5, 18, wallB, 7, 0, 12, 5);
+box(1.6, 0.35, 18.2, trim, 6.9, 5.5, 12);
+box(1.5, 8, 26, wallA, 9.5, 0, -12, 5);
+box(4, 8, 1.5, wallA, 7.5, 0, 1.5, 5);
+// prédio ao fundo com arco
+box(8, 11, 6, wallB, -10, 0, -48, 5);
+box(10, 3.5, 4, wallA, 0.5, 6.5, -40, 5);
+box(2.4, 6.5, 4, wallA, -5.2, 0, -40, 5);
+box(2.4, 6.5, 4, wallA, 6.2, 0, -40, 5);
+box(12, 13, 6, wallA, 14, 0, -52, 5);
+box(30, 9, 4, wallB, 0, 0, -70, 5);
+// portas azuis icônicas
+const door = new THREE.MeshStandardMaterial({ map: doorTex, roughness: .7, metalness: .35, bumpMap: doorTex, bumpScale: 1.2 });
+const dl = box(0.15, 4.2, 2.3, door, -5.65, 0, 6.5, 2.3);
+const dr = box(0.15, 4.2, 2.3, door, -5.65, 0, 9.4, 2.3);
+box(0.3, 0.35, 5.2, new THREE.MeshStandardMaterial({ color: 0x3a2e22, roughness: .9 }), -5.65, 4.2, 7.95);
+// toldo de madeira
+const wood = mat(crateTex, .9);
+box(1.6, 0.1, 5.6, new THREE.MeshStandardMaterial({ color: 0x6b4a2a, roughness: .9 }), -5, 5.0, 7.95);
+
+// caixas
+const crateMat = mat(crateTex, .85, { bumpScale: 3 });
+function crate(s, x, z, y = 0, ry = 0) { const c = box(s, s, s, crateMat, x, y, z, s); c.rotation.y = ry; return c; }
+crate(1.6, -3.9, 13, 0, 0.05); crate(1.6, -3.9, 11.3, 0, -0.04); crate(1.3, -3.9, 12.2, 1.6, 0.2);
+crate(1.8, 4.8, -4, 0, 0.12); crate(1.2, 3.2, -4.6, 0, -0.3);
+crate(1.6, -3.5, -22, 0, 0.3); crate(1.6, -1.8, -23, 0, 0); crate(1.4, -2.6, -22.5, 1.6, 0.15);
+crate(1.6, 6.8, -30, 0, 0.1);
+
+// barris
+const barrelMat = new THREE.MeshStandardMaterial({ color: 0x4d6a3a, roughness: .55, metalness: .5, map: metalTex });
+[[5.6, -6.8], [6.4, -7.9], [-4.8, -10]].forEach(([x, z], i) => {
+  const b = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 1.25, 24), i === 2 ? new THREE.MeshStandardMaterial({ color: 0x8a2d1e, roughness: .6, metalness: .45 }) : barrelMat);
+  b.position.set(x, 0.625, z); b.castShadow = b.receiveShadow = true; scene.add(b);
+  [0.15, 1.1].forEach(h => { const r = new THREE.Mesh(new THREE.TorusGeometry(0.425, 0.025, 6, 24), b.material); r.rotation.x = Math.PI / 2; r.position.set(x, h, z); scene.add(r); });
+});
+
+// palmeira simples ao fundo
+function palm(x, z, h) {
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.3, h, 10), new THREE.MeshStandardMaterial({ color: 0x7a6040, roughness: 1 }));
+  trunk.position.set(x, h / 2, z); trunk.rotation.z = 0.08; trunk.castShadow = true; scene.add(trunk);
+  const leafMat = new THREE.MeshStandardMaterial({ color: 0x4f6b2a, roughness: .9, side: THREE.DoubleSide });
+  for (let i = 0; i < 9; i++) {
+    const leaf = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 3.4), leafMat);
+    leaf.position.set(x + 0.2, h, z); leaf.rotation.set(-1.0, i * 0.7, 0, 'YXZ'); leaf.translateY(1.5);
+    leaf.castShadow = true; scene.add(leaf);
+  }
+}
+palm(-13, -30, 9); palm(16, -38, 11); palm(-16, -60, 10);
+
+// cabos elétricos
+const cableMat = new THREE.LineBasicMaterial({ color: 0x222222 });
+[[-5.8, 6.6, 8, 8.8, 6.3, -2], [-5.8, 6.9, -20, 8.8, 7.3, -18]].forEach(([x1, y1, z1, x2, y2, z2]) => {
+  const pts = []; for (let t = 0; t <= 1; t += 0.05) pts.push(new THREE.Vector3(x1 + (x2 - x1) * t, y1 + (y2 - y1) * t - Math.sin(t * Math.PI) * 0.9, z1 + (z2 - z1) * t));
+  scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), cableMat));
+});
+
+// ---------- inimigo (Terrorista) ----------
+function soldier(x, z, ry) {
+  const g = new THREE.Group();
+  const cloth = new THREE.MeshStandardMaterial({ color: 0x6b5f45, roughness: .95 });
+  const vest = new THREE.MeshStandardMaterial({ color: 0x3e3a2c, roughness: .9 });
+  const skin = new THREE.MeshStandardMaterial({ color: 0xa8775a, roughness: .7 });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x1b1b1b, roughness: .6 });
+  const add = (geo, m, px, py, pz, rx = 0, rz = 0) => { const o = new THREE.Mesh(geo, m); o.position.set(px, py, pz); o.rotation.set(rx, 0, rz); o.castShadow = true; g.add(o); return o; };
+  add(new THREE.CapsuleGeometry(0.13, 0.75, 6, 12), cloth, -0.13, 0.5, 0.05, 0.15);
+  add(new THREE.CapsuleGeometry(0.13, 0.75, 6, 12), cloth, 0.14, 0.5, -0.1, -0.2);
+  add(new THREE.CapsuleGeometry(0.26, 0.45, 8, 16), cloth, 0, 1.2, 0);
+  add(new RoundedBoxGeometry(0.5, 0.5, 0.36, 3, 0.06), vest, 0, 1.25, 0.02);
+  add(new THREE.SphereGeometry(0.15, 20, 16), skin, 0, 1.72, 0.02);
+  add(new THREE.SphereGeometry(0.16, 20, 16, 0, Math.PI * 2, 0, 1.6), new THREE.MeshStandardMaterial({ color: 0x2b2a24, roughness: 1 }), 0, 1.74, 0); // balaclava/gorro
+  add(new THREE.CapsuleGeometry(0.075, 0.45, 6, 10), cloth, -0.3, 1.25, 0.2, -1.1);
+  add(new THREE.CapsuleGeometry(0.075, 0.45, 6, 10), cloth, 0.28, 1.25, 0.25, -1.3);
+  const gun = add(new THREE.BoxGeometry(0.06, 0.1, 0.8), dark, 0.02, 1.3, 0.5);
+  add(new THREE.BoxGeometry(0.05, 0.18, 0.08), dark, 0.02, 1.18, 0.55, 0.3);
+  g.position.set(x, 0, z); g.rotation.y = ry; scene.add(g);
+}
+soldier(1.2, 10, 0.25);
+soldier(4.4, -1.5, -0.4);
+soldier(-2.2, -36, 0.2);
+
+// ---------- arma em primeira pessoa (AK) ----------
+const vm = createViewModel();
+vm.position.set(0.12, -0.105, -0.29);
+vm.rotation.set(-0.02, 0.32, -0.18);
+vm.scale.setScalar(0.5);
+camera.add(vm);
+window.vm = vm;
+
+// ---------- radar ----------
+const rc = document.getElementById('radarc').getContext('2d');
+rc.fillStyle = '#5a4a33'; rc.fillRect(0, 0, 190, 190);
+rc.fillStyle = '#8f7a55'; rc.fillRect(78, 20, 44, 150); rc.fillRect(20, 60, 60, 30); rc.fillRect(120, 110, 50, 40);
+rc.fillStyle = '#c33'; rc.beginPath(); rc.arc(105, 60, 4, 0, 7); rc.fill(); rc.beginPath(); rc.arc(90, 40, 4, 0, 7); rc.fill();
+rc.fillStyle = '#6aa0e0'; rc.beginPath(); rc.arc(60, 75, 4, 0, 7); rc.fill();
+rc.fillStyle = '#fff'; rc.beginPath(); rc.moveTo(100, 132); rc.lineTo(93, 148); rc.lineTo(107, 148); rc.fill();
+rc.fillStyle = '#f0c060'; rc.font = 'bold 14px Segoe UI'; rc.fillText('A', 150, 132);
+
+// ---------- pós-processamento ----------
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const sao = new SAOPass(scene, camera);
+sao.params.saoIntensity = 0.012; sao.params.saoScale = 4; sao.params.saoKernelRadius = 40; sao.params.saoBlurRadius = 6;
+composer.addPass(sao);
+composer.addPass(new OutputPass());
+
+function render() { composer.render(); }
+addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); composer.setSize(innerWidth, innerHeight); render(); });
+renderer.setAnimationLoop(render);
+window.__ready = true;
+</script>
+</body>
+</html>

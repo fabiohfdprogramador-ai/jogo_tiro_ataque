@@ -1,0 +1,21 @@
+{
+  "name": "jogo-de-tiro",
+  "version": "1.0.0",
+  "description": "Jogo de tiro online em primeira pessoa estilo Counter-Strike (navegador + Node.js)",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "node --watch-path=server --watch-path=shared server/index.js",
+    "start": "node server/index.js"
+  },
+  "dependencies": {
+    "three": "0.160.0",
+    "ws": "^8.18.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "@gltf-transform/cli": "^4.5.1"
+  }
+}

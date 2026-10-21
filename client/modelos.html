@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Visualizador de modelos</title>
+<style>html,body{margin:0;height:100%;overflow:hidden;background:#555;font:13px Segoe UI,Arial;color:#fff}canvas{display:block}#info{position:fixed;left:8px;top:8px;background:rgba(0,0,0,.6);padding:6px 10px;white-space:pre}</style>
+<script type="importmap">{ "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }</script>
+</head>
+<body>
+<div id="info"></div>
+<script type="module">
+// Ferramenta de desenvolvimento: mostra um modelo de lado com uma grade em unidades do próprio modelo.
+// Uso: /modelos.html?m=ak47&vista=lado  (vistas: lado, cima, frente, livre)
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const q = new URLSearchParams(location.search);
+const name = q.get('m') || 'ak47', view = q.get('vista') || 'lado';
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(innerWidth, innerHeight); renderer.toneMapping = THREE.ACESFilmicToneMapping;
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.add(new THREE.HemisphereLight(0xffffff, 0x888888, 3.5)); scene.background = new THREE.Color(0x8a8f96);
+const dl = new THREE.DirectionalLight(0xffffff, 2); dl.position.set(3, 5, 4); scene.add(dl);
+const loader = new GLTFLoader(); loader.setMeshoptDecoder(MeshoptDecoder);
+const gltf = await loader.loadAsync(`/models/${name}.glb`);
+const model = gltf.scene; scene.add(model);
+model.updateMatrixWorld(true);
+const box = new THREE.Box3().setFromObject(model);
+const size = box.getSize(new THREE.Vector3()), center = box.getCenter(new THREE.Vector3());
+const maxD = Math.max(size.x, size.y, size.z);
+const aspect = innerWidth / innerHeight, half = q.get('meia') ? +q.get('meia') : maxD * 0.6;
+if (q.get('c')) { const c = q.get('c').split(',').map(Number); center.set(c[0], c[1], c[2]); }
+let camera;
+if (view === 'livre') { camera = new THREE.PerspectiveCamera(45, aspect, maxD / 1000, maxD * 20); camera.position.copy(center).add(new THREE.Vector3(maxD, maxD * 0.6, maxD)); new OrbitControls(camera, renderer.domElement).target.copy(center); }
+else {
+  camera = new THREE.OrthographicCamera(-half * aspect, half * aspect, half, -half, -maxD * 10, maxD * 10);
+  const dir = view === 'cima' ? new THREE.Vector3(0, 1, 0) : view === 'frente' ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(1, 0, 0);
+  camera.position.copy(center).addScaledVector(dir, maxD * 2); camera.up.set(view === 'cima' ? -1 : 0, view === 'cima' ? 0 : 1, 0); camera.lookAt(center);
+}
+// grade com marcações
+const step = q.get('passo') ? +q.get('passo') : Math.pow(10, Math.floor(Math.log10(maxD / 4)));
+const grid = new THREE.Group(); scene.add(grid);
+const mat = new THREE.LineBasicMaterial({ color: 0x99ff99, transparent: true, opacity: 0.35 });
+const labels = [];
+const mk = (a, b) => grid.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([a, b]), mat));
+const plane = view === 'cima' ? ['x', 'z'] : view === 'frente' ? ['x', 'y'] : ['z', 'y'];
+const lo = (k) => Math.floor(box.min[k] / step) * step, hi = (k) => Math.ceil(box.max[k] / step) * step;
+const [A, B] = plane;
+for (let v = lo(A); v <= hi(A) + 1e-9; v += step) { const p = center.clone(), p2 = center.clone(); p[A] = v; p2[A] = v; p[B] = lo(B); p2[B] = hi(B); mk(p, p2); labels.push([A, v, p]); }
+for (let v = lo(B); v <= hi(B) + 1e-9; v += step) { const p = center.clone(), p2 = center.clone(); p[B] = v; p2[B] = v; p[A] = lo(A); p2[A] = hi(A); mk(p, p2); labels.push([B, v, p]); }
+renderer.render(scene, camera);
+// rótulos em HTML
+for (const [axis, v, p] of labels) {
+  const s = p.clone().project(camera);
+  const el = document.createElement('div');
+  el.style.cssText = `position:fixed;left:${(s.x + 1) / 2 * innerWidth}px;top:${(1 - s.y) / 2 * innerHeight}px;font-size:11px;color:#bfffbf;transform:translate(-50%,-110%)`;
+  el.textContent = axis + '=' + +v.toFixed(3); document.body.appendChild(el);
+}
+const names = []; model.traverse(o => { if (o.isMesh) names.push(o.name); });
+document.getElementById('info').textContent = `${name}  vista: ${view}  grade: ${step}\nmin ${box.min.toArray().map(v => v.toFixed(2))}\nmax ${box.max.toArray().map(v => v.toFixed(2))}\nmalhas: ${names.length}`;
+function loop() { renderer.render(scene, camera); requestAnimationFrame(loop); } loop();
+window.__model = model; window.__ready = true;
+</script>
+</body>
+</html>

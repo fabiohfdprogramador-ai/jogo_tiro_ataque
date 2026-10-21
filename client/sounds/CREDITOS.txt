@@ -1,0 +1,4 @@
+Sons de tiro: "The Free Firearm Sound Library" (Prepared SFX Library), licença CC0 (domínio público).
+Fonte: https://opengameart.org/content/the-free-firearm-sound-library
+AK-47 -> ak47, AR-15 -> m4a4, Tikka T3 -> awp, 1911 -> deagle, Walther PPQ -> glock.
+Cortados em tiros individuais e convertidos para 48 kHz / 16-bit.

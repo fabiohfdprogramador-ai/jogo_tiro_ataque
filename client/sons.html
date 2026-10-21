@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Teste de sons</title>
+<style>
+  body { margin: 0; padding: 24px; background: #15171b; color: #eee; font-family: "Segoe UI", Arial, sans-serif; }
+  h1 { margin: 0 0 6px; font-size: 26px; color: #e8c88a; }
+  p { opacity: .75; margin: 0 0 20px; }
+  table { border-collapse: collapse; }
+  td { padding: 8px 10px; border-bottom: 1px solid #2a2d33; }
+  td:first-child { font-weight: 700; width: 130px; }
+  button { font: inherit; cursor: pointer; border-radius: 6px; border: 1px solid #444; background: #22252b; color: #fff; padding: 8px 12px; }
+  button:hover { background: #2c3038; }
+  button.new { border-color: #c8962e; }
+  label { display: block; margin-top: 20px; }
+</style>
+<script type="importmap">{ "imports": { "three": "/vendor/three/build/three.module.js" } }</script>
+</head>
+<body>
+<h1>Teste dos sons de tiro</h1>
+<p>Compare o som <b>antigo</b> com o <b>novo</b>. Use fones de ouvido ou caixas de som para perceber os graves e o eco.</p>
+<table id="t"></table>
+<label>Volume <input id="vol" type="range" min="0" max="1" step="0.05" value="0.7"></label>
+<script type="module">
+import { Sound as Old } from './audio.js';
+import { Sound as New } from './audio2.js';
+import { WEAPONS } from '/shared/weapons.js';
+const oldS = new Old(), newS = new New();
+const L = { x: 0, y: 1.6, z: 0 }, F = { x: 0, y: 0, z: -1 };
+function ready() { oldS.unlock(); newS.unlock(); oldS.setListener(L, F); newS.setListener(L, F); const v = +document.getElementById('vol').value; oldS.setVolume(v); newS.setVolume(v); }
+const names = { ak47: 'AK-47', m4a4: 'M4A4', awp: 'AWP', deagle: 'Desert Eagle', glock: 'Glock-18', usp: 'USP-S (silenciador)' };
+const t = document.getElementById('t');
+for (const key of Object.keys(names)) {
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td>${names[key]}</td>`;
+  const btn = (label, cls, fn) => { const td = document.createElement('td'); const b = document.createElement('button'); b.textContent = label; b.className = cls; b.onclick = () => { ready(); fn(); }; td.appendChild(b); tr.appendChild(td); };
+  btn('Novo · você atirando', 'new', () => newS.shot(key));
+  btn('Novo · inimigo a 25 m', 'new', () => newS.shot(key, [8, 1.6, -24]));
+  if (WEAPONS[key].auto) btn('Novo · rajada', 'new', () => { for (let i = 0; i < 8; i++) setTimeout(() => newS.shot(key), i * 60000 / WEAPONS[key].rpm); });
+  else { const td = document.createElement('td'); tr.appendChild(td); }
+  btn('Antigo', '', () => oldS.shot(key));
+  t.appendChild(tr);
+}
+document.getElementById('vol').oninput = ready;
+</script>
+</body>
+</html>

@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ataque — jogo de tiro online</title>
+<link rel="stylesheet" href="/style.css">
+<script type="importmap">
+{ "imports": {
+  "three": "/vendor/three/build/three.module.js",
+  "three/addons/": "/vendor/three/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div id="game"></div>
+
+<!-- HUD -->
+<div id="hud" class="hidden">
+  <div id="top"><div class="sc ct" id="scCT">0</div><div class="time" id="time">0:00</div><div class="sc t" id="scT">0</div></div>
+  <div id="alive"><span id="aliveCT" class="c"></span><span id="aliveT" class="tt"></span></div>
+  <div id="bombst"></div>
+  <div id="prog" class="panel hidden"><div id="progl"></div><div class="bar"><i id="progb"></i></div></div>
+  <div id="radar"><canvas id="radarc" width="220" height="220"></canvas></div>
+  <div id="feed"></div>
+  <div id="banner"></div>
+  <div id="notice"></div>
+  <div id="pickhint" class="panel hidden"></div>
+  <div id="buyhint" class="panel hidden">Pressione <b>B</b> para comprar</div>
+  <div id="money" class="panel">$ 800</div>
+  <div id="vitals" class="panel"><div><small>✚</small><span id="hp">100</span></div><div><small>⛨</small><span id="armor">0</span></div></div>
+  <div id="weapons" class="panel"></div>
+  <div id="ammo" class="panel"><span id="mag">0</span> <span class="res">/ <span id="res">0</span></span></div>
+  <div id="cross"><i class="a"></i><i class="b"></i><i class="l"></i><i class="r"></i><i class="dot"></i></div>
+  <div id="hitmark"><i></i><i></i><i></i><i></i></div>
+  <div id="dmg"></div>
+  <div id="dmgdir"></div>
+  <div id="death" class="hidden"></div>
+  <div id="chatlog"></div>
+  <input id="chatin" class="hidden" maxlength="120" placeholder="Mensagem (Enter envia, Esc cancela)">
+</div>
+
+<div id="flash"></div>
+<div id="scope" class="hidden"><div class="lens"></div><div class="h"></div><div class="v"></div></div>
+
+<div id="buy" class="hidden">
+  <h2>Comprar <small>(tecle o número · B fecha)</small></h2>
+  <div id="buylist"></div>
+</div>
+
+<div id="board" class="hidden"></div>
+
+<!-- Menus -->
+<div id="menu" class="overlay">
+  <div class="card">
+    <h1>ATAQUE</h1>
+    <p class="sub">Jogo de tiro online · TR vs CT · plante ou desarme a bomba</p>
+    <label>Seu nome<input id="name" maxlength="16" placeholder="Jogador"></label>
+    <label>Mapa <small>(quem entra primeiro escolhe)</small><select id="map"><option value="bairro">Bairro</option><option value="deserto">Deserto</option></select></label>
+    <div class="teams">
+      <button data-team="T" class="team t">Terroristas</button>
+      <button data-team="CT" class="team ct">Contra-Terroristas</button>
+      <button data-team="auto" class="team auto sel">Automático</button>
+    </div>
+    <button id="play" class="primary">Jogar</button>
+    <p id="status" class="status"></p>
+    <details class="credits">
+      <summary>Créditos</summary>
+      <p>Modelos 3D (licença <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank">CC BY 4.0</a>):</p>
+      <ul>
+        <li><a href="https://sketchfab.com/3d-models/ak-47-assault-rifle-46a36e92379341d495fdcd7750a7ebc3" target="_blank">AK-47 (Assault rifle)</a> — quick_loop</li>
+        <li><a href="https://sketchfab.com/3d-models/assault-rifle-m4a1-1b858701dd7142d9b82bbe3fd121a97b" target="_blank">Assault rifle M4A1</a> — bobeer</li>
+        <li><a href="https://sketchfab.com/3d-models/low-poly-l118a1-5e2f001d6e6245bcacf2b1e2de8892f4" target="_blank">Low-Poly L118A1</a> — TastyTony</li>
+        <li><a href="https://sketchfab.com/3d-models/pistol-9mm-custom-7bb44ec1d8e14925aeebbfa8374b87cf" target="_blank">Pistol 9mm Custom</a> — ~D-Try~</li>
+        <li><a href="https://sketchfab.com/3d-models/swat-operator-9e82fabf26194896b5ad4a364d864eab" target="_blank">S.W.A.T. Operator</a> — SpatialNeglect (com peças de ErhanMatur, Bzovius, SrGeneroso, shedmon, Albin, Mayess e bobeer)</li>
+      </ul>
+      <p>Sons de tiro: <a href="https://opengameart.org/content/the-free-firearm-sound-library" target="_blank">The Free Firearm Sound Library</a> (CC0).</p>
+    </details>
+    <div class="help">
+      <b>WASD</b> andar · <b>Shift</b> (segurar) correr · <b>Espaço</b> pular · <b>C</b> agachar/levantar · <b>Ctrl</b> (segurar) agachar<br>
+      <b>Mouse</b> mirar e atirar · <b>Botão direito</b> (segurar) mirar · luneta na AWP · <b>R</b> recarregar<br>
+      <b>1 2 3</b> armas · <b>4</b> AWP · <b>5</b> granadas (5 de novo troca) · roda do mouse / <b>Q</b> trocar · <b>F</b> (segurar) plantar/desarmar<br>
+      <b>E</b> pegar arma do chão · <b>G</b> largar arma · <b>B</b> comprar · <b>Tab</b> placar · <b>Y</b> chat · <b>Esc</b> menu
+    </div>
+  </div>
+</div>
+
+<div id="pause" class="overlay hidden">
+  <div class="card">
+    <h2>Menu</h2>
+    <button id="resume" class="primary">Continuar</button>
+    <div class="teams">
+      <button data-switch="T" class="team t">Ir para TR</button>
+      <button data-switch="CT" class="team ct">Ir para CT</button>
+    </div>
+    <label>Sensibilidade do mouse <span id="sensv"></span><input id="sens" type="range" min="0.2" max="4" step="0.05"></label>
+    <label>Volume <span id="volv"></span><input id="vol" type="range" min="0" max="1" step="0.05"></label>
+    <label class="row"><input id="quality" type="checkbox"> Gráficos altos (sombras suaves, oclusão de ambiente e brilho)</label>
+    <div class="help">Clique em <b>Continuar</b> para voltar ao jogo.</div>
+  </div>
+</div>
+
+<script>
+  // Mostra qualquer erro de carregamento no menu (em vez de o botão "Jogar" ficar sem resposta).
+  function showFatal(msg) {
+    var s = document.getElementById('status');
+    if (s && !s.textContent) s.innerHTML = msg;   // não apaga uma mensagem mais específica
+  }
+  window.addEventListener('error', function (e) {
+    showFatal('Erro ao carregar o jogo: <b>' + (e.message || e.filename || 'desconhecido') + '</b><br>Envie um print desta mensagem.');
+  });
+  window.addEventListener('unhandledrejection', function (e) {
+    var m = e.reason && (e.reason.message || String(e.reason));
+    if (m && m.indexOf('pointer lock') === -1) showFatal('Erro: <b>' + m + '</b>');
+  });
+  if (window.HTMLScriptElement && HTMLScriptElement.supports && !HTMLScriptElement.supports('importmap')) {
+    showFatal('Seu navegador está desatualizado. Atualize o Chrome e tente de novo.');
+  }
+  setTimeout(function () {
+    if (!window.__game && !document.getElementById('status').textContent) {
+      showFatal('O jogo não terminou de carregar. Aperte F12, abra a aba "Console" e envie um print.');
+    }
+  }, 8000);
+</script>
+<script type="module" src="/main.js"></script>
+</body>
+</html>

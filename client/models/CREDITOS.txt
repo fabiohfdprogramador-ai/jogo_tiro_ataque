@@ -1,0 +1,13 @@
+Modelos 3D usados no jogo (licença Creative Commons Attribution 4.0 — https://creativecommons.org/licenses/by/4.0/)
+Os arquivos foram otimizados (texturas reduzidas e comprimidas) e encaixados no jogo; o desenho original é dos autores abaixo.
+
+- "AK-47 (Assault rifle)" por quick_loop (so_O) — https://sketchfab.com/3d-models/ak-47-assault-rifle-46a36e92379341d495fdcd7750a7ebc3
+- "Assault rifle M4A1" por bobeer — https://sketchfab.com/3d-models/assault-rifle-m4a1-1b858701dd7142d9b82bbe3fd121a97b
+- "Low-Poly L118A1" por TastyTony — https://sketchfab.com/3d-models/low-poly-l118a1-5e2f001d6e6245bcacf2b1e2de8892f4
+- "Pistol 9mm Custom" por ~D-Try~ (DTry) — https://sketchfab.com/3d-models/pistol-9mm-custom-7bb44ec1d8e14925aeebbfa8374b87cf
+- "S.W.A.T. Operator" por SpatialNeglect (jeandiz) — https://sketchfab.com/3d-models/swat-operator-9e82fabf26194896b5ad4a364d864eab
+  (o autor credita peças de ErhanMatur, Bzovius, SrGeneroso, shedmon, Albin, Mayess e a carabina M4 de bobeer)
+
+Baixados mas não usados no momento:
+- "First Person hands rigged" por davidfischer
+- "Insurgent. Low poly Game ready" por badbih337 (o arquivo veio com as partes em escalas erradas)

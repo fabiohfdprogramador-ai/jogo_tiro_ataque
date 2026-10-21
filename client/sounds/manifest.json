@@ -1,0 +1,25 @@
+{
+  "ak47": [
+    "ak47_1.wav",
+    "ak47_2.wav",
+    "ak47_3.wav",
+    "ak47_4.wav"
+  ],
+  "m4a4": [
+    "m4a4_1.wav",
+    "m4a4_2.wav"
+  ],
+  "awp": [
+    "awp_1.wav",
+    "awp_2.wav"
+  ],
+  "deagle": [
+    "deagle_1.wav",
+    "deagle_2.wav"
+  ],
+  "glock": [
+    "glock_1.wav",
+    "glock_2.wav",
+    "glock_3.wav"
+  ]
+}

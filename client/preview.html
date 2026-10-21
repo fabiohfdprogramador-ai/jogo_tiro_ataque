@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Prévia — bonecos realistas</title>
+<style>html,body{margin:0;height:100%;overflow:hidden;background:#000}canvas{display:block}</style>
+<script type="importmap">
+{ "imports": {
+  "three": "/vendor/three/build/three.module.js",
+  "three/addons/": "/vendor/three/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<script type="module">
+import * as THREE from 'three';
+import { buildWorld } from './world.js';
+import { Soldier } from './soldier.js';
+import { ViewModel } from './viewmodel.js';
+import { createComposer } from './post.js';
+import { loadGunModels } from './gunmodels.js';
+import { loadCharacterModels, ModelSoldier, characterReady } from './characters.js';
+await Promise.all([loadGunModels(), loadCharacterModels()]);
+
+const shot = new URLSearchParams(location.search).get('shot') || '1';
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.62;
+renderer.autoClear = false;
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(shot === '2' ? 72 : 50, innerWidth / innerHeight, 0.03, 500);
+camera.rotation.order = 'YXZ';
+const { sunLight, envMap } = buildWorld(renderer, scene);
+const post = createComposer(renderer, scene, camera);
+
+const soldiers = [];
+function put(team, gun, x, z, yaw, opts = {}) {
+  const only = new URLSearchParams(location.search).get('so'); if (only && only !== team) return null;
+  const s = characterReady(team) && new URLSearchParams(location.search).get('antigo') !== '1' ? new ModelSoldier(team, gun) : new Soldier(team, gun);
+  s.root.position.set(x, 0, z); s.root.rotation.y = yaw;
+  s.update(0.016, { speed: opts.speed || 0, crouch: opts.crouch || 0, pitch: opts.pitch || 0, phase: opts.phase });
+  for (let i = 0; i < 30; i++) s.update(0.016, { speed: opts.speed || 0, crouch: opts.crouch || 0, pitch: opts.pitch || 0, phase: opts.phase });
+  scene.add(s.root); soldiers.push(s); window.__soldiers = soldiers; return s;
+}
+
+let vm = null;
+if (shot === '1') {
+  // vitrine: TR e CT no bombsite A
+  put('T', 'ak47', -27.3, -33.4, Math.PI - 0.25, { pitch: 0.02 });
+  put('CT', 'm4a4', -25.0, -33.6, Math.PI + 0.3, { pitch: -0.05 });
+  put('T', 'awp', -29.6, -35.6, Math.PI - 0.15, { crouch: 1, pitch: 0.0 });
+  put('CT', 'deagle', -22.8, -35.4, Math.PI + 0.5, { speed: 4.5, phase: 1.2 });
+  camera.position.set(-26.0, 1.45, -30.2);
+  camera.lookAt(-26.0, 1.0, -34.5);
+} else {
+  // visão do jogador: inimigos no corredor do Long A
+  put('CT', 'm4a4', -33.5, -6.0, Math.PI - 0.05, { pitch: 0.0 });
+  put('CT', 'awp', -37.0, -12.0, Math.PI - 0.25, { crouch: 1 });
+  put('CT', 'usp', -29.6, -9.0, Math.PI + 0.4, { speed: 4.5, phase: 2.0 });
+  camera.position.set(-32.5, 1.64, 5);
+  camera.rotation.set(-0.02, 0.06, 0);
+  vm = new ViewModel(); vm.setEnvironment(envMap, sunLight.position); vm.setTeam(new URLSearchParams(location.search).get('time') || 'T'); vm.setWeapon(new URLSearchParams(location.search).get('arma') || 'ak47', true);
+}
+
+function frame() {
+  if (vm) vm.update(0.016, { speed: 0, onGround: true, vy: 0, crouch: false, lookDX: 0, lookDY: 0, visible: true, ads: new URLSearchParams(location.search).get('mirar') === '1' });
+  window.__vm = vm;
+  renderer.clear();
+  if (new URLSearchParams(location.search).get('post') === '0') renderer.render(scene, camera); else post.render();
+  if (vm) { renderer.clearDepth(); vm.render(renderer, camera); }
+  requestAnimationFrame(frame);
+}
+frame();
+window.__ready = true;
+</script>
+</body>
+</html>
