@@ -21,7 +21,7 @@ const CFG = {
 };
 
 // ---------------------------------------------------------------- HTTP
-const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.ogg': 'audio/ogg', '.wav': 'audio/wav', '.mp3': 'audio/mpeg', '.glb': 'model/gltf-binary', '.webp': 'image/webp' };
+const MIME = { '.hdr': 'application/octet-stream', '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.ogg': 'audio/ogg', '.wav': 'audio/wav', '.mp3': 'audio/mpeg', '.glb': 'model/gltf-binary', '.webp': 'image/webp' };
 const ROUTES = [
   ['/vendor/three/', path.join(ROOT, 'node_modules', 'three')],
   ['/shared/', path.join(ROOT, 'shared')],
@@ -37,7 +37,9 @@ const server = http.createServer((req, res) => {
     if (!file.startsWith(base)) break;
     fs.readFile(file, (err, data) => {
       if (err) { res.writeHead(404); res.end('Não encontrado'); return; }
-      res.writeHead(200, { 'Content-Type': MIME[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-cache' });
+      // texturas e céu são pesados e não mudam: o navegador guarda por um dia
+      const cache = urlPath.startsWith('/tex/') ? 'public, max-age=86400' : 'no-cache';
+      res.writeHead(200, { 'Content-Type': MIME[path.extname(file)] || 'application/octet-stream', 'Cache-Control': cache });
       res.end(data);
     });
     return;

@@ -1,6 +1,7 @@
 // Monta o mapa 3D (céu, luz, texturas, paredes, caixas, decoração) a partir de shared/map.js.
 import * as THREE from 'three';
 import { Sky } from 'three/addons/objects/Sky.js';
+import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { MAP, useMap } from '/shared/map.js';
 import { buildBairro } from './world_bairro.js';
 
@@ -107,6 +108,26 @@ export function buildWorld(renderer, scene) {
   const envMap = pmrem.fromScene(envScene).texture;
   scene.environment = envMap;
 
+  // céu fotográfico com nuvens (Poly Haven, CC0): JPG grande no fundo e HDR pequeno para iluminar e refletir.
+  // Só o Bairro usa; enquanto carrega (ou se falhar) fica o céu calculado.
+  let photoSky = null, photoEnv = null;
+  new THREE.TextureLoader().load('tex/sky_4k.jpg', (t) => {
+    t.mapping = THREE.EquirectangularReflectionMapping; t.colorSpace = THREE.SRGBColorSpace; photoSky = t;
+    applySky();
+  });
+  new RGBELoader().load('tex/sky_1k.hdr', (t) => {
+    t.mapping = THREE.EquirectangularReflectionMapping; photoEnv = pmrem.fromEquirectangular(t).texture; t.dispose();
+    applySky();
+  });
+  function applySky() {
+    const photo = current === 'bairro';
+    sky.visible = !(photo && photoSky);
+    scene.background = photo && photoSky ? photoSky : null;
+    scene.backgroundIntensity = 1.5;
+    scene.environment = photo && photoEnv ? photoEnv : envMap;
+    scene.environmentIntensity = photo && photoEnv ? 2.4 : 1;   // o céu fotográfico ilumina menos que o calculado
+  }
+
   const sunLight = new THREE.DirectionalLight(0xfff0d6, 4.2);
   sunLight.position.copy(sun).multiplyScalar(80);
   sunLight.castShadow = true;
@@ -114,7 +135,8 @@ export function buildWorld(renderer, scene) {
   const sc = sunLight.shadow.camera; sc.left = -62; sc.right = 62; sc.top = 62; sc.bottom = -62; sc.near = 1; sc.far = 220;
   sunLight.shadow.bias = -0.0004; sunLight.shadow.normalBias = 0.04;
   scene.add(sunLight);
-  scene.add(new THREE.HemisphereLight(0xd8e4f5, 0xd0a868, 0.75));
+  const hemi = new THREE.HemisphereLight(0xd8e4f5, 0xd0a868, 0.75);
+  scene.add(hemi);
 
   // geometria do mapa fica num grupo próprio (para trocar de mapa sem recarregar a página)
   let group = null, current = null;
@@ -124,8 +146,16 @@ export function buildWorld(renderer, scene) {
     useMap(id);
     if (group) { scene.remove(group); group.traverse(o => { if (o.geometry) o.geometry.dispose(); }); }
     group = new THREE.Group(); scene.add(group);
-    if (MAP.id === 'bairro') { scene.fog.color.set(0xdfe6ee); buildBairro(group, MAP, sunLight); }
-    else { scene.fog.color.set(0xe8d8b8); const sc = sunLight.shadow.camera; sc.left = -62; sc.right = 62; sc.top = 62; sc.bottom = -62; sc.updateProjectionMatrix(); buildDeserto(group); }
+    if (MAP.id === 'bairro') {   // sol tropical forte e quente, névoa azulada só bem longe (como nas fotos do Far Cry)
+      scene.fog.color.set(0xc8d6e4); scene.fog.near = 70; scene.fog.far = 260;
+      sunLight.color.set(0xffeed6); sunLight.intensity = 4.3; hemi.intensity = 1.5;   // luz do céu forte: sombra clara, como no dia tropical
+      buildBairro(group, MAP, sunLight);
+    } else {
+      scene.fog.color.set(0xe8d8b8); scene.fog.near = 50; scene.fog.far = 170;
+      sunLight.color.set(0xfff0d6); sunLight.intensity = 4.2; hemi.intensity = 0.75;
+      const sc = sunLight.shadow.camera; sc.left = -62; sc.right = 62; sc.top = 62; sc.bottom = -62; sc.updateProjectionMatrix(); buildDeserto(group);
+    }
+    applySky();
   }
   setMap('deserto');
   return { sunLight, envMap, setMap };

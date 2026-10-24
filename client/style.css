@@ -116,3 +116,8 @@ button:hover { background: #2c3038; }
 #flash { position: fixed; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
 .card select { font-size: 15px; padding: 8px 10px; border-radius: 6px; border: 1px solid #444; background: #0d0f12; color: #fff; }
 .card label small { opacity: .6; }
+/* menu de opções: rola se não couber na tela, opções em duas colunas */
+#pause .card { max-height: calc(100vh - 32px); overflow-y: auto; }
+.card h3 { margin: 6px 0 -4px; font-size: 13px; letter-spacing: 1px; text-transform: uppercase; opacity: .6; }
+.opts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 18px; }
+@media (max-width: 520px) { .opts { grid-template-columns: 1fr; } }

@@ -16,8 +16,10 @@ const $ = (id) => document.getElementById(id);
 function lockPointer() { try { const p = renderer.domElement.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch { /* sem pointer lock */ } }
 
 // ---------------------------------------------------------------- configurações
+const SOUND_GROUPS = ['tiros', 'passos', 'ambiente', 'avisos'];
+const IMAGE_SOUND_DEFAULTS = { bright: 1, contrast: 1, satur: 1, ...Object.fromEntries(SOUND_GROUPS.map(k => ['vol_' + k, 1])) };
 function loadSettings() {
-  const def = { sens: 1.2, vol: 0.6, quality: true, name: '', map: 'bairro' };
+  const def = { sens: 1.2, vol: 0.6, quality: true, name: '', map: 'bairro', ...IMAGE_SOUND_DEFAULTS };
   try { return { ...def, ...JSON.parse(localStorage.getItem('deserto.settings') || '{}') }; } catch { return def; }
 }
 const settings = loadSettings();
@@ -52,7 +54,7 @@ const { sunLight, envMap, setMap } = buildWorld(renderer, scene);
 let mapId = 'deserto';
 function changeMap(id) {
   if (!MAPS[id] || id === mapId) return;
-  mapId = id; setMap(id); fx.clearDecals();
+  mapId = id; setMap(id); fx.clearDecals(); applyImage();
   const sp = MAP.spawns.CT[0];            // câmera do menu passeia pelo mapa escolhido
   if (!playing) { camera.position.set(sp[0], 2.2, sp[1]); camera.rotation.set(-0.05, 0.1, 0); }
 }
@@ -454,6 +456,25 @@ $('vol').value = settings.vol; $('volv').textContent = Math.round(settings.vol *
 $('vol').addEventListener('input', () => { settings.vol = +$('vol').value; sound.setVolume(settings.vol); $('volv').textContent = Math.round(settings.vol * 100) + '%'; saveSettings(); });
 $('quality').checked = settings.quality;
 $('quality').addEventListener('change', () => { settings.quality = $('quality').checked; saveSettings(); applyQuality(); });
+// imagem: brilho mexe na exposição da câmera; contraste e saturação são filtro só no desenho 3D (o HUD não muda)
+function applyImage() {
+  // o Bairro usa céu fotográfico (ilumina menos que o céu calculado do Deserto): exposição base maior
+  renderer.toneMappingExposure = (mapId === 'bairro' ? 0.8 : 0.62) * settings.bright;
+  const filter = [settings.contrast !== 1 && `contrast(${settings.contrast})`, settings.satur !== 1 && `saturate(${settings.satur})`].filter(Boolean).join(' ');
+  renderer.domElement.style.filter = filter;
+}
+const pct = (v) => Math.round(v * 100) + '%';
+const optSliders = [
+  ['bright', applyImage], ['contrast', applyImage], ['satur', applyImage],
+  ...SOUND_GROUPS.map(k => ['vol_' + k, () => sound.setCategoryVolume(k, settings['vol_' + k])]),
+];
+const showOpts = () => {
+  for (const [id, apply] of optSliders) { $(id).value = settings[id]; $(id + 'v').textContent = pct(settings[id]); apply(); }
+  $('vol').value = settings.vol; $('volv').textContent = pct(settings.vol); sound.setVolume(settings.vol);
+};
+for (const [id, apply] of optSliders) $(id).addEventListener('input', () => { settings[id] = +$(id).value; $(id + 'v').textContent = pct(settings[id]); apply(); saveSettings(); });
+$('resetopts').addEventListener('click', () => { Object.assign(settings, IMAGE_SOUND_DEFAULTS, { vol: 0.6 }); saveSettings(); showOpts(); });
+showOpts();
 
 document.addEventListener('pointerlockchange', () => {
   locked = document.pointerLockElement === renderer.domElement;

@@ -12,7 +12,29 @@ const GUN = {
   usp:    { suppressed: true, vol: 0.55, mech: 'pistol' },
 };
 
+// cada som cai num grupo com volume próprio (menu de opções)
+const CATEGORY = {
+  shot: 'tiros', boom: 'tiros', flashPop: 'tiros', bounce: 'tiros', hiss: 'tiros', throwNade: 'tiros', hurt: 'tiros', reload: 'tiros', draw: 'tiros',
+  step: 'passos', land: 'passos', ambient: 'ambiente',
+  beep: 'avisos', buy: 'avisos', click: 'avisos', defused: 'avisos', planted: 'avisos', ring: 'avisos', roundEnd: 'avisos', roundStart: 'avisos', hit: 'avisos',
+};
+
 export class Sound extends SoundV1 {
+  constructor() {
+    super();
+    this.catVol = { tiros: 1, passos: 1, ambiente: 1, avisos: 1 };
+    // durante a chamada, "master" aponta para o ganho do grupo; tudo que o som liga nele passa pelo volume do grupo
+    for (const [name, cat] of Object.entries(CATEGORY)) {
+      const fn = this[name];
+      this[name] = (...args) => {
+        if (!this.bus) return fn.apply(this, args);
+        const keep = this.master; this.master = this.bus[cat];
+        try { return fn.apply(this, args); } finally { this.master = keep; }
+      };
+    }
+  }
+  setVolume(v) { this.volume = v; const out = this.mainOut || this.master; if (out) out.gain.value = v; }
+  setCategoryVolume(cat, v) { this.catVol[cat] = v; if (this.bus) this.bus[cat].gain.value = v; }
   unlock() {
     const first = !this.ctx;
     super.unlock();
@@ -22,10 +44,14 @@ export class Sound extends SoundV1 {
     this.comp = ctx.createDynamicsCompressor();
     this.comp.threshold.value = -14; this.comp.knee.value = 8; this.comp.ratio.value = 6; this.comp.attack.value = 0.002; this.comp.release.value = 0.15;
     this.master.disconnect(); this.master.connect(this.comp); this.comp.connect(ctx.destination);
-    // eco do ambiente (paredes de pedra ao ar livre)
+    // grupos de volume (tiros, passos, ambiente, avisos) antes do volume geral
+    this.mainOut = this.master;
+    this.bus = {};
+    for (const [cat, v] of Object.entries(this.catVol)) { const g = ctx.createGain(); g.gain.value = v; g.connect(this.mainOut); this.bus[cat] = g; }
+    // eco do ambiente (paredes de pedra ao ar livre); quase só tiros e explosões usam, então segue o volume deles
     this.reverb = ctx.createConvolver(); this.reverb.buffer = this.makeImpulse(2.2);
     this.reverbGain = ctx.createGain(); this.reverbGain.gain.value = 0.5;
-    this.reverb.connect(this.reverbGain); this.reverbGain.connect(this.master);
+    this.reverb.connect(this.reverbGain); this.reverbGain.connect(this.bus.tiros);
     // distorção suave para dar "soco"
     this.shapers = {};
     this.loadSamples();

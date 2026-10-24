@@ -1,10 +1,32 @@
-// Mapa "Bairro" em 3D: ruas de bloquete, calçadas com meio-fio, casas coloridas (reboco e tijolo),
-// campo com alambrado, bar e restaurante, praça com parquinho, igreja azul, terreno baldio e postes com fios.
-// Tudo gerado por código (texturas em canvas). As colisões vêm de shared/map.js.
+// Mapa "Bairro" em 3D: ruas de bloquete, calçadas com meio-fio, casas, campo, praça, igrejas, Arena e mato.
+// A geometria é gerada por código; os materiais principais usam texturas fotográficas CC0 (client/tex, do
+// Poly Haven) com cor, relevo (normal) e brilho/oclusão (arm). As colisões vêm de shared/map.js.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 function rand(seed) { let s = seed; return () => (s = (s * 16807) % 2147483647) / 2147483647; }
+
+// textura fotográfica: <nome>_diff (cor), _nor (relevo) e _arm (oclusão, aspereza, metal nos canais R, G, B).
+// repeat = repetições por unidade de UV (as UVs do mapa estão em metros divididos pelo "tile" de cada chamada)
+const texLoader = new THREE.TextureLoader();
+const texCache = new Map();
+function photoTex(file, repeat, srgb) {
+  const key = file + repeat;
+  if (!texCache.has(key)) {
+    const t = texLoader.load('tex/' + file);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(repeat, repeat); t.anisotropy = 8;
+    if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+    texCache.set(key, t);
+  }
+  return texCache.get(key);
+}
+function pbr(name, repeat, extra = {}, { metal = false, normal = 1 } = {}) {
+  const arm = photoTex(name + '_arm.jpg', repeat, false);
+  return new THREE.MeshStandardMaterial({
+    map: photoTex(name + '_diff.jpg', repeat, true), normalMap: photoTex(name + '_nor.jpg', repeat, false), normalScale: new THREE.Vector2(normal, normal),
+    roughnessMap: arm, roughness: 1, aoMap: arm, aoMapIntensity: 0.4, metalnessMap: metal ? arm : null, metalness: metal ? 1 : 0, ...extra,
+  });
+}
 function canvasTex(size, draw, repeat = 1, srgb = true) {
   const c = document.createElement('canvas'); c.width = c.height = size;
   draw(c.getContext('2d'), size);
@@ -19,66 +41,6 @@ function speckle(g, s, r, n, colors, a) {
   g.globalAlpha = 1;
 }
 
-// bloquete de concreto (20 x 10 cm, desencontrado) — 1 textura = 1 m
-const paverTex = () => canvasTex(512, (g, s) => {
-  const r = rand(5), bw = s / 5, bh = s / 10;
-  g.fillStyle = '#4a4744'; g.fillRect(0, 0, s, s);
-  for (let row = 0; row < 10; row++) for (let col = -1; col < 6; col++) {
-    const x = col * bw + (row % 2 ? bw / 2 : 0), y = row * bh;
-    const v = 140 + ((r() - 0.5) * 30) | 0;
-    g.fillStyle = `rgb(${v},${v - 3},${v - 8})`; g.fillRect(x + 2, y + 2, bw - 4, bh - 4);
-    g.fillStyle = 'rgba(255,255,255,.08)'; g.fillRect(x + 2, y + 2, bw - 4, 2);
-  }
-  speckle(g, s, r, 9000, ['#5c5853', '#b9b4ad', '#7a756f'], 0.35);
-});
-const concreteTex = () => canvasTex(512, (g, s) => {
-  const r = rand(31);
-  g.fillStyle = '#b3b0aa'; g.fillRect(0, 0, s, s);
-  for (let i = 0; i < 60; i++) { const x = r() * s, y = r() * s, rad = 20 + r() * 90; const gr = g.createRadialGradient(x, y, 0, x, y, rad); gr.addColorStop(0, r() < 0.5 ? 'rgba(120,115,105,.25)' : 'rgba(210,205,198,.25)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(x - rad, y - rad, rad * 2, rad * 2); }
-  g.strokeStyle = 'rgba(70,65,60,.55)'; g.lineWidth = 3; g.strokeRect(0, 0, s, s);
-  speckle(g, s, r, 12000, ['#8a857e', '#d6d2cb'], 0.35);
-});
-const plasterTex = () => canvasTex(512, (g, s) => {   // reboco claro (a cor vem dos vértices)
-  const r = rand(11);
-  g.fillStyle = '#e8e6e2'; g.fillRect(0, 0, s, s);
-  for (let i = 0; i < 90; i++) { const x = r() * s, y = r() * s, rad = 15 + r() * 80; const gr = g.createRadialGradient(x, y, 0, x, y, rad); gr.addColorStop(0, r() < 0.6 ? 'rgba(150,140,125,.22)' : 'rgba(255,255,255,.2)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(x - rad, y - rad, rad * 2, rad * 2); }
-  g.strokeStyle = 'rgba(90,80,65,.35)'; g.lineWidth = 1.2;   // rachaduras finas
-  for (let i = 0; i < 8; i++) { let x = r() * s, y = r() * s; g.beginPath(); g.moveTo(x, y); for (let k = 0; k < 6; k++) { x += (r() - 0.5) * 30; y += r() * 25; g.lineTo(x, y); } g.stroke(); }
-  // escorrido de sujeira embaixo
-  const gr = g.createLinearGradient(0, s * 0.75, 0, s); gr.addColorStop(0, 'rgba(90,80,60,0)'); gr.addColorStop(1, 'rgba(90,80,60,.25)'); g.fillStyle = gr; g.fillRect(0, s * 0.75, s, s * 0.25);
-  speckle(g, s, r, 14000, ['#9a9080', '#ffffff'], 0.3);
-});
-const brickTex = () => canvasTex(512, (g, s) => {
-  const r = rand(9), bw = s / 4, bh = s / 12;
-  g.fillStyle = '#a8a094'; g.fillRect(0, 0, s, s);
-  for (let row = 0; row < 12; row++) for (let col = -1; col < 5; col++) {
-    const x = col * bw + (row % 2 ? bw / 2 : 0), y = row * bh;
-    g.fillStyle = `rgb(${150 + r() * 40 | 0},${70 + r() * 22 | 0},${48 + r() * 15 | 0})`; g.fillRect(x + 3, y + 3, bw - 6, bh - 6);
-  }
-  speckle(g, s, r, 9000, ['#5a2a1a', '#d89a7a'], 0.3);
-});
-const grassTex = () => canvasTex(512, (g, s) => {
-  const r = rand(53);
-  g.fillStyle = '#5d7a32'; g.fillRect(0, 0, s, s);
-  for (let i = 0; i < 70; i++) { const x = r() * s, y = r() * s, rad = 20 + r() * 80; const gr = g.createRadialGradient(x, y, 0, x, y, rad); gr.addColorStop(0, ['rgba(120,140,60,.35)', 'rgba(70,95,35,.35)', 'rgba(140,120,70,.3)'][(r() * 3) | 0]); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(x - rad, y - rad, rad * 2, rad * 2); }
-  g.lineWidth = 1;
-  for (let i = 0; i < 9000; i++) { const x = r() * s, y = r() * s; g.strokeStyle = r() < 0.5 ? 'rgba(40,60,20,.5)' : 'rgba(150,175,80,.45)'; g.beginPath(); g.moveTo(x, y); g.lineTo(x + (r() - 0.5) * 3, y - 3 - r() * 5); g.stroke(); }
-}, 1);
-const dirtTex = () => canvasTex(256, (g, s) => {
-  const r = rand(61); g.fillStyle = '#8a7356'; g.fillRect(0, 0, s, s);
-  speckle(g, s, r, 8000, ['#6a5638', '#a88e6a', '#5a4a30'], 0.5);
-});
-const roofTex = () => canvasTex(256, (g, s) => {   // telha de barro
-  const r = rand(71);
-  for (let row = 0; row < 8; row++) for (let col = 0; col < 8; col++) {
-    const x = col * s / 8 + (row % 2 ? s / 16 : 0), y = row * s / 8;
-    const gr = g.createLinearGradient(x, y, x, y + s / 8);
-    const c = 150 + r() * 30 | 0;
-    gr.addColorStop(0, `rgb(${c},${c * 0.45 | 0},${c * 0.3 | 0})`); gr.addColorStop(1, `rgb(${c * 0.7 | 0},${c * 0.3 | 0},${c * 0.2 | 0})`);
-    g.fillStyle = gr; g.fillRect(x, y, s / 8 - 1, s / 8 - 1);
-  }
-  speckle(g, s, r, 3000, ['#3a2010', '#d8a080'], 0.3);
-});
 const chainTex = () => {
   const t = canvasTex(128, (g, s) => {
     g.clearRect(0, 0, s, s); g.strokeStyle = 'rgba(70,74,72,1)'; g.lineWidth = 2;
@@ -86,10 +48,6 @@ const chainTex = () => {
   });
   return t;
 };
-const rollupTex = () => canvasTex(256, (g, s) => {
-  for (let y = 0; y < s; y += 10) { const gr = g.createLinearGradient(0, y, 0, y + 10); gr.addColorStop(0, '#9a9da2'); gr.addColorStop(0.5, '#c8cbd0'); gr.addColorStop(1, '#7a7d82'); g.fillStyle = gr; g.fillRect(0, y, s, 10); }
-  speckle(g, s, rand(3), 3000, ['#6a6050', '#e0e0e0'], 0.3);
-});
 const frondTex = () => canvasTex(128, (g, s) => {   // folha de coqueiro
   g.clearRect(0, 0, s, s); const r = rand(3);
   g.strokeStyle = '#7a7038'; g.lineWidth = 3; g.beginPath(); g.moveTo(s / 2, 0); g.lineTo(s / 2, s); g.stroke();
@@ -119,34 +77,6 @@ function canvasTexWH(w, h, draw) {   // textura retangular, sem repetir (letreir
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
   return t;
 }
-// reboco branco velho dos muros e casas dos fundos: chapisco, escorridos escuros e mofo embaixo (fotos 3 a 8)
-const grimeTex = () => canvasTex(512, (g, s) => {
-  const r = rand(23);
-  g.fillStyle = '#ecebe6'; g.fillRect(0, 0, s, s);
-  speckle(g, s, r, 26000, ['#b9b6ad', '#ffffff', '#a19d93'], 0.5);
-  for (let i = 0; i < 26; i++) {   // escorridos que descem do alto
-    const x = r() * s, w = 4 + r() * 22, len = s * (0.15 + r() * 0.5);
-    const gr = g.createLinearGradient(0, 0, 0, len); gr.addColorStop(0, 'rgba(70,72,66,.28)'); gr.addColorStop(1, 'rgba(70,72,66,0)');
-    g.fillStyle = gr; g.fillRect(x, 0, w, len);
-  }
-  for (let i = 0; i < 22; i++) {   // mofo esverdeado perto do chão
-    const x = r() * s, y = s * (0.85 + r() * 0.2), rad = 20 + r() * 60;
-    const gr = g.createRadialGradient(x, y, 0, x, y, rad); gr.addColorStop(0, 'rgba(70,78,58,.2)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
-    g.fillStyle = gr; g.fillRect(x - rad, y - rad, rad * 2, rad * 2);
-  }
-  g.strokeStyle = 'rgba(90,85,75,.4)'; g.lineWidth = 1;
-  for (let i = 0; i < 6; i++) { let x = r() * s, y = r() * s; g.beginPath(); g.moveTo(x, y); for (let k = 0; k < 7; k++) { x += (r() - 0.5) * 26; y += r() * 22; g.lineTo(x, y); } g.stroke(); }
-});
-const churchTex = () => {   // reboco liso da igreja (a cor azul vem do material); UV em metros
-  const t = canvasTex(512, (g, s) => {
-    const r = rand(41);
-    g.fillStyle = '#f4f4f2'; g.fillRect(0, 0, s, s);
-    for (let i = 0; i < 70; i++) { const x = r() * s, y = r() * s, rad = 20 + r() * 90; const gr = g.createRadialGradient(x, y, 0, x, y, rad); gr.addColorStop(0, r() < 0.6 ? 'rgba(120,130,140,.12)' : 'rgba(255,255,255,.2)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(x - rad, y - rad, rad * 2, rad * 2); }
-    speckle(g, s, r, 9000, ['#c8ccd2', '#ffffff'], 0.25);
-  });
-  t.repeat.set(0.4, 0.4);
-  return t;
-};
 const stoneTex = () => canvasTex(256, (g, s) => {   // embasamento de pedra do anexo
   const r = rand(77);
   g.fillStyle = '#6d6a64'; g.fillRect(0, 0, s, s);
@@ -187,15 +117,6 @@ function signBoard(txt, bg, fg, sub) {
   });
   return new THREE.MeshStandardMaterial({ map: t, transparent: bg.includes('rgba(0,0,0,0)'), alphaTest: 0.3, roughness: 0.6 });
 }
-const blueTileTex = () => canvasTex(128, (g, s) => {   // azulejo azul do barrado (20 cm)
-  const n = 5;
-  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) { g.fillStyle = (i + j) % 2 ? '#1d3f8a' : '#24499a'; g.fillRect(i * s / n, j * s / n, s / n, s / n); }
-  g.strokeStyle = 'rgba(230,230,230,.8)'; g.lineWidth = 2; for (let i = 0; i <= n; i++) { g.beginPath(); g.moveTo(i * s / n, 0); g.lineTo(i * s / n, s); g.stroke(); g.beginPath(); g.moveTo(0, i * s / n); g.lineTo(s, i * s / n); g.stroke(); }
-});
-const zincTex = () => canvasTex(128, (g, s) => {   // telha ondulada de fibrocimento
-  for (let x = 0; x < s; x++) { const v = 150 + Math.sin(x / s * Math.PI * 2 * 6) * 40 | 0; g.fillStyle = `rgb(${v},${v + 2},${v})`; g.fillRect(x, 0, 1, s); }
-  speckle(g, s, rand(4), 1500, ['#5a5a52', '#d0d0c8'], 0.3);
-});
 const woodFenceTex = () => canvasTex(256, (g, s) => {   // ripas de madeira escurecida com frestas
   g.clearRect(0, 0, s, s); const r = rand(12);
   for (let x = 0; x < s; x += 21) { const c = 70 + r() * 40 | 0; g.fillStyle = `rgb(${c},${c * 0.82 | 0},${c * 0.62 | 0})`; g.fillRect(x, 0, 17, s); g.fillStyle = 'rgba(0,0,0,.25)'; g.fillRect(x + 15, 0, 2, s); }
@@ -278,29 +199,37 @@ const pedimentTex = () => canvasTexWH(1024, 320, (g, w, h) => {
 const HOUSE_COLORS = [0xf2ede0, 0xeceae6, 0xd2e6cc, 0xf5cdb8, 0xcde0f2, 0xf7e08a, 0xdccbe8, 0xf7b896, 0xbcd9c0, 0xe58a80, 0xf2f0c0];
 
 export function buildBairro(group, MAP, sunLight) {
-  const T = {
-    paver: paverTex(), concrete: concreteTex(), plaster: plasterTex(), brick: brickTex(), grass: grassTex(), dirt: dirtTex(),
-    roof: roofTex(), chain: chainTex(), rollup: rollupTex(), frond: frondTex(), foliage: foliageTex(),
-  };
+  const T = { chain: chainTex(), frond: frondTex(), foliage: foliageTex() };
   const M = {
-    paver: new THREE.MeshStandardMaterial({ map: T.paver, roughness: 0.9 }),
-    concrete: new THREE.MeshStandardMaterial({ map: T.concrete, roughness: 0.92 }),
-    curb: new THREE.MeshStandardMaterial({ color: 0xd8d5ce, roughness: 0.9 }),
-    plaster: new THREE.MeshStandardMaterial({ map: T.plaster, vertexColors: true, roughness: 0.95 }),
-    brick: new THREE.MeshStandardMaterial({ map: T.brick, vertexColors: true, roughness: 0.95 }),
-    roof: new THREE.MeshStandardMaterial({ map: T.roof, roughness: 0.8, side: THREE.DoubleSide }),
-    grass: new THREE.MeshStandardMaterial({ map: T.grass, roughness: 1 }),
-    dirt: new THREE.MeshStandardMaterial({ map: T.dirt, roughness: 1 }),
-    sand: new THREE.MeshStandardMaterial({ color: 0xd9bf8c, roughness: 1 }),
-    white: new THREE.MeshStandardMaterial({ color: 0xf0efea, roughness: 0.7 }),
+    // texturas fotográficas (o número é quantas vezes a foto repete por unidade de UV)
+    paver: pbr('pavers', 0.55, { color: new THREE.Color(1.4, 1.45, 1.55) }),   // a foto do bloquete é escura
+    concrete: pbr('concrete', 0.5, { color: 0xc4c1ba }),
+    curb: pbr('concrete', 1.2, { color: 0xeeece6 }),
+    plaster: pbr('plaster', 1, { vertexColors: true, color: new THREE.Color(1.22, 1.22, 1.22) }, { normal: 0.8 }),   // a foto é acinzentada: clareia para a cor da casa aparecer
+    plasterPeel: pbr('plasterPeel', 2.2, { vertexColors: true, color: new THREE.Color(1.1, 1.1, 1.1) }),
+    brick: pbr('brick', 0.5, { vertexColors: true }),
+    roof: pbr('roofTiles', 1, { side: THREE.DoubleSide }),
+    grass: pbr('grass', 1.4),
+    dirt: pbr('dirt', 1),
+    sand: pbr('sand', 1, { color: 0xf2e6c8 }),
+    white: pbr('plaster', 0.4, { color: new THREE.Color(1.2, 1.19, 1.16) }, { normal: 0.6 }),
+    slab: pbr('concrete', 0.6, { color: 0xd8d6d0 }),             // laje aparente entre os andares
+    sill: pbr('concrete', 1.2, { color: 0xe4e2dc }),             // peitoril e verga das janelas
+    grimeBand: pbr('plasterOld', 1.4, { vertexColors: true }),  // barra suja embaixo das paredes
+    rebar: new THREE.MeshStandardMaterial({ color: 0x5a3a26, roughness: 0.7, metalness: 0.6 }),
+    pvc: new THREE.MeshStandardMaterial({ color: 0xe8e6e0, roughness: 0.5 }),
+    acUnit: new THREE.MeshStandardMaterial({ color: 0xf0f0ee, roughness: 0.4, metalness: 0.1 }),
+    winDark: new THREE.MeshStandardMaterial({ color: 0x0c0d0f, roughness: 0.9 }),
+    frameWhite: new THREE.MeshStandardMaterial({ color: 0xf2f2ee, roughness: 0.45 }),
+    paintWood: pbr('wood', 0.8, { vertexColors: true }),
     church: new THREE.MeshStandardMaterial({ color: 0x9cc0e6, roughness: 0.8 }),
     churchDark: new THREE.MeshStandardMaterial({ color: 0x2a4c8c, roughness: 0.6 }),
     dark: new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.6, metalness: 0.3 }),
-    glass: new THREE.MeshStandardMaterial({ color: 0x1a2028, roughness: 0.08, metalness: 0.5 }),
+    glass: new THREE.MeshStandardMaterial({ color: 0x28323c, roughness: 0.04, metalness: 0.3, envMapIntensity: 1.6 }),
     alu: new THREE.MeshStandardMaterial({ color: 0xc8c8c4, roughness: 0.35, metalness: 0.6 }),
-    rollup: new THREE.MeshStandardMaterial({ map: T.rollup, roughness: 0.45, metalness: 0.5 }),
+    rollup: pbr('shutter', 0.5, {}, { metal: true }),
     doorBlue: new THREE.MeshStandardMaterial({ color: 0x3a6ea0, roughness: 0.6 }),
-    doorWood: new THREE.MeshStandardMaterial({ color: 0x6b4a2a, roughness: 0.8 }),
+    doorWood: pbr('wood', 0.6, { color: 0xb08a66 }),
     tank: new THREE.MeshStandardMaterial({ color: 0x2f6fb8, roughness: 0.4 }),
     fenceGreen: new THREE.MeshStandardMaterial({ color: 0x1f4a28, roughness: 0.5, metalness: 0.3 }),
     chain: new THREE.MeshStandardMaterial({ map: T.chain, transparent: true, alphaTest: 0.5, side: THREE.DoubleSide, metalness: 0.4, roughness: 0.5 }),
@@ -308,17 +237,17 @@ export function buildBairro(group, MAP, sunLight) {
     red: new THREE.MeshStandardMaterial({ color: 0xc02818, roughness: 0.5 }),
     blueToy: new THREE.MeshStandardMaterial({ color: 0x2058c0, roughness: 0.5 }),
     orange: new THREE.MeshStandardMaterial({ color: 0xf06a18, roughness: 0.6 }),
-    wood: new THREE.MeshStandardMaterial({ color: 0x6b4a2a, roughness: 0.85 }),
+    wood: pbr('wood', 0.5),
     trunk: new THREE.MeshStandardMaterial({ color: 0x6e5236, roughness: 1 }),
     frond: new THREE.MeshStandardMaterial({ map: T.frond, transparent: true, alphaTest: 0.4, side: THREE.DoubleSide, roughness: 0.8 }),
     foliage: new THREE.MeshStandardMaterial({ map: T.foliage, transparent: true, alphaTest: 0.4, side: THREE.DoubleSide, roughness: 0.9 }),
     cable: new THREE.LineBasicMaterial({ color: 0x1a1a1a }),
-    crate: new THREE.MeshStandardMaterial({ color: 0x8a6237, roughness: 0.85 }),
+    crate: pbr('wood', 1, { color: 0xc8a070 }),
     awning: new THREE.MeshStandardMaterial({ color: 0xc0302a, roughness: 0.9, side: THREE.DoubleSide }),
-    grime: new THREE.MeshStandardMaterial({ map: grimeTex(), vertexColors: true, roughness: 0.97 }),
-    churchWall: new THREE.MeshStandardMaterial({ map: churchTex(), color: 0xa6c8ec, roughness: 0.85 }),
+    grime: pbr('plasterOld', 1.2, { vertexColors: true }),
+    churchWall: pbr('plaster', 0.4, { color: new THREE.Color(0.86, 1.08, 1.42) }, { normal: 0.7 }),
     churchShade: new THREE.MeshStandardMaterial({ color: 0x5f86b8, roughness: 0.9 }),
-    churchTrim: new THREE.MeshStandardMaterial({ color: 0xf6f6f2, roughness: 0.6 }),
+    churchTrim: pbr('plaster', 0.4, { color: new THREE.Color(1.22, 1.22, 1.2) }, { normal: 0.5 }),
     crossGrey: new THREE.MeshStandardMaterial({ color: 0x5a6068, roughness: 0.8 }),
     stone: new THREE.MeshStandardMaterial({ map: stoneTex(), roughness: 0.95 }),
     gateWhite: new THREE.MeshStandardMaterial({ color: 0xe8eaec, roughness: 0.4, metalness: 0.5 }),
@@ -339,8 +268,8 @@ export function buildBairro(group, MAP, sunLight) {
     beige: new THREE.MeshStandardMaterial({ color: 0xb5ab95, roughness: 0.8 }),
     redStep: new THREE.MeshStandardMaterial({ color: 0xa8281e, roughness: 0.8 }),
     craneRed: new THREE.MeshStandardMaterial({ color: 0xd2321e, roughness: 0.6 }),
-    blueTile: new THREE.MeshStandardMaterial({ map: blueTileTex(), roughness: 0.25, metalness: 0.1 }),
-    zincRoof: new THREE.MeshStandardMaterial({ map: zincTex(), roughness: 0.75, side: THREE.DoubleSide }),
+    blueTile: pbr('blueTiles', 1.2, { roughness: 0.6 }),
+    zincRoof: pbr('corrugated', 0.8, { side: THREE.DoubleSide }, { metal: true }),
     greenAwning: new THREE.MeshStandardMaterial({ color: 0x1f9a82, roughness: 0.8, side: THREE.DoubleSide }),
     woodFence: new THREE.MeshStandardMaterial({ map: woodFenceTex(), transparent: true, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.95 }),
     cobogo: new THREE.MeshStandardMaterial({ map: cobogoTex(), transparent: true, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.9 }),
@@ -422,74 +351,159 @@ export function buildBairro(group, MAP, sunLight) {
     const tris = alongZ ? [[0, 1, 2], [0, 2, 3], [4, 2, 1], [4, 5, 2], [0, 4, 1], [3, 2, 5]] : [[0, 1, 2], [0, 2, 3], [4, 2, 1], [4, 5, 2], [0, 1, 4], [3, 5, 2]];
     for (const t of tris) for (const i of t) roofTri.push(...P[i]);
   };
-  const windowAt = (c, n, t, w = 1.1, h = 1.0, grade = true) => {
-    // c = centro na parede; n = normal (para fora); t = direção ao longo da parede
-    const B = new THREE.Matrix4().makeBasis(new THREE.Vector3(...t), new THREE.Vector3(0, 1, 0), new THREE.Vector3(...n));
-    const place = (mat, ox, oy, oz, sx, sy, sz, shadow = false) => {
-      const g = new THREE.BoxGeometry(sx, sy, sz); g.applyMatrix4(B); g.translate(c[0] + n[0] * oz + t[0] * ox, c[1] + oy, c[2] + n[2] * oz + t[2] * ox);
-      put(mat, g, shadow);
+  // peças numa fachada: c = ponto na parede, n = normal para fora. Base sem espelhar (ox cresce para a direita
+  // de quem olha a parede de fora), então as caixas ficam com a frente virada para fora.
+  const facade = (c, n) => {
+    const nv = new THREE.Vector3(...n), up = new THREE.Vector3(0, 1, 0), tv = up.clone().cross(nv);
+    const B = new THREE.Matrix4().makeBasis(tv, up, nv);
+    return (mat, ox, oy, oz, sx, sy, sz, shadow = false, color = null) => {
+      const g = color === null ? new THREE.BoxGeometry(sx, sy, sz) : boxGeo(-sx / 2, -sy / 2, -sz / 2, sx / 2, sy / 2, sz / 2, 1, color);
+      g.applyMatrix4(B); g.translate(c[0] + nv.x * oz + tv.x * ox, c[1] + oy, c[2] + nv.z * oz + tv.z * ox); put(mat, g, shadow);
     };
-    place(M.alu, 0, 0, 0.03, w + 0.12, h + 0.12, 0.06);
-    place(M.glass, 0, 0, 0.065, w, h, 0.02);
-    place(M.concrete, 0, -h / 2 - 0.1, 0.1, w + 0.35, 0.08, 0.22);
-    if (grade) { for (let k = 0; k < 5; k++) place(M.dark, -w / 2 + 0.1 + k * (w - 0.2) / 4, 0, 0.11, 0.025, h, 0.025); place(M.dark, 0, 0, 0.11, w, 0.025, 0.025); }
   };
+  // janela com verga, peitoril saliente, moldura e vidro recuado; estilos comuns na vila
+  const SHUTTER_COLORS = [0x2f6b4a, 0x3a5f8c, 0x8a5a32, 0xe8e4da];
+  const houseWindow = (c, n, w, h, style, frameMat, shutterCol = 0x2f6b4a) => {
+    const P = facade(c, n);
+    P(M.sill, 0, -h / 2 - 0.06, 0.08, w + 0.32, 0.07, 0.22, true);
+    P(M.sill, 0, h / 2 + 0.07, 0.025, w + 0.2, 0.12, 0.05);
+    P(M.winDark, 0, 0, 0.004, w, h, 0.01);
+    P(frameMat, 0, h / 2 - 0.03, 0.035, w, 0.06, 0.07); P(frameMat, 0, -h / 2 + 0.03, 0.035, w, 0.06, 0.07);
+    P(frameMat, -w / 2 + 0.03, 0, 0.035, 0.06, h, 0.07); P(frameMat, w / 2 - 0.03, 0, 0.035, 0.06, h, 0.07);
+    if (style === 'basculante') {   // vidros em faixas horizontais (fotos 2 e 11)
+      for (let k = 0; k < 4; k++) { const y = -h / 2 + 0.06 + (k + 0.5) * (h - 0.12) / 4; P(M.glass, 0, y, 0.02 + (k % 2) * 0.012, w - 0.1, (h - 0.12) / 4 - 0.025, 0.01); P(frameMat, 0, y + (h - 0.12) / 8, 0.03, w - 0.08, 0.025, 0.04); }
+    } else if (style === 'veneziana') {   // duas folhas de madeira com palhetas
+      for (const sd of [-1, 1]) {
+        P(M.paintWood, sd * (w / 4), 0, 0.04, w / 2 - 0.05, h - 0.08, 0.03, false, shutterCol);
+        for (let y = -h / 2 + 0.12; y < h / 2 - 0.08; y += 0.09) P(M.winDark, sd * (w / 4), y, 0.058, w / 2 - 0.14, 0.012, 0.005);
+      }
+    } else {
+      P(M.glass, -w / 4 + 0.01, 0, 0.022, w / 2 - 0.06, h - 0.1, 0.01); P(M.glass, w / 4 - 0.01, 0, 0.03, w / 2 - 0.06, h - 0.1, 0.01);
+      P(frameMat, 0, 0, 0.035, 0.04, h - 0.08, 0.05);
+      if (style === 'grade') {   // grade de ferro na frente
+        for (let k = 0; k <= 6; k++) P(M.dark, -w / 2 + 0.06 + k * (w - 0.12) / 6, 0, 0.1, 0.022, h - 0.04, 0.022);
+        for (const y of [-h / 2 + 0.08, 0, h / 2 - 0.08]) P(M.dark, 0, y, 0.1, w - 0.04, 0.022, 0.022);
+      }
+    }
+  };
+  // a janela antiga (usada pela Assembleia) vira a nova com moldura de alumínio
+  const windowAt = (c, n, t, w = 1.1, h = 1.0, grade = true) => houseWindow(c, n, w, h, grade ? 'grade' : 'aluminio', M.alu);
   const isStreet = (x, z) => MAP.streets.some(([x0, z0, x1, z1]) => x >= x0 - 0.5 && x <= x1 + 0.5 && z >= z0 - 0.5 && z <= z1 + 0.5);
   const isOpen = (x, z) => Object.entries(MAP.areas).some(([k, [x0, z0, x1, z1]]) => !['blocoW', 'blocoN', 'blocoE', 'margS'].includes(k) && x >= x0 && x <= x1 && z >= z0 && z <= z1);
   const SIGNS = { mercearia: signBoard('BAR E MERCEARIA', '#f2d23a', '#b8201a', 'Café da manhã · Almoço · Self-service'), associacao: signBoard('ASSOCIAÇÃO DE MORADORES', 'rgba(0,0,0,0)', '#1f3f9a', 'DA VILA RESIDENCIAL'),
     lanches: signBoard('LANCHES', '#151515', '#ff7a3c', 'lanchonete · açaí'), bar: signBoard('BAR', '#1e5a32', '#f4f0e0', 'cerveja gelada'), bar2: signBoard('BAR', '#e8e2d0', '#a0201a', 'petiscos'),
     mercadinho: signBoard('MERCADINHO', '#f4f4f0', '#1f4fa8', 'da Vila Residencial'), cantinho: signBoard('CANTINHO SABOROSO', '#b8261c', '#fff2c0', 'quentinhas · lanches'), restaurante: signBoard('BAR E RESTAURANTE', '#f4efe0', '#a8201a', 'almoço · petiscos') };
+  // ---- casa: paredes de reboco de verdade tingido com a cor da casa, barra suja embaixo, lajes aparentes,
+  // platibanda com rufo, caixa d'água, às vezes o último andar ainda no tijolo com vergalhão para fora;
+  // nas fachadas da rua: janelas com moldura e peitoril, portas, portões de enrolar, varandas, ar-condicionado,
+  // cano de descida e relógio de luz
   const house = (b, solidHouse = true) => {
-    const [x0, , z0] = b.min, [x1, h, z1] = b.max;
+    const [x0, , z0] = b.min, [x1, h, z1] = b.max, sx = x1 - x0, sz = z1 - z0;
+    const r = rand((Math.abs(Math.round(x0 * 977 + z0 * 131)) % 100000) + 11);   // sorteio fixo por casa
     const col = b.hex ?? HOUSE_COLORS[b.color % HOUSE_COLORS.length];
-    const mat = b.brick ? M.brick : b.grime ? M.grime : M.plaster;
-    const tile = b.brick ? 1 : b.grime ? Math.max(3, h) : 2.5;   // reboco velho: uma textura cobre a parede toda
-    box(mat, x0, 0, z0, x1, h, z1, tile, b.brick ? 0xffffff : col);
-    if (b.tiles) box(M.blueTile, x0 - 0.03, 0, z0 - 0.03, x1 + 0.03, 0.8, z1 + 0.03, 1, null, false);   // barrado de azulejo azul
-    else if (!b.brick) box(mat, x0 - 0.03, 0, z0 - 0.03, x1 + 0.03, 0.5, z1 + 0.03, 2.5, new THREE.Color(col).multiplyScalar(0.7).getHex(), false);   // barrado
-    const sx = x1 - x0, sz = z1 - z0;
-    if (b.roof || b.roofTile) gable(x0 - 0.35, z0 - 0.35, x1 + 0.35, z1 + 0.35, h, sx < sz);
+    const floors = Math.max(1, Math.round(h / 3.1)), fh = h / floors;
+    const plain = !b.brick && !b.grime;
+    const rawTop = solidHouse && plain && !b.shop && !b.sign && b.hex === undefined && floors >= 2 && !b.roof && r() < 0.35;
+    const peel = plain && b.hex === undefined && r() < 0.12;
+    const wallMat = b.brick ? M.brick : b.grime ? M.grime : peel ? M.plasterPeel : M.plaster;
+    const tile = b.brick ? 1 : b.grime ? Math.max(3, h) : 2.5;
+    const wallCol = b.brick ? 0xffffff : col;
+    const topY = rawTop ? h - fh : h;
+    box(wallMat, x0, 0, z0, x1, topY, z1, tile, wallCol);
+    if (b.tiles) box(M.blueTile, x0 - 0.03, 0, z0 - 0.03, x1 + 0.03, 0.85, z1 + 0.03, 1, null, false);
+    else if (!b.brick) box(M.grimeBand, x0 - 0.025, 0, z0 - 0.025, x1 + 0.025, 0.45, z1 + 0.025, 1, new THREE.Color(col).multiplyScalar(0.72).getHex(), false);
+    for (let f = 1; f < floors; f++) box(M.slab, x0 - 0.06, f * fh - 0.12, z0 - 0.06, x1 + 0.06, f * fh + 0.06, z1 + 0.06, 1, null, true);
+    if (rawTop) {   // último andar em obra: tijolo à vista, pilares e viga de concreto, ferros para cima
+      box(M.brick, x0 + 0.06, topY, z0 + 0.06, x1 - 0.06, h - 0.22, z1 - 0.06, 1, 0xffffff);
+      box(M.concrete, x0 - 0.02, h - 0.24, z0 - 0.02, x1 + 0.02, h, z1 + 0.02, 1);
+      for (const [px, pz] of [[x0, z0], [x1 - 0.26, z0], [x0, z1 - 0.26], [x1 - 0.26, z1 - 0.26]]) {
+        box(M.concrete, px - 0.02, topY, pz - 0.02, px + 0.28, h, pz + 0.28, 1);
+        for (let k = 0; k < 4; k++) {
+          const fx = px + 0.07 + (k % 2) * 0.12, fz = pz + 0.07 + (k >> 1) * 0.12;
+          bar(M.rebar, [fx, h, fz], [fx + (r() - 0.5) * 0.12, h + 0.6 + r() * 0.5, fz + (r() - 0.5) * 0.12], 0.009);
+        }
+      }
+    }
+    if (b.roof || b.roofTile) gable(x0 - 0.4, z0 - 0.4, x1 + 0.4, z1 + 0.4, h, sx < sz);
     else if (b.zinc) {   // telha ondulada quase plana, caindo para um lado, com beiral
       const R = [[x0 - 0.4, h + 0.55, z0 - 0.4], [x1 + 0.4, h + 0.55, z0 - 0.4], [x1 + 0.4, h + 0.05, z1 + 0.4], [x0 - 0.4, h + 0.05, z1 + 0.4]];
       const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute([0, 2, 1, 0, 3, 2].flatMap(i => R[i]), 3));
       g.setAttribute('uv', new THREE.Float32BufferAttribute([0, 2, 1, 0, 3, 2].flatMap(i => [R[i][0] * 0.8, R[i][2] * 0.8]), 2));
       g.computeVertexNormals(); put(M.zincRoof, g, true);
-      if (rnd() < 0.6) cyl(M.tank, x0 + sx * 0.7, h + 0.3, z0 + sz * 0.4, 0.62, 0.68, 0.95, 14, false);
-    } else {
-      box(mat, x0 - 0.06, h, z0 - 0.06, x1 + 0.06, h + 0.4, z1 + 0.06, b.brick ? 1 : 2.5, b.brick ? 0xffffff : new THREE.Color(col).multiplyScalar(0.92).getHex(), false);
-      if (rnd() < 0.75) cyl(M.tank, x0 + sx * (0.25 + rnd() * 0.5), h + 0.4, z0 + sz * (0.25 + rnd() * 0.5), 0.62, 0.68, 0.95, 14, false);
+      if (r() < 0.6) cyl(M.tank, x0 + sx * 0.7, h + 0.3, z0 + sz * 0.4, 0.62, 0.68, 0.95, 14, false);
+    } else if (!rawTop) {   // platibanda com rufo de concreto, caixa d'água, às vezes um quartinho e uma antena
+      box(wallMat, x0 - 0.04, h, z0 - 0.04, x1 + 0.04, h + 0.55, z1 + 0.04, tile, new THREE.Color(wallCol).multiplyScalar(0.95).getHex(), false);
+      box(M.sill, x0 - 0.1, h + 0.55, z0 - 0.1, x1 + 0.1, h + 0.63, z1 + 0.1, 1, null, false);
+      const tx = x0 + sx * (0.25 + r() * 0.5), tz = z0 + sz * (0.25 + r() * 0.5);
+      if (r() < 0.8) { box(M.concrete, tx - 0.7, h, tz - 0.7, tx + 0.7, h + 0.25, tz + 0.7, 1, null, false); cyl(M.tank, tx, h + 0.25, tz, 0.62, 0.68, 0.95, 16, false); cyl(M.tank, tx, h + 1.2, tz, 0.66, 0.66, 0.08, 16, false); }
+      if (solidHouse && floors >= 2 && sx > 4 && sz > 4 && r() < 0.35) {
+        const qx = x0 + 0.4, qz = z0 + 0.4;
+        box(wallMat, qx, h, qz, qx + 2.4, h + 2.5, qz + 2.4, tile, wallCol, true);
+        box(M.sill, qx - 0.1, h + 2.5, qz - 0.1, qx + 2.5, h + 2.6, qz + 2.5, 1, null, false);
+      }
+      if (r() < 0.3) { const ax = x1 - 0.8, az = z1 - 0.8; bar(M.dark, [ax, h + 0.6, az], [ax, h + 1.4, az], 0.025); put(M.white, xform(new THREE.CylinderGeometry(0.35, 0.3, 0.08, 16), [ax, h + 1.5, az], r() * 6, 1.1), true); }
     }
     if (!solidHouse) return;
-    const floors = Math.max(1, Math.round(h / 3.1));
     const faces = [[[(x0 + x1) / 2, 0, z0], [0, 0, -1], [1, 0, 0], sx], [[(x0 + x1) / 2, 0, z1], [0, 0, 1], [1, 0, 0], sx],
       [[x0, 0, (z0 + z1) / 2], [-1, 0, 0], [0, 0, 1], sz], [[x1, 0, (z0 + z1) / 2], [1, 0, 0], [0, 0, 1], sz]];
+    const style = ['grade', 'basculante', 'veneziana', 'aluminio', 'grade'][(r() * 5) | 0];
+    const frameMat = r() < 0.55 ? M.alu : M.frameWhite;
+    const shutterCol = SHUTTER_COLORS[(r() * SHUTTER_COLORS.length) | 0];
     let door = false, signed = !b.sign;
     for (const [mid, n, t, L] of faces) {
       const qx = mid[0] + n[0] * 3, qz = mid[2] + n[2] * 3;
-      if (!isStreet(qx, qz) && !isOpen(qx, qz)) continue;
+      const street = isStreet(qx, qz);
+      if (!street && !isOpen(qx, qz)) continue;
       const nv = new THREE.Vector3(...n), up = new THREE.Vector3(0, 1, 0);
       const Bf = new THREE.Matrix4().makeBasis(up.clone().cross(nv), up, nv);   // base sem espelhar (o texto fica legível)
-      if (!signed && isStreet(qx, qz)) {   // letreiro em cima da porta, na primeira fachada que dá para a rua
+      if (!signed && street) {   // letreiro em cima da porta, na primeira fachada que dá para a rua
         signed = true;
         const g = new THREE.BoxGeometry(Math.min(L - 0.4, 5.2), 0.9, 0.05); g.applyMatrix4(Bf); g.translate(mid[0] + n[0] * 0.06, 2.95, mid[2] + n[2] * 0.06);
         put(SIGNS[b.sign], g, false);
       }
-      if (b.green && isStreet(qx, qz)) {   // quitanda: toldo verde nas fachadas da rua
+      if (b.green && street) {   // quitanda: toldo verde nas fachadas da rua
         const g = new THREE.PlaneGeometry(L, 1.3); g.rotateX(-Math.PI / 2 + 0.45); g.applyMatrix4(Bf);
         g.translate(mid[0] + n[0] * 0.6, 2.35, mid[2] + n[2] * 0.6); put(M.greenAwning, g, true);
       }
-      const slots = Math.max(1, Math.floor(L / 3));
-      for (let fl = 0; fl < floors; fl++) for (let k = 0; k < slots; k++) {
-        const along = ((k + 0.5) / slots - 0.5) * (L - 1.2);
-        const base = [mid[0] + t[0] * along, 0, mid[2] + t[2] * along];
-        if (fl === 0 && k === 0 && !door && L > 3.5) {
-          door = true;
-          const Bm = new THREE.Matrix4().makeBasis(new THREE.Vector3(...t), new THREE.Vector3(0, 1, 0), new THREE.Vector3(...n));
-          const garage = b.shop || (rnd() < 0.4 && L > 5);
-          const g = new THREE.BoxGeometry(garage ? 2.6 : 1.0, garage ? 2.5 : 2.1, 0.06); g.applyMatrix4(Bm);
-          g.translate(base[0] + n[0] * 0.03, garage ? 1.25 : 1.05, base[2] + n[2] * 0.03);
-          put(garage ? M.rollup : rnd() < 0.5 ? M.doorBlue : M.doorWood, g, false);
-        } else if (rnd() < 0.85) windowAt([base[0], 1.6 + fl * 3.1, base[2]], n, t, 1.1, 1.0, rnd() < 0.6);
+      const at = (along, y) => [mid[0] + t[0] * along, y, mid[2] + t[2] * along];
+      const slots = Math.max(1, Math.floor(L / 2.6));
+      const balcony = street && floors >= 2 && L > 4 && r() < 0.3 ? 1 + ((r() * (floors - 1 - (rawTop ? 1 : 0))) | 0) : -1;
+      for (let fl = 0; fl < floors; fl++) {
+        const raw = rawTop && fl === floors - 1, y0 = fl * fh;
+        if (fl === balcony && !raw) {   // varanda: laje saliente com guarda-corpo
+          const P = facade(at(0, y0), n), bw = L - 0.6;
+          P(M.slab, 0, 0.05, 0.45, bw, 0.14, 0.9, true);
+          for (let u = -bw / 2 + 0.05; u <= bw / 2; u += 0.13) P(frameMat === M.alu ? M.alu : M.dark, u, 0.6, 0.86, 0.025, 0.95, 0.025);
+          P(frameMat === M.alu ? M.alu : M.dark, 0, 1.08, 0.86, bw, 0.05, 0.05);
+        }
+        for (let k = 0; k < slots; k++) {
+          const along = ((k + 0.5) / slots - 0.5) * (L - 1.2);
+          if (fl === 0 && k === 0 && !door && L > 3.5) {
+            door = true;
+            const garage = b.shop || (r() < 0.35 && L > 5);
+            const P = facade(at(along, 0), n);
+            if (garage) {   // portão de enrolar com guias e soleira
+              P(M.rollup, 0, 1.25, 0.03, 2.6, 2.5, 0.05);
+              P(M.sill, 0, 2.6, 0.06, 2.9, 0.2, 0.12, true); P(M.dark, -1.33, 1.25, 0.05, 0.06, 2.5, 0.08); P(M.dark, 1.33, 1.25, 0.05, 0.06, 2.5, 0.08);
+            } else {   // porta com batente, degrau e o relógio de luz ao lado
+              P(M.frameWhite, 0, 1.1, 0.03, 1.12, 2.22, 0.06);
+              P(r() < 0.5 ? M.doorWood : M.doorBlue, 0, 1.05, 0.05, 0.94, 2.08, 0.05);
+              P(M.alu, 0.34, 1.05, 0.085, 0.04, 0.16, 0.04);
+              P(M.sill, 0, 0.06, 0.2, 1.3, 0.12, 0.4, true);
+              P(M.acUnit, -1.0, 1.5, 0.08, 0.36, 0.5, 0.14); P(M.glass, -1.0, 1.58, 0.155, 0.22, 0.16, 0.01);
+            }
+            continue;
+          }
+          const c = at(along, y0 + (fl === 0 ? 1.55 : 1.6));
+          if (raw) { const P = facade(c, n); P(M.winDark, 0, 0, 0.004, 1.0, 1.0, 0.01); P(M.concrete, 0, 0.56, 0.02, 1.2, 0.12, 0.05); continue; }
+          if (fl === 0 && r() < 0.12) continue;
+          houseWindow(c, n, 1.1, fl === 0 ? 1.05 : 1.15, style, frameMat, shutterCol);
+          if (fl > 0 && r() < 0.28) { const P = facade(c, n); P(M.acUnit, 0.95, -0.35, 0.2, 0.78, 0.5, 0.36, true); P(M.dark, 0.95, -0.35, 0.385, 0.6, 0.36, 0.01); }
+        }
+      }
+      if (street && h > 3) {   // cano de descida num canto da fachada
+        const P = facade(at(L / 2 - 0.25, 0), n);
+        P(M.pvc, 0, (h + 0.5) / 2, 0.08, 0.09, h + 0.5, 0.09, true);
       }
     }
   };

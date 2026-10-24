@@ -1,0 +1,18 @@
+Texturas e céu do mapa Bairro — Poly Haven (https://polyhaven.com), licença CC0 (domínio público).
+Os arquivos foram reduzidos para 1024x1024 e comprimidos em JPG; cada textura tem _diff (cor), _nor (relevo) e _arm (oclusão/aspereza/metal).
+
+plaster      -> white_plaster_02            (reboco das casas, tingido com a cor de cada uma)
+plasterOld   -> worn_mossy_plasterwall      (reboco velho com mofo: muros e casas dos fundos)
+plasterPeel  -> white_rough_plaster         (reboco descascado de algumas casas)
+brick        -> red_bricks_04               (tijolo à vista)
+pavers       -> brick_pavement_02           (bloquete das ruas)
+concrete     -> rough_concrete              (calçadas, lajes, peitoris, postes)
+grass        -> leafy_grass
+dirt         -> dry_ground_01
+sand         -> playground_sand
+roofTiles    -> clay_roof_tiles_02          (telha de barro)
+corrugated   -> worn_corrugated_iron        (telha ondulada)
+shutter      -> painted_metal_shutter       (portas de enrolar)
+wood         -> weathered_planks
+blueTiles    -> blue_floor_tiles_01         (azulejo azul do barrado)
+sky_4k.jpg / sky_1k.hdr -> kloofendal_48d_partly_cloudy_puresky (céu com nuvens)
