@@ -153,7 +153,7 @@ export class Hud {
     if (MAP.streets) {        // bairro: quarteirões escuros, ruas claras, campo verde
       g.fillStyle = 'rgba(60,55,50,.75)'; g.fillRect(m.minX, m.minZ, m.maxX - m.minX, m.maxZ - m.minZ);
       g.fillStyle = 'rgba(150,150,145,.6)'; for (const [x0, z0, x1, z1] of MAP.streets) g.fillRect(x0, z0, x1 - x0, z1 - z0);
-      const col = { campo: 'rgba(80,140,60,.7)', praca: 'rgba(120,150,90,.6)', igreja: 'rgba(90,120,170,.5)' };
+      const col = { campo: 'rgba(80,140,60,.7)', praca: 'rgba(120,150,90,.6)', igreja: 'rgba(90,120,170,.5)', areia: 'rgba(210,190,140,.7)', trilha: 'rgba(140,110,80,.6)', trilhaJ: 'rgba(140,110,80,.6)', trilhaS: 'rgba(140,110,80,.6)', mato: 'rgba(60,100,50,.7)', mato2: 'rgba(60,100,50,.7)', fimPap: 'rgba(60,100,50,.7)', gram: 'rgba(80,130,60,.6)' };
       for (const [k, [x0, z0, x1, z1]] of Object.entries(MAP.areas || {})) { g.fillStyle = col[k] || 'rgba(130,120,100,.55)'; g.fillRect(x0, z0, x1 - x0, z1 - z0); }
     } else { g.fillStyle = 'rgba(150,130,95,.55)'; g.fillRect(m.minX, m.minZ, m.maxX - m.minX, m.maxZ - m.minZ); }
     for (const s of Object.values(MAP.sites)) { g.fillStyle = 'rgba(200,60,40,.18)'; g.fillRect(s.min[0], s.min[1], s.max[0] - s.min[0], s.max[1] - s.min[1]); }

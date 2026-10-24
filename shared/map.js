@@ -64,34 +64,48 @@ function buildDeserto() {
 }
 
 // ================================================================ Bairro (vila da praia)
-// Pedaço do bairro que o jogador escolheu: campo de futebol (base CT), bar e restaurante, praça com
-// parquinho e igreja (bombsite A), terreno baldio (bombsite B) e a rua atrás da igreja (base TR).
-// A planta foi lida de um print do mapa (só o desenho das ruas); tudo é gerado por código.
+// Vila Residencial, montada pelas fotos do Street View e pela vista de satélite (de norte para sul):
+//  - campo de futebol (base CT) e a Rua Cravos colada nele;
+//  - um quarteirão só entre a Cravos e a Rua das Margaridas, da Rosas (oeste) até a Papoulas (leste): Assembleia
+//    na esquina da Rosas, quadra de areia, a ruela estreita que liga a Cravos à Margaridas, a Arena coberta e,
+//    viradas para a Margaridas, as lojas (bar e mercearia, mercadinho, associação de moradores, lanchonete, bar);
+//  - a Margaridas chega na Papoulas junto da praça; do outro lado dela, quitanda e a Acácias descendo;
+//  - praça com parquinho e a igreja azul (bombsite A): Acácias à direita, Papoulas à esquerda (lojinhas) e
+//    Vitória Régia nos fundos (base TR), que dá num muro de madeira e mato do lado sul;
+//  - a Papoulas vai do campo até o fim, onde termina num portão de madeira; do lado leste dela só tem mato.
 // Coordenadas de planta em "px" (0,25 m cada), ruas retas na horizontal ou vertical.
 const PX = 0.25, CX = 205, CY = 520;
 const W = (x, y) => [(x - CX) * PX, (y - CY) * PX];
 
 const B_STREETS = [   // [x0, y0, x1, y1, largura]
-  [123, 294, 280, 294, 22],   // rua de cima do campo (Begônias)
-  [135, 283, 135, 740, 24],   // rua oeste (desce do campo até a rua de trás)
-  [123, 410, 280, 410, 24],   // Rua Cravos (embaixo do campo)
-  [123, 478, 205, 478, 24],   // Rua das Margaridas
-  [123, 547, 205, 547, 24],   // Rua Camélias
-  [205, 410, 205, 740, 24],   // Rua Acácias
-  [268, 283, 268, 740, 30],   // Rua Paulo Emídio (avenida)
-  [205, 581, 268, 581, 20],   // entre a praça e a igreja
-  [135, 668, 205, 668, 22],   // travessa
-  [123, 728, 280, 728, 26],   // rua atrás da igreja (base TR)
+  [81, 304, 302, 304, 24],    // Rua Cravos (colada no campo)
+  [81, 306, 81, 476, 24],     // Rua das Rosas (lado oeste do quarteirão da Assembleia)
+  [81, 476, 302, 476, 24],    // Rua das Margaridas (embaixo do quarteirão, chega na praça)
+  [205, 488, 205, 728, 28],   // Rua Acácias (lado direito da igreja)
+  [302, 306, 302, 730, 28],   // Rua Papoulas (lado esquerdo da igreja, termina num portão)
+  [205, 581, 302, 581, 22],   // Praça da Vila dos Funcionários (rua na frente da igreja)
+  [161, 728, 302, 728, 26],   // Rua Vitória Régia (fundos da igreja, base TR)
 ];
-const B_AREAS = {   // áreas sem casas
-  campo: [147, 304, 256, 398],
-  bar: [147, 422, 193, 466],         // varanda do bar
-  rest: [217, 422, 256, 466],        // restaurante
-  praca: [217, 488, 256, 569],
-  igreja: [217, 593, 256, 716],
-  lote: [147, 490, 193, 535],        // terreno baldio (bombsite B)
+const B_AREAS = {   // áreas sem casas geradas (o que tem nelas é colocado à mão)
+  campo: [105, 200, 285, 288],
+  assembleia: [93, 316, 141, 370],   // Igreja Assembleia de Deus (na esquina da Rosas, de frente para o campo)
+  areia: [141, 320, 177, 366],       // quadra de areia cercada (bombsite B)
+  trilha: [179, 316, 189, 464],      // ruela estreita e reta da Cravos até a Margaridas, que termina na quitanda verde
+  arena: [189, 316, 235, 370],       // quadra coberta com teto em arco (do outro lado da ruela)
+  gram: [141, 370, 177, 404],        // gramado com carro atrás da quadra de areia
+  blocoW: [93, 370, 179, 464],       // lojas e casas entre a Assembleia e a Margaridas (oeste da ruela)
+  blocoN: [235, 316, 288, 370],      // casas e o bar e restaurante entre a Arena e a Papoulas
+  blocoE: [189, 370, 288, 464],      // casas, lanchonete e bar da esquina (leste da ruela)
+  margS: [57, 488, 191, 520],        // do outro lado da Margaridas: quitanda verde (de frente para a ruela) e sobrado bege
+  praca: [221, 488, 288, 568],
+  parq: [223, 492, 238, 540],        // parquinho (dentro da praça)
+  igreja: [219, 592, 288, 715],      // quarteirão inteiro da igreja
+  lojas: [318, 592, 336, 715],       // lojinhas do outro lado da Rua Papoulas
+  mato: [318, 292, 338, 590],        // mato e cerca de madeira do lado leste da Papoulas
+  mato2: [289, 196, 338, 290],       // mato ao lado do campo
+  fimPap: [318, 716, 338, 744],      // fim da Papoulas: barraca listrada e portão de madeira
 };
-const B_BOUNDS = [117, 283, 290, 744];
+const B_BOUNDS = [57, 196, 338, 744];
 
 function buildBairro() {
   const boxes = [];
@@ -141,24 +155,89 @@ function buildBairro() {
   const [x0, z0] = W(B_BOUNDS[0], B_BOUNDS[1]), [x1, z1] = W(B_BOUNDS[2], B_BOUNDS[3]);
   for (const [ax, az, bx, bz] of [[x0 - 1, z0 - 1, x1 + 1, z0], [x0 - 1, z1, x1 + 1, z1 + 1], [x0 - 1, z0, x0, z1], [x1, z0, x1 + 1, z1]]) add(ax, az, bx, bz, 9, 'invisible');
 
-  // ---- igreja azul (bombsite A): nave, anexo e torre; pátio na frente
-  const ig = B_AREAS.igreja;
-  const [gx0, gz0] = W(ig[0] + 3, ig[1] + 10), [gx1, gz1] = W(ig[2] - 3, ig[1] + 54);
-  add(gx0, gz0, gx1, gz1, 5.4, 'church');
-  const [ax0, az0] = W(ig[0] + 5, ig[1] + 54), [ax1, az1] = W(ig[2] - 5, ig[3] - 2);
-  add(ax0, az0, ax1, az1, 3.8, 'church');
-  // ---- restaurante e bar
-  const rs = B_AREAS.rest;
-  addPx([rs[0] + 14, rs[1], rs[2], rs[3]], 4.2, 'house', { color: 321, roof: 0, brick: 0, shop: 1 });
-  addPx([B_AREAS.bar[0], B_AREAS.bar[1], B_AREAS.bar[0] + 11, B_AREAS.bar[3]], 3.6, 'house', { color: 77, roof: 0, brick: 1, shop: 1 });   // o bar (a varanda fica na frente)
+  // do outro lado da Acácias (em frente à igreja): sobrados amarelo, roxo e de tijolo, como nas fotos
+  const ACACIAS_HOUSES = [{ hex: 0xf0c64a, floors: 3 }, { brick: 1, floors: 3 }, { hex: 0x7b5cc0, floors: 2 }, { hex: 0xefe9da, floors: 2 }, { hex: 0xe8b84a, floors: 3 }];
+  let ai = 0;
+  for (const b of boxes) {
+    const cx = (b.min[0] + b.max[0]) / 2, cz = (b.min[2] + b.max[2]) / 2;
+    if (b.mat !== 'house' || cx < -22 || cx > -3 || cz < -8 || cz > 50) continue;
+    const s = ACACIAS_HOUSES[ai++ % ACACIAS_HOUSES.length];
+    b.max[1] = 3.1 * s.floors + 0.2; b.roof = 0; b.brick = s.brick || 0; if (s.hex) b.hex = s.hex;
+  }
+
+  // ---- quarteirão da igreja (bombsite A). Medidas em metros a partir das bordas do quarteirão.
+  const [IX0, IZ0] = W(B_AREAS.igreja[0], B_AREAS.igreja[1]), [IX1, IZ1] = W(B_AREAS.igreja[2], B_AREAS.igreja[3]);   // x 3.5..20.75, z 18..48.75
+  const FZ = IZ0 + 6;            // linha da fachada (o pátio de concreto fica na frente)
+  const NX0 = IX0 + 5.1, NX1 = NX0 + 9, TX1 = NX1 + 2.6;   // nave e torre
+  add(IX0 + 0.3, FZ + 0.4, NX0, FZ + 6.2, 4.3, 'church', { part: 'anexo' });       // anexo (lado da Acácias)
+  add(NX0, FZ, NX1, IZ0 + 22.5, 5.6, 'church', { part: 'nave' });                  // nave com o frontão
+  add(NX1, FZ - 0.4, TX1, FZ + 2.2, 12.2, 'church', { part: 'torre' });            // torre do sino (lado da Papoulas)
+  add(NX1, FZ + 2.2, TX1 - 0.2, IZ0 + 18.5, 4.2, 'church', { part: 'galeria' });   // galeria com arcos (lado da Papoulas)
+  // muros brancos: Papoulas (da torre até o sobrado) e Acácias (com o portão azul que mostra o quintal)
+  add(IX1 - 0.3, FZ + 2.2, IX1, IZ0 + 25, 2.2, 'muro');
+  add(IX0, FZ + 6.2, IX0 + 0.3, FZ + 9.2, 2.6, 'muro');
+  add(IX0 + 0.05, FZ + 9.2, IX0 + 0.25, FZ + 12.2, 2.4, 'gate');
+  add(IX0, FZ + 12.2, IX0 + 0.3, IZ0 + 21, 2.6, 'muro');
+  // muro de tijolo ainda sendo levantado ao lado da torre, com tijolos empilhados
+  add(IX1 - 0.35, IZ0 + 1.6, IX1 - 0.05, FZ + 2.2, 2.1, 'brickwall', { steps: 1 });
+  add(IX1 - 1.4, FZ - 1.4, IX1 - 0.55, FZ - 0.6, 0.8, 'bricks');
+  // casas brancas dos fundos (reboco velho com mofo): térrea na Acácias, sobrado de esquina e o sobrado da Papoulas
+  add(IX0, IZ0 + 21, NX0, IZ0 + 26.5, 3.3, 'house', { hex: 0xeeede6, grime: 1, roof: 0, brick: 0, color: 0 });
+  // esquina da Acácias com a Vitória Régia: casa térrea comprida de telha ondulada, com o quartinho das caixas d'água
+  add(IX0, IZ0 + 26.5, IX0 + 9.5, IZ1, 3.3, 'house', { hex: 0xefeee8, grime: 1, roof: 0, brick: 0, color: 0, zinc: 1 });
+  add(IX0 + 6.4, IZ0 + 27.2, IX0 + 9.3, IZ1 - 0.8, 5.6, 'house', { hex: 0xd9d8d0, grime: 1, roof: 0, brick: 0, color: 0 });
+  add(IX0 + 9.5, IZ0 + 25, IX1, IZ1, 6.3, 'house', { hex: 0xecebe4, grime: 1, roof: 0, brick: 0, color: 0 });
+
+  // ---- quarteirão da Assembleia (foto 4: na esquina da Rosas, de frente para o campo do outro lado da Cravos)
+  const [AX0, AZ0] = W(B_AREAS.assembleia[0], B_AREAS.assembleia[1]), [AX1, AZ1] = W(B_AREAS.assembleia[2], B_AREAS.assembleia[3]);
+  add(AX0, AZ0, AX1 - 0.2, AZ1, 7.4, 'assembleia');
+  // quadra de areia (fotos 6 e 7): mureta baixa e alambrado com portão para a Cravos e para a ruela
+  const [QX0, QZ0] = W(B_AREAS.areia[0], B_AREAS.areia[1]), [QX1, QZ1] = W(B_AREAS.areia[2], B_AREAS.areia[3]);
+  // ---- Arena (fotos 5 e 6): muro branco com o escudo pintado, cobogó vermelho e teto em arco por cima
+  const [RX0, RZ0] = W(B_AREAS.arena[0], B_AREAS.arena[1]), [RX1, RZ1] = W(B_AREAS.arena[2], B_AREAS.arena[3]);
+  add(RX0, RZ0, RX1, RZ1, 7.0, 'arena');
+
+  // ---- quarteirão entre a Cravos e a Margaridas (vista de satélite + fotos): a ruela é reta e termina na quitanda verde
+  const shopH = (x0, z0, x1, z1, h, extra) => add(x0, z0, x1, z1, h, 'house', { roof: 0, brick: 0, color: 0, ...extra });
+  // oeste da ruela (x -28..-6.5): lojas viradas para a Margaridas e, encostada na ruela, a associação comprida de janelas azuis
+  shopH(-28, -21, -22, -14, 3.3, { hex: 0xf0efe8, shop: 1, sign: 'mercearia', zinc: 1 });                    // bar e mercearia na esquina da Rosas
+  shopH(-22, -21, -17, -14, 3.4, { hex: 0xf2f1ec, shop: 1, tiles: 1, roofTile: 1, sign: 'mercadinho' });       // mercadinho (azulejo azul)
+  shopH(-17, -21, -12, -14, 3.4, { hex: 0xf2e6c8, shop: 1, sign: 'cantinho', zinc: 1 });                     // lanchonete Cantinho
+  shopH(-12, -29, -6.5, -14, 3.4, { hex: 0xf2f1ec, tiles: 1, sign: 'associacao', zinc: 1 });                  // associação de moradores, ao longo da ruela
+  shopH(-28, -29, -21, -21, 12.4, { hex: 0xcfdc92 });                                                         // prédio verde de 4 andares
+  shopH(-21, -29, -12, -21, 3.3, { color: 318 });
+  shopH(-28, -37.5, -22, -29, 6.2, { color: 248 });
+  shopH(-22, -37.5, -16, -29, 3.3, { color: 905, roof: 1 });
+  // entre a Arena e a Papoulas: casa e o bar e restaurante
+  shopH(7.5, -51, 15, -37.5, 6.0, { color: 412 });
+  shopH(15, -51, 20.75, -42, 3.6, { hex: 0xeeeae0, shop: 1, sign: 'restaurante', zinc: 1 });                 // bar e restaurante, virado para a Papoulas
+  shopH(15, -42, 20.75, -37.5, 3.3, { color: 57, zinc: 1 });
+  // leste da ruela (x -4..20.75): lanchonete vermelha colada na ruela, casas e o bar cinza na esquina da Papoulas
+  shopH(-4, -20.5, 0.1, -14, 6.2, { hex: 0xd26060, shop: 1, sign: 'lanches' });
+  shopH(0.1, -20.5, 6, -14, 6.2, { color: 77 });
+  shopH(6, -20.5, 11, -14, 3.3, { color: 133, zinc: 1 });
+  shopH(11, -20.5, 15.6, -14, 6.2, { hex: 0xe6dccb });
+  shopH(15.6, -20.5, 20.75, -14, 3.6, { hex: 0x9aa0a8, shop: 1, sign: 'bar' });
+  shopH(-4, -29, 3, -20.5, 9.3, { hex: 0xa8acb0 });                                                          // sobrado cinza de 3 andares ao lado da ruela
+  shopH(3, -29, 12, -20.5, 6.0, { color: 701 });
+  shopH(12, -29, 20.75, -20.5, 3.3, { color: 905, zinc: 1 });
+  shopH(-4, -37.5, 7.5, -29, 6.2, { color: 318 });
+  shopH(7.5, -37.5, 20.75, -29, 3.3, { color: 248, zinc: 1 });
+  // do outro lado da Margaridas: quitanda verde bem na saída da ruela, sobrado bege atrás e o bar com mesinhas
+  const [SX0, SZ0] = W(B_AREAS.margS[0], B_AREAS.margS[1]), [SX1] = W(B_AREAS.margS[2], 0);   // x -37..-3.5, z -8..0
+  shopH(SX1 - 3.8, SZ0, SX1, SZ0 + 3.8, 2.9, { hex: 0x9fd8ae, green: 1 });
+  shopH(SX1 - 3.8, SZ0 + 3.8, SX1, SZ0 + 8.5, 9.3, { hex: 0xe2d6bc });
+  shopH(SX1 - 9.5, SZ0, SX1 - 3.8, SZ0 + 5, 3.3, { hex: 0xf0efe8, shop: 1, zinc: 1, sign: 'bar2' });
+  shopH(SX1 - 9.5, SZ0 + 5, SX1 - 3.8, SZ0 + 8.5, 3.3, { color: 701, roof: 1 });
+  shopH(SX0, SZ0, SX1 - 9.5, SZ0 + 8.5, 6.2, { color: 77 });
 
   // ---- coberturas: caixas, muretas, carrinhos etc. (sólidas)
   const props = [];
   const prop = (x, z, sx, sz, h, mat, extra = {}) => { add(x - sx / 2, z - sz / 2, x + sx / 2, z + sz / 2, h, mat, extra); };
-  // campo: traves (finas) e alambrado com portões
+  // campo: traves (finas) nas pontas compridas e alambrado com portões
   const c0 = W(B_AREAS.campo[0], B_AREAS.campo[1]), c1 = W(B_AREAS.campo[2], B_AREAS.campo[3]);
-  const cmx = (c0[0] + c1[0]) / 2;
-  for (const zz of [c0[1] + 1.2, c1[1] - 1.2]) for (const sx of [-1, 1]) prop(cmx + sx * 2.5, zz, 0.12, 0.12, 2.0, 'post');
+  const cmz = (c0[1] + c1[1]) / 2;
+  for (const xx of [c0[0] + 1.2, c1[0] - 1.2]) for (const sz of [-1, 1]) prop(xx, cmz + sz * 2.5, 0.12, 0.12, 2.0, 'post');
   const fence = (ax, az, bx, bz, gates) => {   // gates: lista de [centro (0..1), largura m]
     const L = Math.hypot(bx - ax, bz - az), horiz = Math.abs(bz - az) < 0.01;
     let cuts = [[0, 0]];
@@ -172,38 +251,90 @@ function buildBairro() {
     }
   };
   fence(c0[0], c0[1], c1[0], c0[1], []);
-  fence(c0[0], c1[1], c1[0], c1[1], [[0.3, 4], [0.7, 4]]);
-  fence(c0[0], c0[1], c0[0], c1[1], [[0.55, 4]]);
-  fence(c1[0], c0[1], c1[0], c1[1], [[0.5, 4]]);
+  const CW = c1[0] - c0[0];
+  fence(c0[0], c1[1], c1[0], c1[1], [[(-12 - c0[0]) / CW, 4], [(8 - c0[0]) / CW, 4]]);   // portões para a Cravos (um na frente da quadra de areia)
+  fence(c0[0], c0[1], c0[0], c1[1], []);
+  fence(c1[0], c0[1], c1[0], c1[1], []);
+  // quadra de areia: alambrado com portão para a Cravos (norte) e para a ruela (leste), mureta baixa com vãos nos portões
+  const gx = (QX1 - QX0) * 0.45;
+  fence(QX0, QZ1, QX1, QZ1, []);
+  fence(QX1, QZ0, QX1, QZ1, [[(-44 - QZ0) / (QZ1 - QZ0), 2.4]]);
+  fence(QX0, QZ0, QX1, QZ0, [[0.45, 2.4]]);
+  fence(QX0 + 0.15, QZ0, QX0 + 0.15, QZ1, []);
+  add(QX0 + 0.2, QZ1 - 0.35, QX1 - 0.1, QZ1 - 0.1, 0.35, 'curb'); add(QX0 + 0.2, QZ0 + 0.1, QX0 + 0.45, QZ1 - 0.1, 0.35, 'curb');
+  add(QX0 + 0.2, QZ0 + 0.1, QX0 + gx - 1.4, QZ0 + 0.35, 0.35, 'curb'); add(QX0 + gx + 1.3, QZ0 + 0.1, QX1 - 0.1, QZ0 + 0.35, 0.35, 'curb');
+  add(QX1 - 0.35, QZ0 + 0.1, QX1 - 0.1, -45.3, 0.35, 'curb'); add(QX1 - 0.35, -42.7, QX1 - 0.1, QZ1 - 0.1, 0.35, 'curb');
+  prop((QX0 + QX1) / 2 - 3.6, (QZ0 + QZ1) / 2, 0.12, 0.12, 2.4, 'post'); prop((QX0 + QX1) / 2 + 3.6, (QZ0 + QZ1) / 2, 0.12, 0.12, 2.4, 'post');   // postes da rede
+  // cerca de madeira separando a rua do mato (leste da Papoulas e ao lado do campo)
+  const [MX0, MZ0] = W(B_AREAS.mato[0], B_AREAS.mato[1]), [, MZ1] = W(0, B_AREAS.mato[3]);
+  add(MX0 - 0.1, MZ0, MX0 + 0.05, MZ1 + 1.2, 1.25, 'woodfence');
+  add(c1[0] + 0.1, c1[1] + 0.9, MX0 + 0.05, c1[1] + 1.05, 1.25, 'woodfence');
   // praça: canteiros, bancos, brinquedos (parquinho com grade baixa)
-  const p0 = W(B_AREAS.praca[0], B_AREAS.praca[1]), p1 = W(B_AREAS.praca[2], B_AREAS.praca[3]);
-  const pmx = (p0[0] + p1[0]) / 2;
-  prop(pmx - 2.2, p0[1] + 4.5, 1.6, 3.4, 2.3, 'swing');         // balanço
-  prop(pmx - 2.2, p0[1] + 10.5, 1.1, 2.6, 2.0, 'slide');        // escorregador
-  prop(pmx + 2.6, p1[1] - 2.6, 1.2, 1.2, 0.8, 'table');         // mesa de concreto
-  const pp = (x, y, sx, sz, h, mat) => { const [cx, cz] = W(x, y); prop(cx, cz, sx, sz, h, mat); };
-  pp(221, 545, 0.5, 1.8, 0.9, 'bench');
-  pp(221, 553, 0.5, 1.8, 0.9, 'bench');
-  pp(230, 548, 2.2, 2.2, 0.5, 'planter');
-  pp(252, 566, 1.2, 1.2, 1.9, 'shrine');      // oratório
+  const q0 = W(B_AREAS.parq[0], B_AREAS.parq[1]), q1 = W(B_AREAS.parq[2], B_AREAS.parq[3]);
+  const qmx = (q0[0] + q1[0]) / 2;
+  prop(qmx, q0[1] + 2.8, 1.6, 3.4, 2.3, 'swing');               // balanço
+  prop(qmx, q1[1] - 3.2, 1.1, 2.6, 2.0, 'slide');               // escorregador
+  const pp = (x, y, sx, sz, h, mat, extra) => { const [cx, cz] = W(x, y); prop(cx, cz, sx, sz, h, mat, extra); };
+  pp(275, 504, 1.2, 1.2, 0.8, 'table');       // mesa de concreto
+  pp(226, 554, 0.5, 1.8, 0.9, 'bench');
+  pp(226, 562, 0.5, 1.8, 0.9, 'bench');
+  pp(232, 548, 2.2, 2.2, 0.5, 'planter');
+  pp(284, 560, 1.2, 1.2, 1.9, 'shrine');      // oratório
+  pp(265, 536, 4.2, 3.6, 0.5, 'stage');       // palanque com degraus vermelhos (foto 10)
+  // coqueiros da praça e do pátio da igreja (o tronco é sólido; as folhas ficam acima da cabeça)
+  for (const [x, y, h] of [[275, 492, 8.5], [283, 528, 10], [222, 548, 9], [253, 565, 8], [251, 522, 9.5], [285, 540, 7.5]]) pp(x, y, 0.42, 0.42, 3, 'palm', { ph: h });
   // parquinho: grade baixa (só o desenho; dá para pular por cima)
-  add(p0[0] + 1.4, p0[1] + 1.4, pmx + 0.6, p0[1] + 1.5, 1.1, 'lowfence');
-  add(p0[0] + 1.4, p0[1] + 13.5, pmx + 0.6, p0[1] + 13.6, 1.1, 'lowfence');
-  // pátio da igreja: frades e banco
-  // bar: mesas de plástico
-  const b0 = W(B_AREAS.bar[0], B_AREAS.bar[1]), b1 = W(B_AREAS.bar[2], B_AREAS.bar[3]);
-  for (const px of [163, 176, 189]) { const [tx, tz] = W(px, 458); prop(tx, tz, 0.9, 0.9, 0.75, 'ptable'); }
-  // terreno baldio (bombsite B): caçamba, muro pela metade, pilhas de tijolo, areia
-  const l0 = W(B_AREAS.lote[0], B_AREAS.lote[1]), l1 = W(B_AREAS.lote[2], B_AREAS.lote[3]);
-  // (ficam fora dos caminhos que cruzam o terreno)
-  const lp = (x, y, sx, sz, h, mat) => { const [cx, cz] = W(x, y); prop(cx, cz, sx, sz, h, mat); };
-  lp(188, 526, 2.0, 3.6, 1.3, 'dumpster');
-  lp(170, 530, 4.5, 0.3, 1.4, 'brickwall');
-  lp(155, 512, 1.2, 1.2, 1.0, 'bricks');
-  lp(190, 500, 1.2, 1.2, 1.0, 'bricks');
-  lp(150, 500, 2.0, 2.0, 1.0, 'sandpile');
+  add(q0[0], q0[1], q1[0], q0[1] + 0.1, 1.1, 'lowfence');
+  add(q0[0], q1[1] - 0.1, q1[0], q1[1], 1.1, 'lowfence');
+
+  // pátio da igreja: frades (pilaretes brancos), banco azul, lixeira, placas de contramão e o coqueiro
+  for (let k = 0; k < 4; k++) prop(IX0 + 0.9 + k * 1.3, IZ0 + 0.9, 0.22, 0.22, 0.75, 'bollard');
+  prop(IX1 - 1.35, IZ0 + 2.4, 0.42, 0.42, 3, 'palm', { ph: 7 });
+  prop(IX1 - 2.8, IZ0 + 2.0, 1.8, 0.5, 0.9, 'bench', { blue: 1 });
+  prop(NX0 + 4.6, FZ - 2.5, 0.5, 0.5, 0.95, 'trash');
+  prop(NX0 + 6.9, FZ - 1.2, 0.12, 0.12, 2.6, 'sign');
+  prop(IX1 - 0.6, IZ0 + 1.2, 0.12, 0.12, 2.6, 'sign');
+
+  // carros estacionados (cobertura): rente às calçadas, sem fechar o meio da rua
+  const car = (x, z, alongZ, hex, kind = 'car') => {
+    const L = kind === 'kombi' ? 4.3 : 4.1, Wd = kind === 'kombi' ? 1.75 : 1.7, h = kind === 'kombi' ? 1.95 : 1.45;
+    prop(x, z, alongZ ? Wd : L, alongZ ? L : Wd, h, 'car', { hex, kind, dir: alongZ ? (x > 10 ? 1 : -1) : 0 });
+  };
+  car(1.3, FZ + 7.5, true, 0x2e4a40); car(1.3, FZ + 12.6, true, 0x5c6064); car(1.3, FZ + 18.2, true, 0xb8bcc0);   // Acácias (muro da igreja)
+  car(22.9, IZ0 + 4, true, 0xc9b98a); car(22.9, IZ0 + 19.5, true, 0x6a6460); car(22.9, IZ0 + 24.6, true, 0xb4b8bc); car(22.9, IZ0 + 29.2, true, 0x7ab0d8);   // Papoulas (lado da igreja)
+  car(25.6, IZ0 + 8.5, true, 0xb8bab8); car(25.6, IZ0 + 13.6, true, 0xf2f0ea, 'kombi');                                // Papoulas (lado das lojas)
+  car(17.5, IZ1 + 1.95, false, 0x2448a8); car(12.4, IZ1 + 1.95, false, 0xeeeeee); car(7.3, IZ1 + 1.95, false, 0x6a6460);   // Vitória Régia (foto 3)
+  car(25.6, -22, true, 0x30343a);                                                                                       // Papoulas, perto da rua da praça
+  car(-22, -52.7, false, 0xc8ccd0, 'kombi'); car(3, -52.7, false, 0xf2f2f0);                                         // Cravos: furgão na Assembleia, picape na Arena
+  car(-11.5, -34.6, false, 0xf4f4f2);                                                                                   // picape no gramado atrás da quadra
+
+  // lojinhas do outro lado da Papoulas (portas de enrolar, barraca de palha, toldo azul)
+  const [LX0] = W(B_AREAS.lojas[0], 0), [LX1] = W(B_AREAS.lojas[2], 0);
+  for (const [z0, z1, extra] of [[0, 5, { hex: 0xc8302a }], [5, 8.6, { hex: 0xeeeeea }], [8.6, 12.6, { thatch: 1 }], [12.6, 17.6, { hex: 0xc8302a }],
+    [17.6, 21.4, { hex: 0x9a9da2 }], [21.4, 26, { hex: 0xd03a30, awning: 1 }], [26, 30.5, { hex: 0xc8302a }]]) {
+    add(LX0, IZ0 + 0.3 + z0, LX1, IZ0 + 0.3 + z1, extra.thatch ? 2.8 : 3.2, 'shop', extra);
+  }
+
+  // enfeites sem colisão: cones, árvore grande do quintal e o guindaste do estaleiro lá no fundo
+  const decor = [
+    { type: 'cone', x: 2.7, z: IZ0 - 0.6 }, { type: 'cone', x: 26.5, z: IZ0 + 11 },
+    { type: 'bigtree', x: IX1 - 1.6, z: IZ0 + 21.2, s: 1.9 }, { type: 'bigtree', x: NX0 + 1.8, z: IZ0 + 23.5, s: 1.3 },
+    { type: 'yardtree', x: IX0 + 2.6, z: FZ + 10.5, s: 1.2 },
+    { type: 'crane', x: -34, z: 92 },
+    { type: 'banana', x: -12, z: -57.6 }, { type: 'banana', x: -14.5, z: -57.4 },                     // bananeira na frente do campo (foto 4)
+    { type: 'woodgate', x: 24.25, z: 55.7 },                                                          // fim da Papoulas (foto 1)
+    { type: 'tent', x: 30.4, z: 52.2 },                                                               // barraca listrada na esquina (foto 3)
+    { type: 'silo', x: -34, z: -118 }, { type: 'silo', x: -27, z: -121 }, { type: 'silo', x: -20, z: -118 },   // silos da fábrica atrás do campo
+    { type: 'factory', x0: -80, x1: -38, z0: -112, z1: -98, h: 10 },
+  ];
+  for (let z = MZ0 + 2; z < MZ1; z += 6.5) decor.push({ type: 'bigtree', x: 31 + Math.sin(z) * 1.2, z, s: 1.3 + (Math.cos(z * 1.7) + 1) * 0.35 });
+  for (let x = 22; x < 33; x += 6) decor.push({ type: 'bigtree', x, z: -62 - (x % 4), s: 1.5 });
+  // mesinhas de plástico dos bares (fotos 9 e 10) e caixotes da quitanda
+  for (const x of [-26, -23.8]) prop(x, -12.95, 0.9, 0.9, 0.75, 'ptable');     // bar e mercearia
+  for (const x of [-11.6, -9.2]) prop(x, -9.0, 0.9, 0.9, 0.75, 'ptable');      // bar do outro lado da Margaridas
+  prop(-2.9, -6.2, 0.8, 0.8, 0.8, 'crate'); prop(-2.9, -5.3, 0.6, 0.6, 0.6, 'crate');   // caixotes da quitanda
   // caixas nas ruas (cobertura)
-  for (const [x, y, s] of [[214, 640, 1.4], [215, 646, 1.0], [279, 450, 1.4], [125, 610, 1.4], [125, 615, 1.0], [214, 440, 1.2], [279, 690, 1.4]]) {   // perto da calçada (fora do caminho do meio)
+  for (const [x, y, s] of [[291, 450, 1.4], [313, 556, 1.4], [313, 561, 1.0]]) {   // perto da calçada (fora do caminho do meio)
     const [cx, cz] = W(x, y); prop(cx, cz, s, s, s, 'crate');
   }
   // postes (finos, sólidos embaixo)
@@ -228,49 +359,43 @@ function buildBairro() {
   // ---- rede de caminhos dos bots: cruzamentos das ruas
   const nodes = {}, links = [];
   const N = (id, x, y) => { nodes[id] = W(x, y); };
-  N('k1', 135, 294); N('k2', 268, 294);
-  N('c1', 135, 410); N('c2', 205, 410); N('c3', 268, 410);
-  N('m1', 135, 478); N('m2', 205, 478); N('m3', 268, 478);
-  N('a1', 135, 547); N('a2', 205, 547); N('a3', 268, 547);
-  N('p1', 205, 581); N('p2', 268, 581);
-  N('t1', 135, 668); N('t2', 205, 668); N('t3', 268, 668);
-  N('r1', 135, 728); N('r2', 205, 728); N('r3', 268, 728);
-  N('cA', 200, 360); N('cB', 165, 360);      // dentro do campo (base CT)
-  N('gS1', 180, 390); N('gS1o', 180, 410); N('gS2', 223, 390); N('gS2o', 223, 410);   // portões do alambrado
-  N('gW', 155, 356); N('gWo', 135, 356); N('gE', 248, 351); N('gEo', 268, 351);
-  N('pA', 236, 520); N('pB', 246, 552);      // praça
-  N('iA', 236, 588);                         // pátio da igreja
-  N('lB', 172, 503);                         // terreno baldio
-  N('bar', 176, 444);
+  N('cA', 230, 240); N('cB', 180, 240);                          // dentro do campo (base CT)
+  N('gS1', 157, 280); N('gS2', 237, 280);                        // portões do alambrado
+  N('R0', 81, 304); N('R1', 157, 304); N('R2', 184, 304); N('R2b', 237, 304); N('R3', 302, 304);   // Cravos
+  N('B1', 157, 350); N('Be', 184, 344);                          // quadra de areia e o portão para a ruela
+  N('T2', 184, 396); N('G1', 166, 396); N('T3', 184, 476);       // ruela reta até a Margaridas e o gramado
+  N('W2', 81, 476); N('N1', 205, 476); N('N2', 302, 476);        // Margaridas
+  N('pN', 245, 490); N('pA', 245, 516); N('pB', 243, 560);       // praça
+  N('iA', 253, 596);                                             // pátio da igreja
+  N('a2', 205, 547); N('a3', 302, 547); N('p1', 205, 581); N('p2', 302, 581);
+  N('t2', 205, 668); N('t3', 302, 668);
+  N('r1', 170, 728); N('r2', 205, 728); N('r3', 302, 728);
   const L = (a, b) => links.push([a, b]);
-  L('k1', 'k2'); L('k1', 'c1'); L('k2', 'c3'); L('c1', 'c2'); L('c2', 'c3');
-  L('c1', 'm1'); L('m1', 'a1'); L('a1', 't1'); L('t1', 'r1');
-  L('c2', 'm2'); L('m2', 'a2'); L('a2', 'p1'); L('p1', 't2'); L('t2', 'r2');
-  L('c3', 'm3'); L('m3', 'a3'); L('a3', 'p2'); L('p2', 't3'); L('t3', 'r3');
-  L('m1', 'm2'); L('a1', 'a2'); L('p1', 'p2'); L('t1', 't2'); L('r1', 'r2'); L('r2', 'r3');
-  L('cA', 'cB'); L('cB', 'gS1'); L('cA', 'gS2'); L('cB', 'gW'); L('cA', 'gE'); L('cA', 'gS1');
-  L('gS1', 'gS1o'); L('gS1o', 'c1'); L('gS1o', 'c2'); L('gS2', 'gS2o'); L('gS2o', 'c2'); L('gS2o', 'c3');
-  L('gW', 'gWo'); L('gWo', 'k1'); L('gWo', 'c1'); L('gE', 'gEo'); L('gEo', 'k2'); L('gEo', 'c3');
-  L('pA', 'm3'); L('pA', 'pB'); L('pB', 'a3'); L('pB', 'p1'); L('iA', 'p1'); L('iA', 'p2');
-  L('lB', 'm1'); L('lB', 'a1'); L('lB', 'm2'); L('bar', 'gS1o'); L('bar', 'c2');
+  L('cA', 'cB'); L('cB', 'gS1'); L('cA', 'gS1'); L('cA', 'gS2'); L('gS1', 'R1'); L('gS2', 'R2b');
+  L('R0', 'R1'); L('R1', 'R2'); L('R2', 'R2b'); L('R2b', 'R3'); L('R1', 'B1'); L('B1', 'Be'); L('Be', 'R2');
+  L('Be', 'T2'); L('T2', 'G1'); L('T2', 'T3');
+  L('R0', 'W2'); L('W2', 'T3'); L('T3', 'N1'); L('N1', 'N2'); L('R3', 'N2');
+  L('N1', 'a2'); L('N2', 'a3'); L('a2', 'p1'); L('a3', 'p2'); L('p1', 't2'); L('p2', 't3'); L('t2', 'r2'); L('t3', 'r3');
+  L('r1', 'r2'); L('r2', 'r3'); L('p1', 'p2');
+  L('pN', 'N1'); L('pN', 'N2'); L('pN', 'pA'); L('pA', 'pB'); L('pB', 'a3'); L('pB', 'p1'); L('iA', 'p1'); L('iA', 'p2');
 
   const sz = W(B_BOUNDS[0], B_BOUNDS[1]), ez = W(B_BOUNDS[2], B_BOUNDS[3]);
   const spawnsT = [], spawnsCT = [];
-  for (let i = 0; i < 10; i++) spawnsT.push(W(150 + (i % 5) * 26, 722 + ((i / 5) | 0) * 12));
-  for (let i = 0; i < 10; i++) spawnsCT.push(W(165 + (i % 5) * 18, 330 + ((i / 5) | 0) * 40));
-  const siteA = [W(213, 482), W(272, 600)], siteB = [W(143, 484), W(197, 540)];
+  for (let i = 0; i < 10; i++) spawnsT.push(W(168 + (i % 5) * 23, 730 + ((i / 5) | 0) * 8));
+  for (let i = 0; i < 10; i++) spawnsCT.push(W(160 + (i % 5) * 26, 218 + ((i / 5) | 0) * 50));
+  const siteA = [W(213, 482), W(292, 604)], siteB = [W(137, 300), W(191, 370)];   // B: quadra de areia, começo da ruela e frente da Cravos
   return {
     id: 'bairro', name: 'Bairro',
     size: { minX: sz[0], maxX: ez[0], minZ: sz[1], maxZ: ez[1] },
-    boxes, poles,
+    boxes, poles, decor,
     streets: B_STREETS.map(s => { const r = streetRect(s); const p = W(r[0], r[1]), q = W(r[2], r[3]); return [p[0], p[1], q[0], q[1]]; }),
     areas: Object.fromEntries(Object.entries(B_AREAS).map(([k, r]) => { const p = W(r[0], r[1]), q = W(r[2], r[3]); return [k, [p[0], p[1], q[0], q[1]]]; })),
     spawns: { T: spawnsT, CT: spawnsCT },
     sites: { A: { min: siteA[0], max: siteA[1] }, B: { min: siteB[0], max: siteB[1] } },
     nodes, links,
-    botT: [['r2', 't2', 'p1', 'pB'], ['r3', 't3', 'p2', 'iA'], ['r1', 't1', 'a1', 'lB'], ['r2', 't2', 't1', 'a1', 'lB']],
-    botCT: ['pA', 'iA', 'lB', 'm2', 'a2', 'm3'], botPush: ['r1', 'r2', 'r3'],
-    staging: { A: ['t3', 'p1'], B: ['t1', 'a2'] },
+    botT: [['r2', 't2', 'p1', 'pB'], ['r3', 't3', 'p2', 'iA'], ['r2', 't2', 'p1', 'a2', 'N1', 'T3', 'T2', 'Be', 'B1'], ['r3', 't3', 'p2', 'a3', 'N2', 'R3', 'R2b', 'R2', 'R1', 'B1']],
+    botCT: ['pA', 'iA', 'B1', 'Be', 'G1', 'N2'], botPush: ['r1', 'r2', 'r3'],
+    staging: { A: ['t2', 't3'], B: ['T3', 'N2'] },
   };
 }
 
