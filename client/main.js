@@ -4,7 +4,7 @@ import { MAP, MAPS } from '/shared/map.js';
 import { PHYS, moveBody, canStand, raycastWorld, rayPlayer, lineOfSight, dirFromAngles, eyeHeight, bodyHeight, NADE, stepNade, PROJ, stepProj } from '/shared/physics.js';
 import { WEAPONS, BUY_MENU, sprayOffset, fireInterval, MAX_HP, weaponName, BOMB } from '/shared/weapons.js';
 import { buildWorld } from './world.js';
-import { ViewModel, buildWeaponModel, buildNade } from './viewmodel.js';
+import { ViewModel, buildWeaponModel, buildNade, simplifyMaterials } from './viewmodel.js';
 import { loadGunModels } from './gunmodels.js';
 import { loadArms } from './arms.js';
 import { buildRocketProjectile, buildArrowProjectile } from './heavy.js';
@@ -46,6 +46,20 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 0.62;
 renderer.autoClear = false;
 $('game').appendChild(renderer.domElement);
+// a placa de vídeo pode "derrubar" o WebGL quando falta memória (outros jogos ou muitas abas abertas): a tela ficaria
+// branca para sempre; avisa o que fazer e recarrega sozinho quando o navegador devolver os gráficos
+renderer.domElement.addEventListener('webglcontextlost', (e) => {
+  e.preventDefault();
+  if ($('gpulost')) return;
+  const box = document.createElement('div');
+  box.id = 'gpulost';
+  box.style.cssText = 'position:fixed;inset:0;z-index:99;display:flex;align-items:center;justify-content:center;background:rgba(10,10,12,.92);color:#fff;font:16px "Segoe UI",Arial;text-align:center;padding:24px';
+  box.innerHTML = '<div><h2 style="color:#e8c070;margin:0 0 12px">A placa de vídeo ficou sem memória</h2>' +
+    'O navegador desligou os gráficos 3D do jogo.<br>Feche outros jogos e abas pesadas do navegador e clique em recarregar.<br><br>' +
+    '<button style="font-size:16px;padding:10px 22px;cursor:pointer" onclick="location.reload()">Recarregar o jogo</button></div>';
+  document.body.appendChild(box);
+});
+renderer.domElement.addEventListener('webglcontextrestored', () => location.reload());
 
 const scene = new THREE.Scene();
 const BASE_FOV = 72;
@@ -175,14 +189,14 @@ function onMessage(m) {
     }
     case 'chat': hud.chat(m.name, m.team, m.text); break;
     case 'nade': {
-      const mesh = buildNade(m.kind).group; mesh.scale.setScalar(1.2); scene.add(mesh);
+      const mesh = simplifyMaterials(buildNade(m.kind).group); mesh.scale.setScalar(1.2); scene.add(mesh);
       mesh.position.set(...m.p);
       nadeObjs.set(m.id, { kind: m.kind, p: [...m.p], v: [...m.v], rest: false, mesh, acc: 0 });
       if (m.owner !== me.id) sound.throwNade();
       break;
     }
     case 'proj': {   // foguete ou flecha saiu: o cliente simula o voo igual ao servidor
-      const mesh = m.kind === 'rocket' ? buildRocketProjectile() : buildArrowProjectile();
+      const mesh = simplifyMaterials(m.kind === 'rocket' ? buildRocketProjectile() : buildArrowProjectile());
       scene.add(mesh); mesh.position.set(...m.p);
       projObjs.set(m.id, { kind: m.kind, p: [...m.p], v: [...m.v], mesh, acc: 0, trail: 0 });
       if (m.owner !== me.id) {
@@ -280,7 +294,7 @@ function clearProjs() {
   for (const a of stuckArrows) scene.remove(a.mesh); stuckArrows.length = 0;
 }
 function stickArrow(pos, dir) {
-  const mesh = buildArrowProjectile();
+  const mesh = simplifyMaterials(buildArrowProjectile());
   mesh.position.copy(pos).addScaledVector(dir, 0.08); mesh.quaternion.setFromUnitVectors(_fwd, dir.clone().normalize());
   scene.add(mesh); stuckArrows.push({ mesh, t: now() + 12 });
   if (stuckArrows.length > 30) scene.remove(stuckArrows.shift().mesh);
@@ -783,4 +797,4 @@ function frame() {
 // câmera do menu: passeio lento pelo mapa
 camera.position.set(-33, 2.2, 28); camera.rotation.set(-0.05, 0.1, 0);
 requestAnimationFrame(frame);
-window.__game = { me, srv, remotes, camera, vm, sound, fx, changeMap, debug: { fire: () => { mouseClicked = true; tryFire(); }, selectSlot, send, startReload, keys } };
+window.__game = { me, srv, remotes, camera, vm, renderer, sound, fx, changeMap, debug: { fire: () => { mouseClicked = true; tryFire(); }, selectSlot, send, startReload, keys } };

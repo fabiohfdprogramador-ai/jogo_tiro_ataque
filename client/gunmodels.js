@@ -233,7 +233,7 @@ function canvasTex(size, draw, repeat, srgb) {
   if (srgb) t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-const wornPaint = (base, chip, seed) => canvasTex(1024, (g, s) => {
+const wornPaint = (base, chip, seed) => canvasTex(512, (g, s) => {
   const r = rnd(seed);
   g.fillStyle = base; g.fillRect(0, 0, s, s);
   for (let i = 0; i < 120; i++) {   // manchas e variação da tinta

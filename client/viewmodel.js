@@ -768,11 +768,27 @@ export class ViewModel {
   }
 }
 
+// No cenário (o Bairro tem dezenas de luzes de poste) o material avançado (verniz, brilho de tecido) deixa o
+// programa gráfico pesado demais e a placa de vídeo falha: lá fora as armas usam o material normal.
+const SIMPLE = new Map();
+export function simplifyMaterials(root) {
+  root.traverse(o => {
+    if (!o.isMesh || !o.material || !o.material.isMeshPhysicalMaterial) return;
+    const m = o.material;
+    if (!SIMPLE.has(m)) SIMPLE.set(m, new THREE.MeshStandardMaterial({
+      color: m.color, map: m.map, normalMap: m.normalMap, normalScale: m.normalScale, roughnessMap: m.roughnessMap, metalnessMap: m.metalnessMap,
+      roughness: m.roughness, metalness: m.metalness, envMapIntensity: m.envMapIntensity, side: m.side, transparent: m.transparent, opacity: m.opacity,
+    }));
+    o.material = SIMPLE.get(m);
+  });
+  return root;
+}
 // Modelo da arma sozinho (sem mãos), em tamanho real: usado nos bonecos em terceira pessoa.
 export function buildWeaponModel(key) {
   const kind = KIND[key];
-  if (kind === 'nade') { const w = buildNade(key); w.group.traverse(o => { if (o.isMesh) o.castShadow = true; }); return w; }
+  if (kind === 'nade') { const w = buildNade(key); simplifyMaterials(w.group); w.group.traverse(o => { if (o.isMesh) o.castShadow = true; }); return w; }
   const w = (key === 'awp' && buildAWPPro()) || (kind !== 'knife' && !SPECIAL[key] && makeGunFromModel(key, { suppressor: M.metalDark, silver: M.silver })) || (key === 'ak47' ? buildAK() : key === 'm4a4' ? buildM4() : key === 'awp' ? buildAWP() : key === 'rpg' ? buildRPG() : key === 'bow' ? buildBow() : kind === 'pistol' ? buildPistol(key) : buildKnife());
+  simplifyMaterials(w.group);
   w.group.traverse(o => { if (o.isMesh) o.castShadow = true; });
   return w;
 }

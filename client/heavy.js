@@ -24,7 +24,7 @@ function photoTex(file, repeat, srgb) {
 
 // ---------- texturas ----------
 // aço pintado e gasto: tinta escura com arranhões claros nas bordas e manchas de óleo
-const wornPaint = (base, seed) => canvasTex(1024, (g, s) => {
+const wornPaint = (base, seed) => canvasTex(512, (g, s) => {   // 512: um quarto da memória de vídeo de 1024, quase a mesma aparência
   const r = rand(seed);
   g.fillStyle = base; g.fillRect(0, 0, s, s);
   for (let i = 0; i < 90; i++) {
@@ -55,7 +55,7 @@ const carbon = canvasTex(256, (g, s) => {
   }
 }, 8);
 // camuflagem de folhas para os braços do arco
-const leafCamo = canvasTex(1024, (g, s) => {
+const leafCamo = canvasTex(512, (g, s) => {
   const r = rand(23);
   g.fillStyle = '#5b5a3e'; g.fillRect(0, 0, s, s);
   for (const [col, n, size] of [['#3f3f2a', 120, 40], ['#7a744f', 90, 30], ['#2b2a1d', 70, 22], ['#8f8660', 40, 16]]) {
