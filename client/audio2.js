@@ -10,6 +10,8 @@ const GUN = {
   deagle: { crack: 0.8, blastF: 1900, blastD: 0.2,  boomF: 95,  boomD: 0.3,  mech: 'pistol', tail: 1.2, vol: 1.15, drive: 3.8 },
   glock:  { crack: 0.5, blastF: 3600, blastD: 0.08, boomF: 170, boomD: 0.12, mech: 'pistol', tail: 0.6, vol: 0.7, drive: 2.0 },
   usp:    { suppressed: true, vol: 0.55, mech: 'pistol' },
+  rpg:    { vol: 1.2, tail: 1.8 },
+  bow:    { vol: 0.6, tail: 0.3 },
 };
 
 // cada som cai num grupo com volume próprio (menu de opções)
@@ -160,6 +162,18 @@ export class Sound extends SoundV1 {
     const v = P.vol * (pos ? 1.8 : 1.0);
     const out = this.chain(pos, distance, P.tail || 0.5);
     const T = t + delay;
+    if (key === 'rpg') {   // bazuca: estouro grave do motor + chiado longo do foguete saindo
+      this.thump(out, { t: T, f0: 110, f1: 35, decay: 0.5, vol: 1.3 * v });
+      this.burst(out, { t: T, freq: 700, type: 'lowpass', q: 0.7, decay: 0.35, vol: 1.0 * v, rate });
+      this.burst(out, { t: T + 0.03, freq: 2200, type: 'bandpass', q: 0.6, attack: 0.05, decay: 1.1, vol: 0.45 * v, rate: 0.8 });
+      return;
+    }
+    if (key === 'bow') {   // arco: estalo seco da corda e o zumbido curto dela vibrando
+      this.burst(out, { t: T, freq: 1800, type: 'bandpass', q: 2, decay: 0.05, vol: 0.5 * v, rate });
+      this.thump(out, { t: T, f0: 240, f1: 120, decay: 0.18, vol: 0.45 * v });
+      this.burst(out, { t: T + 0.01, freq: 600, type: 'bandpass', q: 6, decay: 0.25, vol: 0.2 * v, rate });
+      return;
+    }
     // gravação real da arma, quando existir
     if (this.playSample(out, key, T, P.vol * (pos ? 1.4 : 0.9), 0.97 + Math.random() * 0.06)) {
       if (!pos || distance < 12) this.mechanics(out, P.mech, T, pos ? 0.4 : 0.8);

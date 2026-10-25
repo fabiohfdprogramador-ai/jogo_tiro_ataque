@@ -1,12 +1,13 @@
 // Cliente do jogo: renderização, controles, previsão de movimento, rede e efeitos.
 import * as THREE from 'three';
 import { MAP, MAPS } from '/shared/map.js';
-import { PHYS, moveBody, canStand, raycastWorld, rayPlayer, lineOfSight, dirFromAngles, eyeHeight, bodyHeight, NADE, stepNade } from '/shared/physics.js';
+import { PHYS, moveBody, canStand, raycastWorld, rayPlayer, lineOfSight, dirFromAngles, eyeHeight, bodyHeight, NADE, stepNade, PROJ, stepProj } from '/shared/physics.js';
 import { WEAPONS, BUY_MENU, sprayOffset, fireInterval, MAX_HP, weaponName, BOMB } from '/shared/weapons.js';
 import { buildWorld } from './world.js';
 import { ViewModel, buildWeaponModel, buildNade } from './viewmodel.js';
 import { loadGunModels } from './gunmodels.js';
 import { loadArms } from './arms.js';
+import { buildRocketProjectile, buildArrowProjectile } from './heavy.js';
 import { RemotePlayers } from './players.js';
 import { Effects } from './effects.js';
 import { Sound } from './audio2.js';
@@ -139,7 +140,7 @@ function onMessage(m) {
       srv.score = m.score;
       if (m.phase === 'freeze') {
         if (m.map) changeMap(m.map);
-        fx.clearDecals(); clearNades();
+        fx.clearDecals(); clearNades(); clearProjs();
         hud.banner(`Round ${m.round}`, '', 2.5);
       } else if (m.phase === 'live') {
         sound.roundStart(); hud.notice('Vai! Vai! Vai!', 1.5);
@@ -180,6 +181,31 @@ function onMessage(m) {
       if (m.owner !== me.id) sound.throwNade();
       break;
     }
+    case 'proj': {   // foguete ou flecha saiu: o cliente simula o voo igual ao servidor
+      const mesh = m.kind === 'rocket' ? buildRocketProjectile() : buildArrowProjectile();
+      scene.add(mesh); mesh.position.set(...m.p);
+      projObjs.set(m.id, { kind: m.kind, p: [...m.p], v: [...m.v], mesh, acc: 0, trail: 0 });
+      if (m.owner !== me.id) {
+        lastFiredAt.set(m.owner, now()); remotes.fired(m.owner);
+        if (!me.alive && m.owner === spectate) vm.fire();
+        sound.shot(m.w, m.p);
+      }
+      break;
+    }
+    case 'projhit': {
+      const q = projObjs.get(m.id); if (q) { scene.remove(q.mesh); projObjs.delete(m.id); }
+      const pos = new THREE.Vector3(...m.p), dir = new THREE.Vector3(...m.d);
+      if (m.hp) remotes.hit(m.hp, dir, m.hs);
+      if (m.kind === 'rocket') {
+        const d = pos.distanceTo(camera.position);
+        fx.explosion(pos, true); sound.boom(m.p, true); me.shake = Math.min(1, me.shake + Math.max(0, 1.2 - d / 25));
+      } else {
+        if (m.hp) fx.bloodHit(pos, dir, MAP.boxes, raycastWorld);
+        else if (m.n) { fx.impact(pos, m.n); stickArrow(pos, dir); }
+        sound.bounce(m.p);
+      }
+      break;
+    }
     case 'boom': {
       const n = nadeObjs.get(m.id); if (n) { scene.remove(n.mesh); nadeObjs.delete(m.id); }
       const pos = new THREE.Vector3(...m.p);
@@ -217,7 +243,7 @@ function onState(m) {
   me.hp = s.hp; me.armor = s.ar; me.helmet = !!s.hm; me.money = s.m; me.alive = !!s.a;
   if (s.team !== me.team) { me.team = s.team; vm.setTeam(s.team); remotes.setMyTeam(s.team); }
   me.slots = { 1: s.sl[1] || null, 2: s.sl[2] || null, 3: s.sl[3] || null, 4: s.sl[4] || null, 5: s.sl[5] || null };
-  me.nd = s.nd || {};
+  me.nd = s.nd || {}; me.bag4 = s.b4 || [];
   srv.bomb = m.bomb || { st: 'none' };
   if (s.cur === 5 && me.cur === 5 && me.slots[5] && vm.key !== me.slots[5] && vm.throwT < 0) vm.setWeapon(me.slots[5]);   // trocou de granada
   for (const k in s.am) {
@@ -244,6 +270,33 @@ function updateNades(dt) {
     n.mesh.position.set(n.p[0], n.p[1], n.p[2]);
     if (!n.rest) { n.mesh.rotation.x += dt * 9; n.mesh.rotation.z += dt * 5; }
   }
+}
+
+// foguetes e flechas em voo; flechas que bateram ficam espetadas um tempo
+const projObjs = new Map(), stuckArrows = [];
+const _fwd = new THREE.Vector3(1, 0, 0), _dirV = new THREE.Vector3();
+function clearProjs() {
+  for (const q of projObjs.values()) scene.remove(q.mesh); projObjs.clear();
+  for (const a of stuckArrows) scene.remove(a.mesh); stuckArrows.length = 0;
+}
+function stickArrow(pos, dir) {
+  const mesh = buildArrowProjectile();
+  mesh.position.copy(pos).addScaledVector(dir, 0.08); mesh.quaternion.setFromUnitVectors(_fwd, dir.clone().normalize());
+  scene.add(mesh); stuckArrows.push({ mesh, t: now() + 12 });
+  if (stuckArrows.length > 30) scene.remove(stuckArrows.shift().mesh);
+}
+function updateProjs(dt) {
+  for (const q of projObjs.values()) {
+    q.acc += dt;
+    while (q.acc >= 1 / 60) { q.acc -= 1 / 60; stepProj(q, 1 / 60); }
+    q.mesh.position.set(q.p[0], q.p[1], q.p[2]);
+    q.mesh.quaternion.setFromUnitVectors(_fwd, _dirV.set(q.v[0], q.v[1], q.v[2]).normalize());
+    if (q.kind === 'rocket' && (q.trail -= dt) <= 0) {   // rastro de fumaça
+      q.trail = 0.02; fx.spawn(q.mesh.position.clone().addScaledVector(_dirV, -0.3), _dirV.clone().negate(), 0xcfc8bc, 0.5, 1.4, 0.4);
+    }
+  }
+  const t = now();
+  while (stuckArrows.length && stuckArrows[0].t < t) scene.remove(stuckArrows.shift().mesh);
 }
 
 // bomba: nas costas de quem carrega, no chão ou plantada (com luz piscando)
@@ -387,6 +440,11 @@ function tryFire() {
   vm.fire(); sound.shot(key);
   if (W.melee) return;
   me.ammo[key].mag--;
+  if (W.projectile) {   // foguete/flecha: o servidor manda o projétil de volta e o voo aparece para todos
+    me.punch += W.kick; me.pitch += W.kick * 0.4; me.shake = Math.min(1, me.shake + W.kick * 4);
+    if (me.ammo[key].mag <= 0 && me.ammo[key].res > 0) setTimeout(() => { if (curKey() === key) startReload(); }, 350);
+    return;
+  }
   me.punch += W.auto ? W.kick * 0.6 : W.kick * 0.9;
   me.pitch += W.auto ? W.kick * 0.15 : W.kick * 0.3;
   // impacto previsto na hora (o servidor confirma acertos em jogadores)
@@ -519,11 +577,12 @@ document.addEventListener('keydown', (e) => {
   if (!locked) return;
   if (e.code === 'KeyB' && me.alive) { buyOpen = !buyOpen; if (buyOpen && !srv.buy) { buyOpen = false; hud.notice('O tempo de compra acabou'); } }
   if (e.code === 'Escape' && buyOpen) buyOpen = false;
-  if (/^Digit[1-9]$/.test(e.code)) {
-    const n = e.code.slice(5);
+  if (/^(Digit[0-9]|Minus)$/.test(e.code)) {
+    const n = e.code === 'Minus' ? '-' : e.code.slice(5);
     if (buyOpen) { const it = BUY_MENU.find(b => b.key === n); if (it) send({ t: 'buy', item: it.item }); }
     else if (me.alive && +n === 5 && me.cur === 5) send({ t: 'nextnade' });   // 5 de novo: próxima granada
-    else if (me.alive && +n <= 5) selectSlot(+n);
+    else if (me.alive && +n === 4 && me.cur === 4 && (me.bag4 || []).length) send({ t: 'next4' });   // 4 de novo: troca AWP/bazuca/arco
+    else if (me.alive && +n >= 1 && +n <= 5) selectSlot(+n);
   }
   if (e.code === 'KeyR') startReload();
   if (e.code === 'KeyC' && me.alive) me.crouchToggle = !me.crouchToggle;
@@ -622,7 +681,7 @@ function frame() {
     me.punch *= Math.exp(-dt * 7);
     me.shake = Math.max(0, me.shake - dt * 2.2);
     me.flash = Math.max(0, me.flash - dt);
-    updateNades(dt);
+    updateNades(dt); updateProjs(dt);
     updateBomb(dt);
 
     sendT -= dt;
@@ -706,6 +765,10 @@ function frame() {
   const hs = Math.hypot(me.v[0], me.v[2]);
   const specR = !me.alive && spectate ? remotes.get(spectate) : null;
   remotes.hidden = specR ? specR.id : 0;
+  if (vm.cur && vm.cur.projectile) {   // foguete/flecha aparece na arma quando carregada (e no fim da recarga)
+    const k = curKey(), a = me.ammo[k], Wk = WEAPONS[k];
+    vm.cur.loaded = !!(a && Wk) && (me.reloadEnd ? now() > me.reloadEnd - Wk.reload * 0.4 : a.mag > 0);
+  }
   if (specR) vm.update(dt, { speed: specR.s, onGround: true, vy: 0, crouch: specR.crouch, lookDX: 0, lookDY: 0, visible: playing && specR.alive });
   else vm.update(dt, { speed: hs, onGround: me.onGround, vy: me.v[1], crouch: me.crouch, lookDX, lookDY, visible: playing && me.alive && me.scope === 0, firing: me.alive && (mouseDown || now() - me.lastShot < 0.35), ads: me.ads && me.alive, sprint: me.alive && me.sprint && me.onGround && hs > PHYS.walkSpeed * 0.9 });
   lookDX = 0; lookDY = 0;

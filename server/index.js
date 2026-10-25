@@ -7,7 +7,7 @@ import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { MAP, MAPS, useMap } from '../shared/map.js';
-import { PHYS, NADE, moveBody, raycastWorld, rayPlayer, lineOfSight, dirFromAngles, eyeHeight, bodyHeight, stepNade, smokeBlocks, flashAmount } from '../shared/physics.js';
+import { PHYS, NADE, PROJ, stepProj, moveBody, raycastWorld, rayPlayer, lineOfSight, dirFromAngles, eyeHeight, bodyHeight, stepNade, smokeBlocks, flashAmount } from '../shared/physics.js';
 import { WEAPONS, ITEMS, NADES, MAX_HP, BOMB, computeDamage, fireInterval, defaultPistol } from '../shared/weapons.js';
 
 const PORT = Number(process.env.PORT || 3000);
@@ -71,7 +71,7 @@ function newPlayer(name, team, isBot, ws = null) {
     id: nextId++, name, team, isBot, ws,
     p: [0, 0, 0], v: [0, 0, 0], yaw: 0, pitch: 0, crouch: false, speed: 0,
     hp: MAX_HP, armor: 0, helmet: false, alive: false, money: CFG.startMoney,
-    slots: { 1: null, 2: defaultPistol(team), 3: 'knife', 4: null, 5: null }, nades: {}, cur: 2, ammo: {},
+    slots: { 1: null, 2: defaultPistol(team), 3: 'knife', 4: null, 5: null }, bag4: [], nades: {}, cur: 2, ammo: {},
     kills: 0, deaths: 0, lastShot: 0, reloadEnd: 0, reloadKey: null, lostGear: true, lastPosT: now(), using: false,
     bot: isBot ? { path: [], target: null, react: 0, nextShot: 0, burst: 0, strafe: 1, strafeT: 0, stuckT: 0, lastP: [0, 0, 0], alert: null, alertUntil: 0, goals: [], pushAt: 0, blind: 0, obj: null, objT: 0, nadeT: 0, staging: null } : null,
   };
@@ -111,7 +111,7 @@ function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = (Math.r
 function spawnPlayer(pl, spot) {
   if (pl.lostGear) {
     // todo mundo começa com faca, pistola, fuzil, AWP (tecla 4) e uma granada de cada
-    pl.slots = { 1: null, 2: defaultPistol(pl.team), 3: 'knife', 4: null, 5: null }; pl.ammo = {};
+    pl.slots = { 1: null, 2: defaultPistol(pl.team), 3: 'knife', 4: null, 5: null }; pl.bag4 = []; pl.ammo = {};
     giveWeapon(pl, pl.slots[2]);
     giveWeapon(pl, pl.team === 'T' ? 'ak47' : 'm4a4');
     giveWeapon(pl, 'awp');
@@ -119,7 +119,7 @@ function spawnPlayer(pl, spot) {
     pl.armor = 0; pl.helmet = false; pl.lostGear = false;
   }
   nextNade(pl);
-  for (const key of Object.values(pl.slots)) if (key && !WEAPONS[key].melee) pl.ammo[key] = { mag: WEAPONS[key].mag, res: WEAPONS[key].reserve };
+  for (const key of [...Object.values(pl.slots), ...pl.bag4]) if (key && !WEAPONS[key].melee) pl.ammo[key] = { mag: WEAPONS[key].mag, res: WEAPONS[key].reserve };
   pl.cur = pl.slots[1] ? 1 : 2;
   pl.hp = MAX_HP; pl.alive = true; pl.crouch = false; pl.reloadEnd = 0; pl.using = false;
   pl.p = [spot[0], 0, spot[1]]; pl.v = [0, 0, 0];
@@ -130,7 +130,7 @@ function spawnPlayer(pl, spot) {
 
 function startRound() {
   game.phase = 'freeze'; game.timer = CFG.freeze; game.round++;
-  drops.length = 0; nades.length = 0; smokes.length = 0;
+  drops.length = 0; nades.length = 0; smokes.length = 0; projs.length = 0;
   rebalanceBots();
   for (const team of ['T', 'CT']) {
     const spots = shuffle([...MAP.spawns[team]]);
@@ -187,9 +187,13 @@ function buy(pl, item) {
     pl.money -= W.price; pl.nades[item] = 1; if (!pl.slots[5]) pl.slots[5] = item;
   } else if (W) {
     if (W.team && W.team !== pl.team) return deny('Essa arma é do outro time');
-    if (pl.slots[W.slot] === item) return deny('Você já tem essa arma');
+    if (pl.slots[W.slot] === item || (W.slot === 4 && pl.bag4.includes(item))) return deny('Você já tem essa arma');
     if (pl.money < W.price) return deny('Dinheiro insuficiente');
-    pl.money -= W.price; if (pl.slots[W.slot]) dropWeapon(pl, W.slot); giveWeapon(pl, item); pl.cur = W.slot; pl.reloadEnd = 0;
+    pl.money -= W.price;
+    // tecla 4 guarda AWP, bazuca e arco juntas (apertar 4 de novo troca); nas outras, a nova substitui a antiga
+    if (W.slot === 4 && pl.slots[4]) pl.bag4.push(pl.slots[4]);
+    else if (pl.slots[W.slot]) dropWeapon(pl, W.slot);
+    giveWeapon(pl, item); pl.cur = W.slot; pl.reloadEnd = 0;
   } else if (item === 'kevlar') {
     if (pl.armor >= 100) return deny('Você já tem colete');
     if (pl.money < ITEMS.kevlar.price) return deny('Dinheiro insuficiente');
@@ -221,6 +225,7 @@ function fireShot(pl, o, d, key) {
     a.mag--;
   }
   pl.lastShot = t;
+  if (W.projectile) { launchProj(pl, o, d, W.projectile, key); return true; }
   const wr = raycastWorld(o, d, W.range, MAP.boxes);
   let best = wr.t, hit = null;
   for (const q of players.values()) {
@@ -282,10 +287,14 @@ function dropWeapon(pl, slot, thrown = false) {
   if (drops.length > 30) drops.shift();
   pl.slots[slot] = null; delete pl.ammo[key];
   if (pl.reloadKey === key) pl.reloadEnd = 0;
+  if (slot === 4 && pl.bag4.length) pl.slots[4] = pl.bag4.shift();   // a próxima arma guardada vem para a mão
 }
 function takeDrop(pl, d) {
   const slot = WEAPONS[d.key].slot;
-  if (pl.slots[slot]) dropWeapon(pl, slot);       // troca: larga a que estava na mão
+  const owned = pl.slots[slot] === d.key || pl.bag4.includes(d.key);
+  if (slot === 4 && pl.slots[4] && !owned) pl.bag4.push(pl.slots[4]);   // tecla 4: guarda a atual junto
+  else if (pl.slots[slot]) dropWeapon(pl, slot);       // troca: larga a que estava na mão
+  if (slot === 4 && owned) pl.bag4 = pl.bag4.filter(k => k !== d.key);
   drops.splice(drops.indexOf(d), 1);
   pl.slots[slot] = d.key; pl.ammo[d.key] = { mag: d.mag, res: d.res };
   pl.cur = slot; pl.reloadEnd = 0;
@@ -434,6 +443,48 @@ function nadesTick(dt) {
     broadcast({ t: 'boom', id: n.id, kind: n.kind, p: n.p.map(v => +v.toFixed(2)) });
   }
   for (let i = smokes.length - 1; i >= 0; i--) if (t > smokes[i][3]) smokes.splice(i, 1);
+}
+
+// ---------------------------------------------------------------- foguetes e flechas
+const projs = [];
+let nextProjId = 1;
+function launchProj(pl, o, d, kind, key) {
+  const P = PROJ[kind];
+  const p = [o[0] + d[0] * 0.5, o[1] + d[1] * 0.5 - 0.05, o[2] + d[2] * 0.5];
+  const q = { id: nextProjId++, kind, key, p, v: d.map(c => c * P.speed), t: 0, owner: pl.id, team: pl.team };
+  projs.push(q);
+  broadcast({ t: 'proj', id: q.id, kind, w: key, p: q.p.map(v => +v.toFixed(3)), v: q.v.map(v => +v.toFixed(3)), owner: pl.id });
+}
+function rocketBlast(q, at, direct) {
+  const att = players.get(q.owner), P = PROJ.rocket;
+  for (const v of players.values()) {
+    if (!v.alive) continue;
+    const chest = [v.p[0], v.p[1] + 1.1, v.p[2]];
+    const dd = Math.hypot(chest[0] - at[0], chest[1] - at[1], chest[2] - at[2]);
+    if (dd > P.radius || !lineOfSight([at[0], at[1] + 0.2, at[2]], chest, MAP.boxes)) continue;
+    const k = 1 - dd / P.radius;
+    rawDamage(att || v, v, P.damage * k * k + (v === direct ? P.direct : 0), 'rpg');
+  }
+}
+function projsTick(dt) {
+  for (let i = projs.length - 1; i >= 0; i--) {
+    const q = projs[i];
+    q.t += dt;
+    const seg = stepProj(q, dt);
+    const wr = raycastWorld(seg.o, seg.d, seg.len, MAP.boxes);
+    let best = wr.t < seg.len ? wr.t : Infinity, hit = null;
+    for (const v of players.values()) {
+      if (!v.alive || v.id === q.owner || (v.team === q.team && q.kind === 'arrow')) continue;
+      const r = rayPlayer(seg.o, seg.d, v.p, v.crouch);
+      if (r.t <= seg.len && r.t < best) { best = r.t; hit = { v, zone: r.zone }; }
+    }
+    if (best === Infinity && q.t < PROJ[q.kind].life) continue;
+    projs.splice(i, 1);
+    const at = best === Infinity ? q.p : seg.o.map((c, k) => c + seg.d[k] * best);
+    if (q.kind === 'rocket') rocketBlast(q, hit ? at : at.map((c, k) => c - seg.d[k] * 0.15), hit && hit.v);
+    else if (hit) { const att = players.get(q.owner); if (att) applyDamage(att, hit.v, q.key, hit.zone, q.t * PROJ.arrow.speed); }
+    broadcast({ t: 'projhit', id: q.id, kind: q.kind, p: at.map(v => +v.toFixed(3)), d: seg.d.map(v => +v.toFixed(3)), n: !hit && best !== Infinity ? wr.normal : null, hp: hit ? hit.v.id : 0, hs: hit && hit.zone === 'head' ? 1 : 0 });
+  }
 }
 
 // ---------------------------------------------------------------- bots
@@ -686,6 +737,7 @@ setInterval(() => {
   }
   bombTick(dt);
   nadesTick(dt);
+  projsTick(dt);
   if (DEBUG && game.phase === 'live' && Math.floor(t / 4) !== Math.floor((t - dt) / 4)) {
     console.log(`[t=${game.timer.toFixed(0)} bomba=${bomb.state} go=${game.go} plano=${game.plan}] ` + [...players.values()].map(q => `${q.name.slice(4)}${q.team}(${q.p[0].toFixed(0)},${q.p[2].toFixed(0)})${q.alive ? '' : '†'}${q.bot ? ':' + (q.bot.path[0] || '-') : ''}`).join(' '));
   }
@@ -702,7 +754,7 @@ setInterval(() => {
     if (!pl.ws) continue;
     send(pl, {
       t: 'state', dr: dropsPub, ph: game.phase, tl: +game.timer.toFixed(2), sc: game.score, rd: game.round, buy: canBuyNow() ? 1 : 0, ps: pub, bomb: bp,
-      me: { hp: pl.hp, ar: pl.armor, hm: pl.helmet ? 1 : 0, m: pl.money, sl: pl.slots, nd: pl.nades, cur: pl.cur, am: pl.ammo, a: pl.alive ? 1 : 0, rl: pl.reloadEnd ? 1 : 0, team: pl.team },
+      me: { hp: pl.hp, ar: pl.armor, hm: pl.helmet ? 1 : 0, m: pl.money, sl: pl.slots, b4: pl.bag4, nd: pl.nades, cur: pl.cur, am: pl.ammo, a: pl.alive ? 1 : 0, rl: pl.reloadEnd ? 1 : 0, team: pl.team },
     });
   }
 }, 1000 / TICK);
@@ -770,6 +822,10 @@ wss.on('connection', (ws) => {
       case 'nextnade': {   // tecla 5 de novo: próxima granada
         const owned = NADES.filter(k => pl.nades[k] > 0);
         if (owned.length) { pl.slots[5] = owned[(owned.indexOf(pl.slots[5]) + 1) % owned.length]; pl.cur = 5; }
+        break;
+      }
+      case 'next4': {   // tecla 4 de novo: próxima arma guardada (AWP, bazuca, arco)
+        if (pl.slots[4] && pl.bag4.length) { pl.bag4.push(pl.slots[4]); pl.slots[4] = pl.bag4.shift(); pl.cur = 4; pl.reloadEnd = 0; }
         break;
       }
       case 'use': pl.using = !!msg.on; break;

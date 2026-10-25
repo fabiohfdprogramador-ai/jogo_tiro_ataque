@@ -35,6 +35,17 @@ export const WEAPONS = {
     price: 4750, reload: 2.53, speed: 0.8, armorPen: 0.975, reward: 100,
     spread: 0.0005, unscopedSpread: 0.07, moveSpread: 0.15, jumpSpread: 0.3, kick: 0.03, scope: true, range: 300,
   },
+  // armas especiais (espaço 4, no lugar da AWP): disparam projéteis que voam de verdade (shared/physics.js: PROJ)
+  rpg: {
+    name: 'Bazuca', slot: 4, dmg: 0, rpm: 30, auto: false, mag: 1, reserve: 2,
+    price: 5000, reload: 2.8, speed: 0.78, armorPen: 1, reward: 100,
+    spread: 0.002, moveSpread: 0.03, jumpSpread: 0.1, kick: 0.05, range: 300, projectile: 'rocket',
+  },
+  bow: {
+    name: 'Arco', slot: 4, dmg: 150, rpm: 60, auto: false, mag: 1, reserve: 12,
+    price: 2500, reload: 0.9, speed: 0.95, armorPen: 0.9, reward: 300,
+    spread: 0.001, moveSpread: 0.02, jumpSpread: 0.08, kick: 0.012, range: 200, projectile: 'arrow',
+  },
   // granadas (espaço 5): "melee" para não terem munição nem recarga
   he: { name: 'Granada explosiva', slot: 5, grenade: true, melee: true, dmg: 0, rpm: 60, range: 1, mag: 0, reserve: 0, price: 300, speed: 1, armorPen: 1, reward: 300 },
   flash: { name: 'Granada de luz', slot: 5, grenade: true, melee: true, dmg: 0, rpm: 60, range: 1, mag: 0, reserve: 0, price: 200, speed: 1, armorPen: 1, reward: 300 },
@@ -42,7 +53,7 @@ export const WEAPONS = {
 };
 export const NADES = ['he', 'flash', 'smoke'];
 export const MAX_HP = 200;              // vida cheia (no CS é 100)
-export const EXTRA_NAMES = { c4: 'Bomba', fall: 'Queda' };
+export const EXTRA_NAMES = { c4: 'Bomba', fall: 'Queda', rocket: 'Bazuca' };
 export const weaponName = (k) => (WEAPONS[k] ? WEAPONS[k].name : EXTRA_NAMES[k] || k);
 // bomba
 export const BOMB = { plant: 3.0, defuse: 6.0, timer: 40, radius: 22, damage: 450, plantReward: 300, defuseReward: 300 };
@@ -58,11 +69,13 @@ export const BUY_MENU = [
   { key: '2', item: 'ak47' },
   { key: '3', item: 'm4a4' },
   { key: '4', item: 'awp' },
-  { key: '5', item: 'kevlar' },
-  { key: '6', item: 'helmet' },
-  { key: '7', item: 'he' },
-  { key: '8', item: 'flash' },
-  { key: '9', item: 'smoke' },
+  { key: '5', item: 'rpg' },
+  { key: '6', item: 'bow' },
+  { key: '7', item: 'kevlar' },
+  { key: '8', item: 'helmet' },
+  { key: '9', item: 'he' },
+  { key: '0', item: 'flash' },
+  { key: '-', item: 'smoke' },
 ];
 
 export const ZONE_MULT = { head: 4, chest: 1, stomach: 1.25, legs: 0.75 };

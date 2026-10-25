@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import { toCreasedNormals } from 'three/addons/utils/BufferGeometryUtils.js';
 
 export const GRIP = new THREE.Vector3(-0.068, -0.095, 0);   // onde a mão direita segura
 
@@ -160,6 +161,11 @@ async function prepare(key, def, loader) {
   const bodyMeshes = body.map(([g, mat]) => { g.applyMatrix4(m); g.computeBoundingSphere(); return new THREE.Mesh(g, fixMat(mat)); });
   const magMeshes = mag.map(([g, mat]) => { g.applyMatrix4(m); g.computeBoundingSphere(); return new THREE.Mesh(g, fixMat(mat)); });
   const P = (p) => (p ? toGun(p[0], p[1]) : null);
+  if (key === 'awp') {   // materiais de verdade e luneta redonda no lugar do bloco quadrado do modelo
+    restyleAWP([...bodyMeshes, ...magMeshes]);
+    for (let i = bodyMeshes.length - 1; i >= 0; i--) if (bodyMeshes[i].userData.awpPart === 'scope' || bodyMeshes[i].userData.awpPart === 'glass') bodyMeshes.splice(i, 1);
+    bodyMeshes.push(...awpScope().children.slice());
+  }
   if (def.lens) {
     // vidro levemente azulado e quase transparente, com um reflexo discreto do céu
     const L = def.lens, w = (L.w[1] - L.w[0]) * s, h = (L.h[1] - L.h[0]) * s;
@@ -216,3 +222,186 @@ export function makeGunFromModel(key, extras = {}) {
   };
 }
 export const gunModelsReady = () => Object.keys(templates).length > 0;
+
+// ---------- AWP: o modelo veio só com cores lisas; aqui ganha materiais de verdade ----------
+// Corpo verde-oliva com tinta gasta, cano e ferragens de aço, luneta preta anodizada, lente de vidro e
+// superfícies suavizadas (as faces chapadas do modelo low-poly viram curvas onde o ângulo é pequeno).
+function rnd(seed) { let s = seed; return () => (s = (s * 16807) % 2147483647) / 2147483647; }
+function canvasTex(size, draw, repeat, srgb) {
+  const c = document.createElement('canvas'); c.width = c.height = size; draw(c.getContext('2d'), size);
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(repeat, repeat); t.anisotropy = 8;
+  if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+const wornPaint = (base, chip, seed) => canvasTex(1024, (g, s) => {
+  const r = rnd(seed);
+  g.fillStyle = base; g.fillRect(0, 0, s, s);
+  for (let i = 0; i < 120; i++) {   // manchas e variação da tinta
+    const x = r() * s, y = r() * s, rad = 20 + r() * 140, gr = g.createRadialGradient(x, y, 0, x, y, rad);
+    gr.addColorStop(0, r() < 0.5 ? 'rgba(0,0,0,.22)' : 'rgba(255,255,230,.07)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = gr; g.fillRect(x - rad, y - rad, rad * 2, rad * 2);
+  }
+  for (let i = 0; i < 900; i++) {   // lascados e arranhões mostrando o material de baixo
+    const x = r() * s, y = r() * s, l = 2 + r() * 22, a = r() * 6.28;
+    g.strokeStyle = chip; g.globalAlpha = 0.15 + r() * 0.45; g.lineWidth = 0.6 + r() * 1.4;
+    g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); g.stroke();
+  }
+  g.globalAlpha = 1;
+  for (let i = 0; i < 40000; i++) { g.fillStyle = r() < 0.5 ? 'rgba(0,0,0,.12)' : 'rgba(255,255,255,.05)'; g.fillRect(r() * s, r() * s, 1.3, 1.3); }
+}, 1, true);
+const grainRough = canvasTex(512, (g, s) => {
+  const r = rnd(7); g.fillStyle = '#8c8c8c'; g.fillRect(0, 0, s, s);
+  for (let i = 0; i < 50000; i++) { const v = (r() * 255) | 0; g.fillStyle = `rgba(${v},${v},${v},.2)`; g.fillRect(r() * s, r() * s, 1.5, 1.5); }
+}, 4, false);
+// relevo fino (textura de polímero emborrachado / metal jateado) como normal map de ruído
+const grainNormal = canvasTex(256, (g, s) => {
+  const r = rnd(11), img = g.createImageData(s, s);
+  for (let i = 0; i < s * s; i++) { const dx = (r() - 0.5) * 40, dy = (r() - 0.5) * 40; img.data[i * 4] = 128 + dx; img.data[i * 4 + 1] = 128 + dy; img.data[i * 4 + 2] = 255; img.data[i * 4 + 3] = 255; }
+  g.putImageData(img, 0, 0);
+}, 10, false);
+let AWP_MATS = null;
+function awpMaterials() {
+  if (AWP_MATS) return AWP_MATS;
+  const N = new THREE.Vector2(0.35, 0.35);
+  AWP_MATS = {
+    stock: new THREE.MeshPhysicalMaterial({ map: wornPaint('#4e5733', 'rgba(26,28,24,1)', 3), roughnessMap: grainRough, normalMap: grainNormal, normalScale: N, roughness: 0.7, clearcoat: 0.1, clearcoatRoughness: 0.6, envMapIntensity: 0.4 }),
+    grip: new THREE.MeshStandardMaterial({ color: 0x1c1d1b, roughnessMap: grainRough, normalMap: grainNormal, normalScale: new THREE.Vector2(0.8, 0.8), roughness: 0.85, envMapIntensity: 0.35 }),
+    steel: new THREE.MeshPhysicalMaterial({ map: wornPaint('#2a2c2f', 'rgba(150,152,155,1)', 5), roughnessMap: grainRough, metalness: 0.8, roughness: 0.45, envMapIntensity: 0.5 }),
+    scope: new THREE.MeshPhysicalMaterial({ map: wornPaint('#1a1b1d', 'rgba(110,112,115,1)', 9), roughnessMap: grainRough, normalMap: grainNormal, normalScale: new THREE.Vector2(0.2, 0.2), metalness: 0.35, roughness: 0.5, clearcoat: 0.2, clearcoatRoughness: 0.4, envMapIntensity: 0.4 }),
+    brass: new THREE.MeshPhysicalMaterial({ color: 0xb08d4a, metalness: 1, roughness: 0.3, envMapIntensity: 0.8 }),
+    glass: new THREE.MeshPhysicalMaterial({ color: 0x1c3b52, metalness: 0.1, roughness: 0.03, clearcoat: 1, envMapIntensity: 1.6, transmission: 0 }),
+  };
+  return AWP_MATS;
+}
+// nome do material no arquivo -> material novo (o resto vira aço)
+const AWP_PART = {
+  'Material.003': 'stock', 'Material.004': 'stock', 'Material.008': 'stock', 'Material.007': 'grip', 'Material.005': 'grip', material_0: 'grip',
+  'Material.009': 'steel', 'Material.010': 'steel', Material: 'brass', 'Material.001': 'brass', 'Material.002': 'brass',
+  'Material.018': 'scope', 'Material.021': 'scope', 'Material.022': 'scope', 'Material.023': 'scope', 'Material.024': 'scope', 'Material.026': 'scope', 'Material.020': 'scope',
+  'Material.019': 'glass',
+};
+export function restyleAWP(meshes) {
+  const M = awpMaterials();
+  for (const mesh of meshes) {
+    const name = (Array.isArray(mesh.material) ? mesh.material[0] : mesh.material)?.name || '';
+    if (mesh.material && mesh.material.transparent) continue;
+    mesh.userData.awpPart = AWP_PART[name] || 'steel';
+    mesh.material = M[mesh.userData.awpPart];
+    if (!mesh.geometry.userData.creased) {
+      const geo = mesh.geometry = toCreasedNormals(mesh.geometry, THREE.MathUtils.degToRad(35));
+      // o arquivo não tem coordenadas de textura: projeta a textura pelo lado para onde cada face aponta
+      const p = geo.attributes.position, n = geo.attributes.normal, uv = new Float32Array(p.count * 2);
+      for (let i = 0; i < p.count; i++) {
+        const ax = Math.abs(n.getX(i)), ay = Math.abs(n.getY(i)), az = Math.abs(n.getZ(i));
+        const [u, v] = ax >= ay && ax >= az ? [p.getZ(i), p.getY(i)] : ay >= az ? [p.getX(i), p.getZ(i)] : [p.getX(i), p.getY(i)];
+        uv[i * 2] = u * 1.5; uv[i * 2 + 1] = v * 1.5;
+      }
+      geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+      geo.userData.creased = true;
+    }
+  }
+}
+// luneta redonda feita por código (a do modelo é um bloco quadrado): no lugar da original, em espaço da arma
+export { awpMaterials };
+export function awpScope(y = 0.05, z = -0.01, railY = y - 0.043) {
+  const M = awpMaterials(), g = new THREE.Group();
+  const Yv = new THREE.Vector3(0, 1, 0), Xv = new THREE.Vector3(1, 0, 0);
+  const lathe = (pts, mat) => {   // perfil [[x, r], ...] girado em volta do eixo x
+    const m = new THREE.Mesh(new THREE.LatheGeometry(pts.map(([x, r]) => new THREE.Vector2(r, x)), 40), mat);
+    m.quaternion.setFromUnitVectors(Yv, Xv); m.position.set(0, y, z); g.add(m); return m;
+  };
+  // ocular com borracha, corpo, tubo, campânula da objetiva
+  lathe([[-0.135, 0.017], [-0.13, 0.0205], [-0.105, 0.0205], [-0.1, 0.019]], M.grip);
+  lathe([[-0.1, 0.019], [-0.085, 0.0195], [-0.07, 0.016], [-0.06, 0.0155], [0.15, 0.0155], [0.17, 0.019], [0.2, 0.0245], [0.245, 0.0255], [0.25, 0.0235]], M.scope);
+  for (const x of [-0.088, 0.238]) lathe([[x, 0.0], [x, 0.021 + (x > 0 ? 0.005 : 0)], [x + 0.004, 0.021 + (x > 0 ? 0.005 : 0)], [x + 0.004, 0]], M.steel);   // anéis de acabamento
+  // lentes (com reflexo do céu)
+  for (const [x, r, s] of [[0.2495, 0.0225, 1], [-0.1345, 0.0165, -1]]) {
+    const l = new THREE.Mesh(new THREE.CircleGeometry(r, 32), M.glass); l.position.set(x, y, z); l.rotation.y = s * Math.PI / 2; g.add(l);
+  }
+  // torres de ajuste (em cima e do lado direito) e roda de paralaxe à esquerda
+  const turret = (pos, axis, r, h) => {
+    const t = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 24), M.scope); t.position.set(...pos); t.quaternion.setFromUnitVectors(Yv, axis); g.add(t);
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(r * 1.08, r * 1.08, h * 0.45, 24), M.steel); cap.position.set(...pos).addScaledVector(axis, h * 0.5); cap.quaternion.copy(t.quaternion); g.add(cap);
+  };
+  const box = new THREE.Mesh(new THREE.CylinderGeometry(0.019, 0.019, 0.05, 28), M.scope); box.quaternion.setFromUnitVectors(Yv, Xv); box.position.set(0.045, y, z); g.add(box);
+  turret([0.045, y + 0.022, z], Yv, 0.011, 0.016);
+  turret([0.045, y, z + 0.022], new THREE.Vector3(0, 0, 1), 0.011, 0.016);
+  turret([0.045, y, z - 0.022], new THREE.Vector3(0, 0, -1), 0.013, 0.012);
+  // anéis de fixação presos no trilho
+  for (const x of [-0.035, 0.115]) {
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.0172, 0.0035, 10, 32), M.steel); ring.position.set(x, y, z); ring.rotation.y = Math.PI / 2; g.add(ring);
+    const bh = Math.max(0.006, y - 0.0172 - railY);   // pé do anel até o trilho
+    const base = new THREE.Mesh(new THREE.BoxGeometry(0.016, bh + 0.004, 0.026), M.steel); base.position.set(x, railY + bh / 2, z); g.add(base);
+  }
+  return g;
+}
+
+// ---------- AWP inteira feita por código (corpo liso e detalhado, no lugar do modelo low-poly) ----------
+// Espaço da arma: +x cano, +y cima, +z direita; a mão direita segura a empunhadura em volta de GRIP.
+function roundedPath(pts, rad, path = new THREE.Shape()) {
+  const n = pts.length, P = pts.map(p => new THREE.Vector2(...p));
+  for (let i = 0; i < n; i++) {
+    const prev = P[(i - 1 + n) % n], cur = P[i], next = P[(i + 1) % n];
+    const r = Math.min(rad, cur.distanceTo(prev) / 2, cur.distanceTo(next) / 2);
+    const a = cur.clone().add(prev.clone().sub(cur).normalize().multiplyScalar(r));
+    const b = cur.clone().add(next.clone().sub(cur).normalize().multiplyScalar(r));
+    i === 0 ? path.moveTo(a.x, a.y) : path.lineTo(a.x, a.y);
+    path.quadraticCurveTo(cur.x, cur.y, b.x, b.y);
+  }
+  path.closePath(); return path;
+}
+function slab(shape, depth, bevel, mat, z = 0) {
+  const geo = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: true, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 5, curveSegments: 14 });
+  geo.translate(0, 0, -depth / 2 + z); geo.computeVertexNormals();
+  // coordenadas de textura pelo lado (a tinta gasta precisa delas)
+  const p = geo.attributes.position, uv = geo.attributes.uv;
+  for (let i = 0; i < p.count; i++) uv.setXY(i, p.getX(i) * 1.5, p.getY(i) * 1.5 + p.getZ(i) * 1.5);
+  return new THREE.Mesh(geo, mat);
+}
+function tubeX(r0, r1, x0, x1, y, z, mat, seg = 28) {
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(r1, r0, x1 - x0, seg), mat);
+  m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(1, 0, 0)); m.position.set((x0 + x1) / 2, y, z); return m;
+}
+export function buildAWPPro() {
+  const M = awpMaterials(), g = new THREE.Group(); const add = (m) => { g.add(m); return m; };
+  const ry = 0.022;   // eixo do receptor e do cano
+  // coronha com buraco do polegar, empunhadura vertical e guarda-mão, numa peça só de polímero verde
+  const stock = roundedPath([[-0.41, 0.03], [-0.25, 0.022], [-0.15, 0.012], [0.34, 0.012], [0.37, -0.004], [0.36, -0.036], [0.05, -0.04], [0.035, -0.035],
+    [-0.035, -0.04], [-0.055, -0.1], [-0.07, -0.155], [-0.11, -0.16], [-0.13, -0.1], [-0.2, -0.08], [-0.3, -0.115], [-0.41, -0.13]], 0.016);
+  stock.holes.push(roundedPath([[-0.205, -0.004], [-0.14, -0.004], [-0.115, -0.05], [-0.125, -0.066], [-0.2, -0.05]], 0.012, new THREE.Path()));
+  add(slab(stock, 0.032, 0.009, M.stock));
+  // apoio de rosto e telha de borracha da coronha
+  add(slab(roundedPath([[-0.36, 0.038], [-0.22, 0.03], [-0.22, 0.02], [-0.36, 0.024]], 0.006), 0.026, 0.004, M.stock));
+  add(slab(roundedPath([[-0.425, 0.032], [-0.41, 0.032], [-0.41, -0.132], [-0.425, -0.132]], 0.006), 0.038, 0.004, M.grip));
+  // textura de pegada na empunhadura (faixas de borracha)
+  for (let i = 0; i < 5; i++) add(slab(roundedPath([[-0.067 - i * 0.008, -0.06 - i * 0.017], [-0.044 - i * 0.004, -0.06 - i * 0.017], [-0.046 - i * 0.004, -0.068 - i * 0.017], [-0.069 - i * 0.008, -0.068 - i * 0.017]], 0.002), 0.036, 0.002, M.grip));
+  // receptor, ferrolho e alavanca
+  add(tubeX(0.018, 0.018, -0.14, 0.15, ry, 0, M.steel));
+  add(tubeX(0.0185, 0.0185, -0.15, -0.135, ry, 0, M.grip));
+  add(slab(roundedPath([[-0.12, ry + 0.012], [0.14, ry + 0.012], [0.14, ry + 0.022], [-0.12, ry + 0.022]], 0.003), 0.018, 0.002, M.steel));   // trilho
+  for (let i = 0; i < 14; i++) add(slab(roundedPath([[-0.115 + i * 0.018, ry + 0.022], [-0.107 + i * 0.018, ry + 0.022], [-0.107 + i * 0.018, ry + 0.027], [-0.115 + i * 0.018, ry + 0.027]], 0.001), 0.02, 0.001, M.steel));
+  const bolt = new THREE.Mesh(new THREE.CylinderGeometry(0.0045, 0.0045, 0.045, 12), M.steel); bolt.position.set(-0.085, ry - 0.006, 0.03); bolt.rotation.x = Math.PI / 2 - 0.5; add(bolt);
+  const knob = add(new THREE.Mesh(new THREE.SphereGeometry(0.011, 18, 14), M.grip)); knob.position.set(-0.085, ry - 0.016, 0.05);
+  // cano cônico com estrias, quebra-chama com janelas
+  add(tubeX(0.0125, 0.0095, 0.15, 0.71, ry, 0, M.steel));
+  for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2, f = tubeX(0.0022, 0.0022, 0.24, 0.62, ry + Math.cos(a) * 0.0108, Math.sin(a) * 0.0108, M.grip, 6); add(f); }
+  add(tubeX(0.0145, 0.0145, 0.71, 0.78, ry, 0, M.steel, 32));
+  for (const x of [0.725, 0.745]) for (const zs of [-1, 1]) { const w = add(new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.016, 0.004), M.grip)); w.position.set(x, ry, zs * 0.0135); }
+  // guarda-mato e gatilho
+  const guard = new THREE.CatmullRomCurve3([[0.02, -0.036], [0.018, -0.064], [-0.012, -0.072], [-0.04, -0.064], [-0.045, -0.04]].map(([x, y]) => new THREE.Vector3(x, y, 0)));
+  add(new THREE.Mesh(new THREE.TubeGeometry(guard, 20, 0.0035, 8, false), M.steel));
+  const trig = new THREE.CatmullRomCurve3([[-0.004, -0.036], [0.0, -0.05], [-0.004, -0.06]].map(([x, y]) => new THREE.Vector3(x, y, 0)));
+  add(new THREE.Mesh(new THREE.TubeGeometry(trig, 10, 0.0028, 8, false), M.steel));
+  // carregador destacável (sai na recarga)
+  const magG = new THREE.Group(); g.add(magG);
+  magG.add(slab(roundedPath([[0.05, -0.036], [0.11, -0.036], [0.112, -0.085], [0.048, -0.085]], 0.004), 0.028, 0.003, M.grip));
+  magG.add(slab(roundedPath([[0.046, -0.085], [0.116, -0.085], [0.116, -0.093], [0.046, -0.093]], 0.003), 0.032, 0.002, M.steel));
+  // pés do bipé dobrados sob o guarda-mão e fixação
+  add(slab(roundedPath([[0.3, -0.036], [0.33, -0.036], [0.33, -0.046], [0.3, -0.046]], 0.003), 0.03, 0.002, M.steel));
+  for (const zs of [-1, 1]) add(tubeX(0.0045, 0.0045, 0.12, 0.31, -0.048, zs * 0.009, M.steel, 10));
+  // luneta redonda presa no trilho
+  const scope = awpScope(ry + 0.052, 0, ry + 0.027); for (const c of scope.children.slice()) g.add(c);
+  g.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });
+  const muzzle = new THREE.Object3D(); muzzle.position.set(0.79, ry, 0); g.add(muzzle);
+  return { group: g, mag: magG, muzzle, fore: new THREE.Vector3(0.24, 0.0, 0) };
+}

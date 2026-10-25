@@ -6,7 +6,7 @@ export const PHYS = {
   eyeStand: 1.64, eyeCrouch: 0.9,
   gravity: 18, jumpV: 6.4,
   walkSpeed: 6.0, runSpeed: 7.2, crouchMul: 0.36,   // anda normal; runSpeed é a corrida dos bots
-  sprintSpeed: 8.8,                                 // jogador correndo segurando Shift
+  sprintSpeed: 10.0,                                // jogador correndo segurando Shift
   accel: 60, airAccel: 10, friction: 9,
 };
 
@@ -150,6 +150,23 @@ export function stepNade(n, dt, boxes) {
   }
   n.p = [n.p[0] + v[0] * dt, n.p[1] + v[1] * dt, n.p[2] + v[2] * dt];
   return false;
+}
+
+// ---------------------------------------------------------------- foguete da bazuca e flecha do arco
+// Voam com velocidade e gravidade próprias (a flecha cai bem mais); o servidor decide onde bateram.
+export const PROJ = {
+  rocket: { speed: 42, gravity: 1.2, life: 6, radius: 7, damage: 450, direct: 140 },
+  arrow: { speed: 80, gravity: 5, life: 5 },
+};
+// Avança o projétil q = { kind, p, v } por dt. Retorna o trecho percorrido { o, d, len } para testar batidas.
+export function stepProj(q, dt) {
+  const P = PROJ[q.kind];
+  const o = q.p, v = q.v;
+  v[1] -= P.gravity * dt;
+  const np = [o[0] + v[0] * dt, o[1] + v[1] * dt, o[2] + v[2] * dt];
+  const len = Math.hypot(np[0] - o[0], np[1] - o[1], np[2] - o[2]) || 1e-6;
+  q.p = np;
+  return { o, d: [(np[0] - o[0]) / len, (np[1] - o[1]) / len, (np[2] - o[2]) / len], len };
 }
 
 // A linha de a até b passa por dentro de alguma fumaça? smokes = [[x,y,z, até], ...]

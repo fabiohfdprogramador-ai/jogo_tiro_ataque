@@ -32,7 +32,7 @@ export class Hud {
     if (W && !W.melee && a) { this.set('mag', String(a.mag)); this.set('res', String(a.res)); $('ammo').style.visibility = 'visible'; }
     else $('ammo').style.visibility = 'hidden';
     const nadeTxt = () => ['he', 'flash', 'smoke'].filter(k => me.nd[k] > 0).map(k => `<span class="${k === me.slots[5] ? 'on' : ''}">${({ he: 'Explosiva', flash: 'Luz', smoke: 'Fumaça' })[k]}${me.nd[k] > 1 ? ' ×' + me.nd[k] : ''}</span>`).join(' ');
-    const wl = [1, 2, 3, 4, 5].filter(s => me.slots[s]).map(s => `<div class="${s === me.cur ? 'cur' : ''}"><b>${s}</b>${s === 5 ? nadeTxt() : esc(WEAPONS[me.slots[s]].name)}</div>`).join('');
+    const wl = [1, 2, 3, 4, 5].filter(s => me.slots[s]).map(s => `<div class="${s === me.cur ? 'cur' : ''}"><b>${s}</b>${s === 5 ? nadeTxt() : s === 4 && (me.bag4 || []).length ? [me.slots[4], ...me.bag4].map((k, i) => `<span class="${i ? '' : 'on'}">${esc(WEAPONS[k].name)}</span>`).join(' ') : esc(WEAPONS[me.slots[s]].name)}</div>`).join('');
     this.set('weapons', wl, 'innerHTML');
     $('buyhint').classList.toggle('hidden', !(srv.buy && me.alive));
     $('vitals').style.visibility = me.alive ? 'visible' : 'hidden';
