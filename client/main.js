@@ -6,6 +6,7 @@ import { WEAPONS, BUY_MENU, sprayOffset, fireInterval, MAX_HP, weaponName, BOMB 
 import { buildWorld } from './world.js';
 import { ViewModel, buildWeaponModel, buildNade } from './viewmodel.js';
 import { loadGunModels } from './gunmodels.js';
+import { loadArms } from './arms.js';
 import { RemotePlayers } from './players.js';
 import { Effects } from './effects.js';
 import { Sound } from './audio2.js';
@@ -434,7 +435,7 @@ changeMap($('map').value);
 $('map').addEventListener('change', () => { settings.map = $('map').value; saveSettings(); changeMap(settings.map); });
 // modelos 3D das armas: o botão Jogar só libera depois de carregar
 $('play').disabled = true; $('play').textContent = 'Carregando modelos 3D...';
-Promise.all([loadGunModels()]).then(() => { $('play').disabled = false; $('play').textContent = 'Jogar'; });
+Promise.all([loadGunModels(), loadArms()]).then(() => { $('play').disabled = false; $('play').textContent = 'Jogar'; });
 $('play').addEventListener('click', () => {
   const name = $('name').value.trim() || 'Jogador';
   settings.name = name; saveSettings();
@@ -569,7 +570,7 @@ function updateMovement(dt) {
   }
   // segurando Shift corre (não dá para correr agachado nem mirando)
   me.sprint = !!(keys.ShiftLeft || keys.ShiftRight) && !me.crouch && !me.scope && !me.ads && (wx || wz);
-  let maxSpeed = (me.sprint ? PHYS.runSpeed : PHYS.walkSpeed) * (W ? W.speed : 1);
+  let maxSpeed = (me.sprint ? PHYS.sprintSpeed : PHYS.walkSpeed) * (W ? W.speed : 1);
   if (me.scope || me.ads) maxSpeed *= 0.6;
   if (me.crouch) maxSpeed *= PHYS.crouchMul;
 
@@ -595,7 +596,7 @@ function updateMovement(dt) {
   // passos
   const hs = Math.hypot(v[0], v[2]);
   if (me.onGround && hs > 3.0 && !me.crouch) {
-    me.stepT -= dt; if (me.stepT <= 0) { sound.step(null, me.sprint ? 0.16 : 0.12); me.stepT = me.sprint ? 0.29 : 0.34; }
+    me.stepT -= dt; if (me.stepT <= 0) { sound.step(null, me.sprint ? 0.16 : 0.12); me.stepT = me.sprint ? 0.26 : 0.34; }
   }
   me.eyeH += (eyeHeight(me.crouch) - me.eyeH) * Math.min(1, dt * 12);
 }

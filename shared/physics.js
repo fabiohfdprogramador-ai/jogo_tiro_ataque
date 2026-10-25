@@ -5,7 +5,8 @@ export const PHYS = {
   standH: 1.8, crouchH: 1.05,
   eyeStand: 1.64, eyeCrouch: 0.9,
   gravity: 18, jumpV: 6.4,
-  walkSpeed: 6.0, runSpeed: 7.2, crouchMul: 0.36,   // anda normal; correndo (segurando Shift) é a velocidade máxima
+  walkSpeed: 6.0, runSpeed: 7.2, crouchMul: 0.36,   // anda normal; runSpeed é a corrida dos bots
+  sprintSpeed: 8.8,                                 // jogador correndo segurando Shift
   accel: 60, airAccel: 10, friction: 9,
 };
 

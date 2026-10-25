@@ -209,7 +209,7 @@ export function buildBairro(group, MAP, sunLight) {
     plasterPeel: pbr('plasterPeel', 2.2, { vertexColors: true, color: new THREE.Color(1.1, 1.1, 1.1) }),
     brick: pbr('brick', 0.5, { vertexColors: true }),
     roof: pbr('roofTiles', 1, { side: THREE.DoubleSide }),
-    grass: pbr('grass', 1.4),
+    grass: pbr('grass', 1.4, { color: 0xb4e08c }),   // puxa a grama seca da foto pro verde
     dirt: pbr('dirt', 1),
     sand: pbr('sand', 1, { color: 0xf2e6c8 }),
     white: pbr('plaster', 0.4, { color: new THREE.Color(1.2, 1.19, 1.16) }, { normal: 0.6 }),

@@ -744,7 +744,7 @@ wss.on('connection', (ws) => {
         const t = now(), dtp = Math.max(0.016, t - pl.lastPosT);
         const dx = msg.p[0] - pl.p[0], dz = msg.p[2] - pl.p[2], dist = Math.hypot(dx, dz);
         const frozen = game.phase === 'freeze';
-        if ((frozen && dist > 0.3) || dist > PHYS.runSpeed * 1.25 * dtp + 0.6 || Math.abs(msg.p[1] - pl.p[1]) > 4) {
+        if ((frozen && dist > 0.3) || dist > PHYS.sprintSpeed * 1.25 * dtp + 0.6 || Math.abs(msg.p[1] - pl.p[1]) > 4) {
           send(pl, { t: 'spawn', p: pl.p, yaw: pl.yaw, keepAim: 1 });
         } else {
           pl.v = [dx / dtp, 0, dz / dtp];

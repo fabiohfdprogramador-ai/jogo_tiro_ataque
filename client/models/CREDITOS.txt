@@ -7,7 +7,7 @@ Os arquivos foram otimizados (texturas reduzidas e comprimidas) e encaixados no 
 - "Pistol 9mm Custom" por ~D-Try~ (DTry) — https://sketchfab.com/3d-models/pistol-9mm-custom-7bb44ec1d8e14925aeebbfa8374b87cf
 - "S.W.A.T. Operator" por SpatialNeglect (jeandiz) — https://sketchfab.com/3d-models/swat-operator-9e82fabf26194896b5ad4a364d864eab
   (o autor credita peças de ErhanMatur, Bzovius, SrGeneroso, shedmon, Albin, Mayess e a carabina M4 de bobeer)
+- "First Person hands rigged" por davidfischer — https://sketchfab.com/davidfischer (braços e mãos em primeira pessoa: maos.glb; a pele é desenhada pelo jogo)
 
 Baixados mas não usados no momento:
-- "First Person hands rigged" por davidfischer
 - "Insurgent. Low poly Game ready" por badbih337 (o arquivo veio com as partes em escalas erradas)

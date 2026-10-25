@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { makeGunFromModel } from './gunmodels.js';
+import { armsReady, makeArm, poseArm, ARM_POSES } from './arms.js';
 
 // ---------- texturas ----------
 function rand(seed) { let s = seed; return () => (s = (s * 16807) % 2147483647) / 2147483647; }
@@ -459,18 +460,27 @@ function leftPistolHand(sleeve) {
 // ---------- controlador do view-model ----------
 const KIND = { ak47: 'rifle', m4a4: 'rifle', awp: 'awp', glock: 'pistol', usp: 'pistol', deagle: 'pistol', knife: 'knife', he: 'nade', flash: 'nade', smoke: 'nade' };
 export const POSES = {
-  rifle: { pos: [0.095, -0.125, -0.34], rot: [-0.01, 0.1, -0.05], scale: 0.5 },
-  awp: { pos: [0.095, -0.12, -0.33], rot: [-0.01, 0.1, -0.05], scale: 0.47 },
-  pistol: { pos: [0.075, -0.115, -0.38], rot: [0.0, 0.06, -0.03], scale: 0.55 },
+  // enquadramento do Far Cry 3: arma grande e perto, quase deitada do centro até a borda direita;
+  // só a mão esquerda aparece, segurando a frente com o braço descendo reto
+  rifle: { pos: [0.2, -0.19, -0.165], rot: [0.09, 0.3, -0.1], scale: 1.0 },
+  ak47: { pos: [0.115, -0.215, -0.1], rot: [0.0, 0.06, -0.1], scale: 1.4 },   // AK alinhada: reta para frente, grande, subindo do canto de baixo
+  m4a4: { pos: [0.115, -0.165, -0.1], rot: [0.0, 0.06, -0.1], scale: 1.2 },   // alinhada como a AK; menor para a mira holográfica não tapar o canto
+  awp: { pos: [0.105, -0.13, -0.1], rot: [0.0, 0.06, -0.1], scale: 1.12 },   // alinhada como a AK; menor porque é mais comprida
+  pistol: { pos: [0.095, -0.03, -0.24], rot: [0.03, 0.14, -0.05], scale: 0.78 },   // pistola grande, as duas mãos aparecem no canto
   knife: { pos: [0.155, -0.15, -0.26], rot: [0.15, 0.3, -0.85], scale: 0.55 },
-  nade: { pos: [0.145, -0.14, -0.24], rot: [0.15, 0.25, -0.15], scale: 0.85 },
+  nade: { pos: [0.12, -0.095, -0.25], rot: [0.15, 0.25, -0.15], scale: 0.85 },   // granada na mão, no canto da tela
 };
 
 const FIRE_POSES = {
-  rifle: { pos: [0.085, -0.118, -0.33], rot: [-0.01, 0.05, -0.02] },
-  awp: { pos: [0.085, -0.115, -0.32], rot: [-0.01, 0.05, -0.02] },
-  pistol: { pos: [0.068, -0.11, -0.37], rot: [0.0, 0.03, 0.0] },
+  rifle: { pos: [0.185, -0.182, -0.165], rot: [0.07, 0.24, -0.07] },
+  ak47: { pos: [0.11, -0.207, -0.095], rot: [0.0, 0.04, -0.08] },
+  m4a4: { pos: [0.11, -0.158, -0.095], rot: [0.0, 0.04, -0.08] },
+  awp: { pos: [0.1, -0.123, -0.095], rot: [0.0, 0.04, -0.08] },
+  pistol: { pos: [0.085, -0.026, -0.24], rot: [0.02, 0.08, -0.02] },
 };
+// tamanho da arma enquanto mira (botão direito): o tamanho em que a alça e a massa foram ajustadas;
+// a arma grande do enquadramento de Far Cry deixaria a mira cobrindo a tela
+const ADS_SCALE = { rifle: 0.5, awp: 0.47, pistol: 0.55 };
 // pontos de mira (no espaço da arma): alça traseira e massa de mira
 const SIGHTS = {
   // a linha passa um pouco acima da alça traseira, para a massa de mira aparecer no centro
@@ -489,7 +499,7 @@ function adsPose(key, scale, sight) {
   const y2 = y * Math.cos(a) - z * Math.sin(a), z2 = y * Math.sin(a) + z * Math.cos(a);
   const dist = key === 'm4a4' ? 0.033 : key === 'ak47' ? 0.022 : KIND[key] === 'pistol' ? 0.19 : 0.07;
   // a arma é girada 90° no view-model: o lado (z da arma) vira o x da tela
-  return { pos: [-(S.lat || 0) * scale, -y2, -dist - z2], rot: [a, 0, 0] };
+  return { pos: [-(S.lat || 0) * scale, -y2, -dist - z2], rot: [a, 0, 0], scale };
 }
 const RELOAD_DOWN = new THREE.Vector3(-0.03, -0.22, -0.05);
 // Curva suave (Catmull-Rom) passando por quadros-chave [[t, [valores...]], ...]: o movimento não para
@@ -587,10 +597,17 @@ export class ViewModel {
       grab = c.add(kind === 'pistol' ? new THREE.Vector3(0, -0.07, -0.025) : new THREE.Vector3(0, -0.02, -0.035)).sub(palm).sub(lhBase);
     }
     const inner = new THREE.Group();
-    inner.add(w.group, rightHand(sleeve));
-    let lh = null;
-    if (kind === 'rifle' || kind === 'awp') lh = leftRifleHand(sleeve);
-    if (kind === 'pistol') lh = leftPistolHand(sleeve);
+    // braços de pele com dedos (arms.js); se o modelo não carregar, volta a mão feita por código
+    const skin = armsReady() && (ARM_POSES[key] || ARM_POSES[kind]);   // pose da mão própria da arma, ou a do tipo
+    let armR = null, armL = null, lh = null;
+    if (skin) {
+      armR = makeArm('R'); inner.add(w.group, armR.group);
+      if (skin.L) { armL = makeArm('L'); lh = armL.group; }
+    } else {
+      inner.add(w.group, rightHand(sleeve));
+      if (kind === 'rifle' || kind === 'awp') lh = leftRifleHand(sleeve);
+      if (kind === 'pistol') lh = leftPistolHand(sleeve);
+    }
     if (lh) { lh.position.copy(lhBase); inner.add(lh); }
     inner.rotation.y = Math.PI / 2;
     const holder = new THREE.Group(); holder.add(inner);
@@ -607,7 +624,7 @@ export class ViewModel {
       reticle.position.set(w.sight.front[0], w.sight.front[1], w.sight.lat || 0); reticle.scale.setScalar(0.012); reticle.renderOrder = 999;
       w.group.add(reticle);
     }
-    return { holder, kind, reticle, mag: w.mag, magBase: w.mag ? w.mag.position.clone() : null, flash, lh, lhBase, grab, gunGroup: w.mag ? w.mag.parent : w.group, dropped: false, ads: adsPose(key, POSES[kind].scale, w.sight) };
+    return { holder, key, kind, armR, armL, armPose: skin, reticle, mag: w.mag, magBase: w.mag ? w.mag.position.clone() : null, flash, lh, lhBase, grab, gunGroup: w.mag ? w.mag.parent : w.group, dropped: false, ads: adsPose(key, ADS_SCALE[kind] || (POSES[key] || POSES[kind]).scale, w.sight) };
   }
   setWeapon(key, instant = false) {
     if (key === this.key) return;
@@ -643,7 +660,8 @@ export class ViewModel {
   update(dt, s) {
     this.time += dt;
     if (!this.cur) return;
-    const P = POSES[this.cur.kind], F = FIRE_POSES[this.cur.kind] || P;
+    // enquadramento próprio da arma (POSES.m4a4 etc.), senão o do tipo
+    const P = POSES[this.cur.key] || POSES[this.cur.kind], F = FIRE_POSES[this.cur.key] || FIRE_POSES[this.cur.kind] || P;
     // ao atirar a arma vai para uma posição mais reta, apontando para a mira
     this.fireBlend += ((s.firing && this.reloadT < 0 ? 1 : 0) - this.fireBlend) * Math.min(1, dt * (s.firing ? 14 : 5));
     const fb = this.fireBlend, mix = (a, b) => a + (b - a) * fb;
@@ -738,7 +756,10 @@ export class ViewModel {
     }
 
     const h = this.cur.holder;
-    h.position.set(px, py, pz); h.rotation.set(rx, ry, rz); h.scale.setScalar(P.scale);
+    h.position.set(px, py, pz); h.rotation.set(rx, ry, rz); h.scale.setScalar(this.cur.ads ? P.scale + (this.cur.ads.scale - P.scale) * this.adsBlend : P.scale);   // mirando, a arma volta ao tamanho em que a mira foi ajustada
+    const AP = this.cur.armPose;
+    if (this.cur.armR) poseArm(this.cur.armR, AP.R);
+    if (this.cur.armL) poseArm(this.cur.armL, AP.L);
 
     // clarão do disparo
     this.flashT -= dt;
