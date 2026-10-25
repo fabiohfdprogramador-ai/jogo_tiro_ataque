@@ -441,7 +441,7 @@ export const POSES = {
   awp: { pos: [0.105, -0.13, -0.1], rot: [0.0, 0.06, -0.1], scale: 1.12 },   // alinhada como a AK; menor porque é mais comprida
   rpg: { pos: [0.13, -0.075, -0.38], rot: [0.1, 0.14, -0.05], scale: 1.0 },   // bazuca no ombro, tubo do canto direito até o meio
   bow: { pos: [0.11, -0.05, -0.56], rot: [0.03, 0.06, -0.3], scale: 1.0 },     // arco inclinado, flecha encaixada
-  pistol: { pos: [0.1, 0.005, -0.27], rot: [0.03, 0.14, -0.05], scale: 0.78 },   // pistola com as duas mãos fechadas no cabo, à vista
+  pistol: { pos: [0.015, 0.012, -0.19], rot: [0.04, 0.0, 0.0], scale: 1.0 },   // como no Far Cry 3: reta no meio da tela, mira por cima e as mãos embaixo
   knife: { pos: [0.155, -0.15, -0.26], rot: [0.15, 0.3, -0.85], scale: 0.55 },
   nade: { pos: [0.1, -0.07, -0.23], rot: [0.15, 0.35, -0.1], scale: 0.95 },   // granada na mão, no canto da tela
 };
@@ -453,11 +453,11 @@ const FIRE_POSES = {
   awp: { pos: [0.1, -0.123, -0.095], rot: [0.0, 0.04, -0.08] },
   rpg: { pos: [0.125, -0.07, -0.375], rot: [0.09, 0.12, -0.04] },
   bow: { pos: [0.1, -0.045, -0.55], rot: [0.02, 0.04, -0.28] },
-  pistol: { pos: [0.09, 0.009, -0.27], rot: [0.02, 0.08, -0.02] },
+  pistol: { pos: [0.015, 0.015, -0.19], rot: [0.03, 0.0, 0.0] },
 };
 // tamanho da arma enquanto mira (botão direito): o tamanho em que a alça e a massa foram ajustadas;
 // a arma grande do enquadramento de Far Cry deixaria a mira cobrindo a tela
-const ADS_SCALE = { rifle: 0.5, awp: 0.47, pistol: 0.55 };
+const ADS_SCALE = { rifle: 0.5, awp: 0.47, pistol: 1.0 };
 // pontos de mira (no espaço da arma): alça traseira e massa de mira
 const SIGHTS = {
   // a linha passa um pouco acima da alça traseira, para a massa de mira aparecer no centro
@@ -474,9 +474,10 @@ function adsPose(key, scale, sight) {
   const a = -Math.atan2(dy, dx);
   const y = S.rear[1] * scale, z = -S.rear[0] * scale;
   const y2 = y * Math.cos(a) - z * Math.sin(a), z2 = y * Math.sin(a) + z * Math.cos(a);
-  const dist = key === 'm4a4' ? 0.033 : key === 'ak47' ? 0.022 : KIND[key] === 'pistol' ? 0.19 : 0.07;
+  const dist = key === 'm4a4' ? 0.033 : key === 'ak47' ? 0.022 : KIND[key] === 'pistol' ? 0.165 : 0.07;
+  const lift = 0;   // o ponto vermelho fica exatamente no centro da tela, onde o tiro vai
   // a arma é girada 90° no view-model: o lado (z da arma) vira o x da tela
-  return { pos: [-(S.lat || 0) * scale, -y2, -dist - z2], rot: [a, 0, 0], scale };
+  return { pos: [-(S.lat || 0) * scale, -y2 + lift, -dist - z2], rot: [a, 0, 0], scale };
 }
 const RELOAD_DOWN = new THREE.Vector3(-0.03, -0.22, -0.05);
 // Curva suave (Catmull-Rom) passando por quadros-chave [[t, [valores...]], ...]: o movimento não para
@@ -604,7 +605,7 @@ export class ViewModel {
       backFlash.scale.setScalar(0.7); backFlash.visible = false; w.back.add(backFlash);
     }
     let reticle = null;
-    if ((key === 'm4a4' || key === 'ak47') && w.sight) {
+    if ((key === 'm4a4' || key === 'ak47' || kind === 'pistol') && w.sight) {   // pontinho vermelho na mira
       reticle = new THREE.Sprite(new THREE.SpriteMaterial({ map: RETICLE_TEX, depthTest: false, depthWrite: false, transparent: true, opacity: 0 }));
       reticle.position.set(w.sight.front[0], w.sight.front[1], w.sight.lat || 0); reticle.scale.setScalar(0.012); reticle.renderOrder = 999;
       w.group.add(reticle);
@@ -690,6 +691,7 @@ export class ViewModel {
     // coice do tiro
     this.kick *= Math.exp(-13 * dt);
     pz += this.kick * 0.03 * (1 - ab * 0.4); rx += this.kick * 0.06 * (1 - ab * 0.6); py += this.kick * 0.006 * (1 - ab * 0.6);
+    if (this.cur.kind === 'pistol') { rx += this.kick * 0.24 * (1 - ab * 0.3); px += this.kick * 0.01; py -= this.kick * 0.008; }   // pistola: o cano levanta forte a cada tiro
 
     // arremesso da granada: puxa para trás, lança e a mão sai da tela
     if (this.throwT >= 0) {

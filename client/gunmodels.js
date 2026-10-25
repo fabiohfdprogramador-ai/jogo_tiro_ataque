@@ -198,8 +198,9 @@ export function makeGunFromModel(key, extras = {}) {
   const T = templates[KEY_DEF[key]];
   if (!T) return null;
   const group = new THREE.Group();
-  const scale = key === 'deagle' ? 1.12 : 1;
-  const inner = new THREE.Group(); inner.scale.setScalar(scale);
+  // pistolas um pouco maiores e mais largas (lateral), como no Far Cry 3
+  const scale = key === 'deagle' ? 1.25 : KEY_DEF[key] === 'pistol' ? 1.15 : 1, wide = KEY_DEF[key] === 'pistol' ? 1.2 : 1;
+  const inner = new THREE.Group(); inner.scale.set(scale, scale, scale * wide);
   inner.position.copy(GRIP).multiplyScalar(1 - scale);     // a empunhadura continua no mesmo lugar
   group.add(inner);
   for (const mesh of T.bodyMeshes) { const c = new THREE.Mesh(mesh.geometry, mesh.material); c.position.copy(mesh.position); c.quaternion.copy(mesh.quaternion); c.renderOrder = mesh.renderOrder; inner.add(c); }
@@ -218,7 +219,7 @@ export function makeGunFromModel(key, extras = {}) {
   return {
     group, mag: T.magMeshes.length ? magG : null, muzzle,
     fore: toOuter(T.fore),
-    sight: T.sight ? { rear: [T.sight.rear[0] * scale + inner.position.x, T.sight.rear[1] * scale + inner.position.y], front: [T.sight.front[0] * scale + inner.position.x, T.sight.front[1] * scale + inner.position.y], lat: T.sight.lat * scale + inner.position.z } : null,
+    sight: T.sight ? { rear: [T.sight.rear[0] * scale + inner.position.x, T.sight.rear[1] * scale + inner.position.y], front: [T.sight.front[0] * scale + inner.position.x, T.sight.front[1] * scale + inner.position.y], lat: T.sight.lat * scale * wide + inner.position.z } : null,
   };
 }
 export const gunModelsReady = () => Object.keys(templates).length > 0;
