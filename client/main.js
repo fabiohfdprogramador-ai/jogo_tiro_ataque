@@ -166,12 +166,14 @@ function onMessage(m) {
       srv.score = m.score;
       if (m.phase === 'freeze') {
         if (m.map) changeMap(m.map);
+        hud.matchOver(null);
         fx.clearDecals(); clearNades(); clearProjs();
         hud.banner(`Round ${m.round}`, '', 2.5);
       } else if (m.phase === 'live') {
         sound.roundStart(); hud.notice('Vai! Vai! Vai!', 1.5);
       } else if (m.phase === 'end' || m.phase === 'matchover') {
-        hud.banner(m.msg, m.winner === 'T' ? 't' : 'ct', m.phase === 'end' ? 4.5 : 9);
+        if (m.phase === 'end') hud.banner(m.msg, m.winner === 'T' ? 't' : 'ct', 4.5);
+        else { buyOpen = false; hud.matchOver(m, me.id, me.team); }
         sound.roundEnd(m.winner === me.team);
       }
       break;

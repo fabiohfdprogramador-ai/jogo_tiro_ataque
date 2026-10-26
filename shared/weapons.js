@@ -38,12 +38,12 @@ export const WEAPONS = {
   // armas especiais (espaço 4, no lugar da AWP): disparam projéteis que voam de verdade (shared/physics.js: PROJ)
   rpg: {
     name: 'Bazuca', slot: 4, dmg: 0, rpm: 30, auto: false, mag: 1, reserve: 2,
-    price: 5000, reload: 2.8, speed: 0.78, armorPen: 1, reward: 100,
+    price: 5500, reload: 2.8, speed: 0.78, armorPen: 1, reward: 0,
     spread: 0.002, moveSpread: 0.03, jumpSpread: 0.1, kick: 0.05, range: 300, projectile: 'rocket',
   },
   bow: {
     name: 'Arco', slot: 4, dmg: 150, rpm: 60, auto: false, mag: 1, reserve: 12,
-    price: 2500, reload: 0.9, speed: 0.95, armorPen: 0.9, reward: 300,
+    price: 2800, reload: 0.9, speed: 0.95, armorPen: 0.9, reward: 200,
     spread: 0.001, moveSpread: 0.02, jumpSpread: 0.08, kick: 0.012, range: 200, projectile: 'arrow',
   },
   // granadas (espaço 5): "melee" para não terem munição nem recarga

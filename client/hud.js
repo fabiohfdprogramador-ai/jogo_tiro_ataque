@@ -133,6 +133,33 @@ export class Hud {
     this.set('buylist', rows, 'innerHTML');
   }
 
+  // fim de partida: vitória/derrota, placar, melhor jogador (MVP) e a tabela de todos, com contagem para a próxima
+  matchOver(m, myId, myTeam) {
+    const el = $('matchover');
+    clearInterval(this.moTimer);
+    if (!m) { el.classList.add('hidden'); return; }
+    const win = m.winner === myTeam, tName = (t) => t === 'T' ? 'Terroristas' : 'Contra-Terroristas';
+    const kd = (p) => (p.k / Math.max(1, p.d)).toFixed(2), hsp = (p) => p.k ? Math.round(100 * p.hs / p.k) + '%' : '—';
+    const adr = (p) => Math.round(p.dmg / Math.max(1, m.rounds));
+    const rank = (a, b) => b.k - a.k || b.dmg - a.dmg || a.d - b.d;
+    const mvp = m.stats.filter(p => p.team === m.winner).sort(rank)[0];
+    const table = (team) => {
+      const rows = m.stats.filter(p => p.team === team).sort(rank).map(p =>
+        `<tr class="${p.id === myId ? 'me' : ''}"><td>${mvp && p.id === mvp.id ? '<i class="star">★</i>' : ''}${esc(p.name)}</td><td class="n">${p.k}</td><td class="n">${p.d}</td><td class="n">${kd(p)}</td><td class="n">${hsp(p)}</td><td class="n">${adr(p)}</td></tr>`).join('');
+      return `<div class="side ${team === 'T' ? 'tt' : 'c'}"><h3>${tName(team)} <b>${m.score[team]}</b></h3><table><tr><th>Jogador</th><th class="n">Abates</th><th class="n">Mortes</th><th class="n">A/M</th><th class="n">Cabeça</th><th class="n">Dano/rd</th></tr>${rows}</table></div>`;
+    };
+    const mvpHtml = mvp ? `<div class="mvp ${mvp.team === 'T' ? 'tt' : 'c'}"><div class="badge">★ MVP</div><div class="who">${esc(mvp.name)}</div>
+      <div class="nums"><span><b>${mvp.k}</b>abates</span><span><b>${kd(mvp)}</b>A/M</span><span><b>${hsp(mvp)}</b>na cabeça</span><span><b>${adr(mvp)}</b>dano/round</span></div></div>` : '';
+    el.innerHTML = `<div class="card"><div class="res ${win ? 'win' : 'lose'}">${win ? 'VITÓRIA' : 'DERROTA'}</div>
+      <div class="sub">${tName(m.winner)} venceram a partida</div>
+      <div class="score"><span class="c">${m.score.CT}</span><i>:</i><span class="tt">${m.score.T}</span></div>
+      ${mvpHtml}<div class="tables">${table('CT')}${table('T')}</div>
+      <div class="next">Próxima partida em <b id="monext">${m.time}</b> s</div></div>`;
+    el.classList.remove('hidden');
+    let left = m.time;
+    this.moTimer = setInterval(() => { left = Math.max(0, left - 1); const n = $('monext'); if (n) n.textContent = left; if (!left) clearInterval(this.moTimer); }, 1000);
+  }
+
   board(open, players, myId, score) {
     $('board').classList.toggle('hidden', !open);
     if (!open) return;

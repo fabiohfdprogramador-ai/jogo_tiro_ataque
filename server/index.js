@@ -16,7 +16,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DEBUG = !!process.env.DEBUG;
 
 const CFG = {
-  freeze: 5, roundTime: 115, buyTime: 20, endTime: 5, matchOverTime: 10, winRounds: 13,
+  freeze: 5, roundTime: 115, buyTime: 20, endTime: 5, matchOverTime: 15, winRounds: Number(process.env.WIN_ROUNDS || 13),
   startMoney: Number(process.env.START_MONEY || 800), maxMoney: 16000, winMoney: 3250, lossBase: 1400, lossStep: 500, lossMax: 3400,
 };
 
@@ -72,8 +72,8 @@ function newPlayer(name, team, isBot, ws = null) {
     p: [0, 0, 0], v: [0, 0, 0], yaw: 0, pitch: 0, crouch: false, speed: 0,
     hp: MAX_HP, armor: 0, helmet: false, alive: false, money: CFG.startMoney,
     slots: { 1: null, 2: defaultPistol(team), 3: 'knife', 4: null, 5: null }, bag4: [], nades: {}, cur: 2, ammo: {},
-    kills: 0, deaths: 0, lastShot: 0, reloadEnd: 0, reloadKey: null, lostGear: true, lastPosT: now(), using: false,
-    bot: isBot ? { path: [], target: null, react: 0, nextShot: 0, burst: 0, strafe: 1, strafeT: 0, stuckT: 0, lastP: [0, 0, 0], alert: null, alertUntil: 0, goals: [], pushAt: 0, blind: 0, obj: null, objT: 0, nadeT: 0, staging: null } : null,
+    kills: 0, deaths: 0, hsk: 0, dmg: 0, lastShot: 0, reloadEnd: 0, reloadKey: null, lostGear: true, lastPosT: now(), using: false,
+    bot: isBot ? { path: [], target: null, react: 0, nextShot: 0, burst: 0, strafe: 1, strafeT: 0, stuckT: 0, lastP: [0, 0, 0], alert: null, alertUntil: 0, alertMove: false, cover: null, coverUntil: 0, crouchT: 0, goals: [], pushAt: 0, blind: 0, obj: null, objT: 0, nadeT: 0, staging: null } : null,
   };
   giveWeapon(pl, pl.slots[2]);
   return pl;
@@ -144,7 +144,7 @@ function startRound() {
 
 function resetMatch() {
   game.round = 0; game.score = { T: 0, CT: 0 }; game.lossStreak = { T: 0, CT: 0 };
-  for (const pl of players.values()) { pl.money = CFG.startMoney; pl.kills = 0; pl.deaths = 0; pl.lostGear = true; }
+  for (const pl of players.values()) { pl.money = CFG.startMoney; pl.kills = 0; pl.deaths = 0; pl.hsk = 0; pl.dmg = 0; pl.lostGear = true; }
 }
 
 function endRound(winner, msg) {
@@ -158,7 +158,9 @@ function endRound(winner, msg) {
   if (DEBUG) console.log(`[round ${game.round}] ${msg} (TR ${game.score.T} x ${game.score.CT} CT)`);
   if (game.score[winner] >= CFG.winRounds) {
     game.phase = 'matchover'; game.timer = CFG.matchOverTime;
-    broadcast({ t: 'round', phase: 'matchover', winner, msg: (winner === 'T' ? 'Terroristas' : 'Contra-Terroristas') + ' venceram a partida!', score: game.score });
+    // tela de fim de partida: placar e números de cada jogador
+    const stats = [...players.values()].map(q => ({ id: q.id, name: q.name, team: q.team, k: q.kills, d: q.deaths, hs: q.hsk, dmg: Math.round(q.dmg) }));
+    broadcast({ t: 'round', phase: 'matchover', winner, msg: (winner === 'T' ? 'Terroristas' : 'Contra-Terroristas') + ' venceram a partida!', score: game.score, rounds: game.round, time: CFG.matchOverTime, stats });
   } else {
     game.phase = 'end'; game.timer = CFG.endTime;
     broadcast({ t: 'round', phase: 'end', winner, msg, score: game.score });
@@ -255,6 +257,7 @@ function fireShot(pl, o, d, key, rt = 0) {
 
 function applyDamage(att, vic, key, zone, dist) {
   const r = computeDamage(key, zone, dist, vic);
+  if (att !== vic && att.team !== vic.team) att.dmg += Math.max(0, Math.min(r.hp, vic.hp));   // dano causado (para o placar final)
   vic.hp -= r.hp;
   vic.armor = Math.max(0, vic.armor - r.armor);
   if (vic.armor === 0) vic.helmet = false;
@@ -278,8 +281,13 @@ function kill(att, vic, key, hs) {
   vic.hp = 0; vic.alive = false; vic.deaths++; vic.lostGear = true; vic.reloadEnd = 0; vic.using = false;
   dropWeapon(vic, vic.slots[1] ? 1 : vic.slots[4] ? 4 : 2);            // a arma fica no chão para quem quiser pegar
   bombOnDeath(vic);
+  if (att !== vic) for (const q of players.values()) {
+    if (!q.bot || !q.alive || q.team !== vic.team || q.bot.target) continue;
+    if (Math.hypot(q.p[0] - vic.p[0], q.p[2] - vic.p[2]) > 30) continue;
+    q.bot.alert = [...vic.p]; q.bot.alertUntil = now() + 6; q.bot.alertMove = true;
+  }
   if (att !== vic && att.team !== vic.team) {
-    att.kills++;
+    att.kills++; if (hs) att.hsk++;
     att.money = Math.min(CFG.maxMoney, att.money + (WEAPONS[key] ? WEAPONS[key].reward : 300));
   }
   broadcast({ t: 'kill', killer: att.id, victim: vic.id, w: key, hs: hs ? 1 : 0 });
@@ -522,6 +530,17 @@ function findPath(from, to) {
   const out = []; for (let n = to; n; n = prev[n]) out.unshift(n);
   return out;
 }
+function coverNode(b, foe) {
+  const cur = nearestNode(b.p), eye = [foe.p[0], foe.p[1] + eyeHeight(foe.crouch), foe.p[2]];
+  let best = null, bd = Infinity;
+  for (const id of [cur, ...(ADJ[cur] || [])]) {
+    const [x, z] = MAP.nodes[id];
+    const d = Math.hypot(x - b.p[0], z - b.p[2]);
+    if (d > 14 || d >= bd || lineOfSight(eye, [x, 1.2, z], MAP.boxes)) continue;
+    best = id; bd = d;
+  }
+  return best;
+}
 function botGoTo(b, goal) { b.bot.path = findPath(nearestNode(b.p), goal); b.bot.goalNode = goal; }
 const pick = (a) => a[(Math.random() * a.length) | 0];
 
@@ -533,7 +552,7 @@ function botBuyAndPlan(b) {
   b.cur = b.slots[1] ? 1 : 2;
   if (Math.random() < 0.15 && b.slots[4]) b.cur = 4;          // às vezes vai de AWP
   const B = b.bot;
-  B.target = null; B.alert = null; B.burst = 0; B.pushAt = CFG.roundTime - (25 + Math.random() * 30); B.obj = null; B.blind = 0;
+  B.target = null; B.alert = null; B.alertMove = false; B.cover = null; B.burst = 0; B.pushAt = CFG.roundTime - (25 + Math.random() * 30); B.obj = null; B.blind = 0;
   if (b.team === 'T') {
     // o time inteiro ataca o mesmo bombsite: se junta na entrada e depois entra
     B.staging = pick(MAP.staging[game.plan]);
@@ -650,6 +669,19 @@ function updateBot(b, dt) {
     B.strafeT -= dt;
     if (B.strafeT <= 0) { B.strafe = Math.random() < 0.5 ? -1 : 1; B.strafeT = 0.5 + Math.random() * 0.9; if (Math.random() < 0.3) B.strafe = 0; }
     if (key !== 'awp') { wish = [Math.cos(b.yaw) * B.strafe, -Math.sin(b.yaw) * B.strafe]; speed *= 0.45; }
+    // agacha às vezes quando o inimigo está longe (fica parado e mira melhor)
+    B.crouchT -= dt;
+    if (B.crouchT <= 0) { B.crouchT = 1 + Math.random() * 1.5; b.crouch = tdist > 15 && Math.random() < 0.55; }
+    if (b.crouch) wish = [0, 0];
+    // ferido ou recarregando: anda de costas até um canto onde o inimigo não enxerga, sem parar de mirar
+    const hurt = b.hp < MAX_HP * 0.35 || b.reloadEnd > t || (b.ammo[key] && !W.melee && b.ammo[key].mag === 0);
+    if (hurt && !(W && W.melee)) {
+      if (!B.cover || t > B.coverUntil) { B.cover = coverNode(b, target); B.coverUntil = t + 2.5; }
+      if (B.cover) {
+        const [cx, cz] = MAP.nodes[B.cover], dx = cx - b.p[0], dz = cz - b.p[2], d = Math.hypot(dx, dz);
+        if (d > 0.6) { wish = [dx / d, dz / d]; speed = PHYS.runSpeed * (W ? W.speed : 1) * 0.85; b.crouch = false; }
+      }
+    } else B.cover = null;
     if (key && W.melee && !W.grenade) { wish = [fwd[0], fwd[2]]; speed = PHYS.runSpeed; }
     // granada explosiva em inimigo a média distância (às vezes)
     if (t > B.nadeT && b.nades.he > 0 && tdist > 8 && tdist < 26 && Math.random() < 0.02) { B.nadeT = t + 8; botThrow(b, 'he', target.p); }
@@ -669,8 +701,14 @@ function updateBot(b, dt) {
     }
   } else {
     B.target = null; B.burst = 0;
+    b.crouch = false;
     if (B.alert && t < B.alertUntil) {
-      b.yaw = turnTo(b.yaw, Math.atan2(-(B.alert[0] - b.p[0]), -(B.alert[2] - b.p[2])), 6 * dt);
+      const da = Math.hypot(B.alert[0] - b.p[0], B.alert[2] - b.p[2]);
+      if (B.alertMove && b.hp >= MAX_HP * 0.35 && da > 4) wish = moveToward(b, B.alert, dt);
+      else b.yaw = turnTo(b.yaw, Math.atan2(-(B.alert[0] - b.p[0]), -(B.alert[2] - b.p[2])), 6 * dt);
+      // aproveita a pausa para recarregar
+      const a = b.ammo[key];
+      if (a && W && !W.melee && a.mag < W.mag && a.res > 0) startReload(b);
     } else if (B.obj) {
       // trabalhando na bomba: vai até o ponto e, chegando, planta/desarma segurando "usar"
       const near = Math.hypot(b.p[0] - B.obj[0], b.p[2] - B.obj[2]);
@@ -714,6 +752,7 @@ function updateBot(b, dt) {
   b.speed = Math.hypot(b.p[0] - before[0], b.p[2] - before[2]) / dt;
 
   // destravar se ficar preso
+  if (B.alert && t >= B.alertUntil) B.alertMove = false;
   B.stuckT += dt;
   if (B.stuckT > 1.2) {
     const moved = Math.hypot(b.p[0] - B.lastP[0], b.p[2] - B.lastP[2]);

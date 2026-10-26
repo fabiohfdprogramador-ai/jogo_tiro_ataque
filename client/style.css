@@ -121,3 +121,31 @@ button:hover { background: #2c3038; }
 .card h3 { margin: 6px 0 -4px; font-size: 13px; letter-spacing: 1px; text-transform: uppercase; opacity: .6; }
 .opts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 18px; }
 @media (max-width: 520px) { .opts { grid-template-columns: 1fr; } }
+
+/* fim de partida */
+#matchover { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; background: radial-gradient(ellipse at center, rgba(10,12,18,.72), rgba(4,5,8,.92)); animation: mofade .6s ease-out; }
+#matchover.hidden { display: none; }
+@keyframes mofade { from { opacity: 0; } to { opacity: 1; } }
+#matchover .card { width: min(860px, 94vw); max-height: 94vh; overflow: auto; text-align: center; padding: 22px 26px; }
+#matchover .res { font-size: 64px; font-weight: 900; letter-spacing: 8px; line-height: 1; }
+#matchover .res.win { color: #ffd36a; text-shadow: 0 0 28px rgba(255,190,60,.45); }
+#matchover .res.lose { color: #e0605a; text-shadow: 0 0 28px rgba(220,60,50,.35); }
+#matchover .sub { opacity: .75; margin-top: 6px; font-size: 16px; }
+#matchover .score { font-size: 46px; font-weight: 800; margin: 10px 0 14px; }
+#matchover .score i { opacity: .5; margin: 0 14px; font-style: normal; }
+#matchover .c { color: #8fb8ee; } #matchover .tt { color: #f0c060; }
+#matchover .mvp { display: inline-block; min-width: 420px; padding: 12px 22px; border-radius: 10px; background: linear-gradient(180deg, rgba(255,210,100,.16), rgba(255,210,100,.04)); border: 1px solid rgba(255,210,100,.45); margin-bottom: 16px; }
+#matchover .mvp .badge { color: #ffd36a; font-weight: 800; letter-spacing: 3px; font-size: 13px; }
+#matchover .mvp .who { font-size: 28px; font-weight: 800; margin: 2px 0 8px; }
+#matchover .mvp .nums { display: flex; gap: 22px; justify-content: center; color: #ddd; font-size: 12px; }
+#matchover .mvp .nums b { display: block; font-size: 20px; color: #fff; }
+#matchover .tables { display: flex; gap: 18px; text-align: left; }
+#matchover .side { flex: 1; background: rgba(14,16,20,.7); border-radius: 8px; padding: 10px 12px; border-top: 3px solid currentColor; }
+#matchover .side h3 { margin: 0 0 6px; font-size: 15px; display: flex; justify-content: space-between; }
+#matchover table { width: 100%; border-collapse: collapse; font-size: 13px; color: #eee; }
+#matchover td, #matchover th { padding: 4px 6px; } #matchover th { opacity: .55; font-weight: 600; font-size: 11px; text-align: left; }
+#matchover td.n, #matchover th.n { text-align: right; }
+#matchover tr.me td { background: rgba(255,255,255,.09); }
+#matchover .star { color: #ffd36a; font-style: normal; margin-right: 5px; }
+#matchover .next { margin-top: 16px; opacity: .8; font-size: 15px; }
+@media (max-width: 700px) { #matchover .tables { flex-direction: column; } #matchover .mvp { min-width: 0; width: 100%; } #matchover .res { font-size: 44px; } }
