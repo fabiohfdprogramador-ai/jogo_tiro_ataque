@@ -97,6 +97,13 @@ button:hover { background: #2c3038; }
 .team.auto.sel { border-color: #aaa; }
 .primary { background: #c8962e; border-color: #c8962e; color: #111; font-weight: 700; font-size: 18px; }
 .primary:hover { background: #dba640; }
+button.invite { background: #1d2a22; border-color: #3d6b4c; }
+button.invite:hover { background: #24382b; }
+.binds { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 18px; }
+.binds .bind { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; }
+.binds .bind button { min-width: 92px; padding: 5px 8px; font-weight: 700; font-size: 13px; }
+.binds .bind button.wait { background: #5a4a1c; border-color: #e8c88a; color: #ffe2a0; }
+@media (max-width: 520px) { .binds { grid-template-columns: 1fr; } }
 .status { margin: 0; min-height: 18px; font-size: 14px; color: #ffb070; }
 .help { font-size: 12px; opacity: .65; line-height: 1.7; }
 

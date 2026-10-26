@@ -64,6 +64,7 @@
       <button data-team="auto" class="team auto sel">Automático</button>
     </div>
     <button id="play" class="primary">Jogar</button>
+    <button id="invite" class="invite">Copiar link de convite</button>
     <p id="status" class="status"></p>
     <details class="credits">
       <summary>Créditos</summary>
@@ -81,7 +82,8 @@
       <b>WASD</b> andar · <b>Shift</b> (segurar) correr · <b>Espaço</b> pular · <b>C</b> agachar/levantar · <b>Ctrl</b> (segurar) agachar<br>
       <b>Mouse</b> mirar e atirar · <b>Botão direito</b> (segurar) mirar · luneta na AWP · <b>R</b> recarregar<br>
       <b>1 2 3</b> armas · <b>4</b> AWP, bazuca ou arco · <b>5</b> granadas (5 de novo troca) · roda do mouse / <b>Q</b> trocar · <b>F</b> (segurar) plantar/desarmar<br>
-      <b>E</b> pegar arma do chão · <b>G</b> largar arma · <b>B</b> comprar · <b>Tab</b> placar · <b>Y</b> chat · <b>Esc</b> menu
+      <b>E</b> pegar arma do chão · <b>G</b> largar arma · <b>B</b> comprar · <b>Tab</b> placar · <b>Y</b> chat · <b>Esc</b> menu<br>
+      As teclas podem ser trocadas no menu (<b>Esc</b>) durante o jogo.
     </div>
   </div>
 </div>
@@ -94,7 +96,12 @@
       <button data-switch="T" class="team t">Ir para TR</button>
       <button data-switch="CT" class="team ct">Ir para CT</button>
     </div>
-    <label>Sensibilidade do mouse <span id="sensv"></span><input id="sens" type="range" min="0.2" max="4" step="0.05"></label>
+    <button id="invite2" class="invite">Copiar link de convite</button>
+    <h3>Mouse</h3>
+    <div class="opts">
+      <label>Sensibilidade <span id="sensv"></span><input id="sens" type="range" min="0.2" max="4" step="0.05"></label>
+      <label>Mirando e na luneta <span id="sensAimv"></span><input id="sensAim" type="range" min="0.2" max="2" step="0.05"></label>
+    </div>
     <h3>Imagem</h3>
     <div class="opts">
       <label>Brilho <span id="brightv"></span><input id="bright" type="range" min="0.5" max="1.8" step="0.05"></label>
@@ -123,7 +130,10 @@
       <label>Ambiente (vento) <span id="vol_ambientev"></span><input id="vol_ambiente" type="range" min="0" max="1.5" step="0.05"></label>
       <label>Avisos e menus <span id="vol_avisosv"></span><input id="vol_avisos" type="range" min="0" max="1.5" step="0.05"></label>
     </div>
-    <button id="resetopts">Restaurar padrão</button>
+    <h3>Teclas <small>(clique e aperte a nova tecla · Esc cancela)</small></h3>
+    <div id="binds" class="binds"></div>
+    <button id="resetbinds">Restaurar teclas</button>
+    <button id="resetopts">Restaurar padrão (imagem e som)</button>
     <div class="help">Clique em <b>Continuar</b> para voltar ao jogo.</div>
   </div>
 </div>

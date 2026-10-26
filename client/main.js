@@ -21,13 +21,58 @@ function lockPointer() { try { const p = renderer.domElement.requestPointerLock(
 const SOUND_GROUPS = ['tiros', 'passos', 'ambiente', 'avisos'];
 const IMAGE_SOUND_DEFAULTS = { bright: 1, contrast: 1, satur: 1, ...Object.fromEntries(SOUND_GROUPS.map(k => ['vol_' + k, 1])) };
 function loadSettings() {
-  const def = { sens: 1.2, vol: 0.6, quality: true, name: '', map: 'bairro', time: 'dia', ...IMAGE_SOUND_DEFAULTS };
+  const def = { sens: 1.2, sensAim: 1, binds: {}, vol: 0.6, quality: true, name: '', map: 'bairro', time: 'dia', ...IMAGE_SOUND_DEFAULTS };
   let s; try { s = { ...def, ...JSON.parse(localStorage.getItem('deserto.settings') || '{}') }; } catch { s = def; }
   if (!['alto', 'medio', 'baixo'].includes(s.gfx)) s.gfx = s.quality === false ? 'medio' : 'alto';   // a caixinha antiga vira a lista nova
   return s;
 }
 const settings = loadSettings();
 function saveSettings() { try { localStorage.setItem('deserto.settings', JSON.stringify(settings)); } catch { /* sem storage */ } }
+
+// ---------------------------------------------------------------- teclas (o jogador pode trocar)
+// o jogo continua usando os códigos padrão (KeyW, Space...); a tecla apertada é traduzida para a ação que ela faz
+const ACTIONS = [
+  ['KeyW', 'Frente'], ['KeyS', 'Trás'], ['KeyA', 'Esquerda'], ['KeyD', 'Direita'],
+  ['Space', 'Pular'], ['ShiftLeft', 'Correr (segurar)'], ['ControlLeft', 'Agachar (segurar)'], ['KeyC', 'Agachar/levantar'],
+  ['KeyR', 'Recarregar'], ['KeyF', 'Plantar/desarmar'], ['KeyE', 'Pegar arma'], ['KeyG', 'Largar arma'],
+  ['KeyQ', 'Arma anterior'], ['KeyB', 'Comprar'], ['Tab', 'Placar'], ['KeyY', 'Chat'],
+];
+const bindOf = (def) => settings.binds[def] || def;
+function toGameCode(code) {
+  for (const [def] of ACTIONS) if (bindOf(def) === code) return def;
+  if (code === 'ShiftRight') return bindOf('ShiftLeft') === 'ShiftLeft' ? 'ShiftLeft' : '';
+  if (code === 'ControlRight') return bindOf('ControlLeft') === 'ControlLeft' ? 'ControlLeft' : '';
+  if (ACTIONS.some(([def]) => def === code)) return '';   // tecla padrão de uma ação que foi trocada: não faz mais nada
+  return code;
+}
+function keyLabel(code) {
+  const names = { Space: 'Espaço', ShiftLeft: 'Shift', ShiftRight: 'Shift dir.', ControlLeft: 'Ctrl', ControlRight: 'Ctrl dir.', AltLeft: 'Alt', AltRight: 'Alt Gr', Tab: 'Tab', CapsLock: 'Caps Lock', Backquote: "'", Enter: 'Enter', Backspace: 'Backspace', Minus: '-', Equal: '=', BracketLeft: '´', BracketRight: '[', Backslash: ']', Semicolon: 'Ç', Quote: '~', Comma: ',', Period: '.', Slash: ';', IntlBackslash: '\\', ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→' };
+  if (names[code]) return names[code];
+  if (/^Key[A-Z]$/.test(code)) return code.slice(3);
+  if (/^Digit\d$/.test(code)) return code.slice(5);
+  if (/^Numpad/.test(code)) return 'Num ' + code.slice(6);
+  return code;
+}
+let bindWait = null;   // ação esperando a nova tecla
+function renderBinds() {
+  $('binds').innerHTML = ACTIONS.map(([def, label]) =>
+    `<div class="bind"><span>${label}</span><button data-bind="${def}" class="${bindWait === def ? 'wait' : ''}">${bindWait === def ? 'aperte...' : keyLabel(bindOf(def))}</button></div>`).join('');
+}
+function setBind(def, code) {
+  const old = bindOf(def);
+  const other = ACTIONS.find(([d]) => d !== def && bindOf(d) === code);   // a tecla já era de outra ação: troca as duas
+  if (other) settings.binds[other[0]] = old;
+  settings.binds[def] = code;
+  for (const [d] of ACTIONS) if (settings.binds[d] === d) delete settings.binds[d];
+  saveSettings();
+}
+// pega a próxima tecla antes de todo o resto do jogo
+document.addEventListener('keydown', (e) => {
+  if (!bindWait) return;
+  e.preventDefault(); e.stopImmediatePropagation();
+  if (e.code !== 'Escape') setBind(bindWait, e.code);
+  bindWait = null; renderBinds();
+}, true);
 
 // ---------------------------------------------------------------- renderização
 function createRenderer() {
@@ -519,6 +564,8 @@ document.querySelectorAll('#menu .team').forEach(b => b.addEventListener('click'
   document.querySelectorAll('#menu .team').forEach(x => x.classList.remove('sel')); b.classList.add('sel');
 }));
 $('name').value = settings.name;
+{ const inv = new URLSearchParams(location.search).get('mapa');
+  if (inv && MAPS[inv]) { settings.map = inv; $('status').textContent = 'Você foi convidado! Escolha o time e clique em Jogar.'; } }
 $('map').value = MAPS[settings.map] ? settings.map : 'bairro';
 changeMap($('map').value);
 $('map').addEventListener('change', () => { settings.map = $('map').value; saveSettings(); changeMap(settings.map); });
@@ -540,6 +587,25 @@ document.querySelectorAll('#pause [data-switch]').forEach(b => b.addEventListene
   send({ t: 'team', team: b.dataset.switch });
   $('pause').classList.add('hidden'); lockPointer();
 }));
+$('sensAim').value = settings.sensAim; $('sensAimv').textContent = Math.round(settings.sensAim * 100) + '%';
+$('sensAim').addEventListener('input', () => { settings.sensAim = +$('sensAim').value; $('sensAimv').textContent = Math.round(settings.sensAim * 100) + '%'; saveSettings(); });
+renderBinds();
+$('binds').addEventListener('click', (e) => { const b = e.target.closest('[data-bind]'); if (!b) return; bindWait = bindWait === b.dataset.bind ? null : b.dataset.bind; renderBinds(); });
+$('resetbinds').addEventListener('click', () => { settings.binds = {}; bindWait = null; saveSettings(); renderBinds(); });
+// convite: link do jogo já com o mapa escolhido (quem abre entra no mesmo servidor)
+function inviteLink() { return location.origin + '/?mapa=' + encodeURIComponent(mapId || settings.map); }
+async function copyInvite(btn) {
+  const url = inviteLink(), local = /^(localhost|127\.|\[::1\])/.test(location.hostname);
+  let ok = false;
+  try { await navigator.clipboard.writeText(url); ok = true; } catch { /* sem permissão */ }
+  if (!ok) { try { const t = document.createElement('textarea'); t.value = url; document.body.appendChild(t); t.select(); ok = document.execCommand('copy'); t.remove(); } catch { /* nada */ } }
+  const old = btn.dataset.text || (btn.dataset.text = btn.textContent);
+  btn.textContent = ok ? 'Link copiado! Mande para seu amigo' : url;
+  setTimeout(() => { btn.textContent = old; }, 2500);
+  if (local) $('status').textContent = 'Atenção: este link é do seu computador e só funciona aqui. Para jogar com amigos use o endereço do Render.';
+}
+$('invite').addEventListener('click', () => copyInvite($('invite')));
+$('invite2').addEventListener('click', () => copyInvite($('invite2')));
 $('sens').value = settings.sens; $('sensv').textContent = settings.sens;
 $('sens').addEventListener('input', () => { settings.sens = +$('sens').value; $('sensv').textContent = settings.sens.toFixed(2); saveSettings(); });
 $('vol').value = settings.vol; $('volv').textContent = Math.round(settings.vol * 100) + '%';
@@ -581,7 +647,7 @@ renderer.domElement.addEventListener('click', () => { if (playing && !locked) lo
 document.addEventListener('mousemove', (e) => {
   if (!locked) return;
   const zoom = camera.fov / BASE_FOV;
-  const k = 0.0022 * settings.sens * zoom;
+  const k = 0.0022 * settings.sens * zoom * (me.scope || me.ads ? settings.sensAim : 1);
   me.yaw -= e.movementX * k; me.pitch -= e.movementY * k;
   me.pitch = Math.max(-1.55, Math.min(1.55, me.pitch));
   lookDX += e.movementX; lookDY += e.movementY;
@@ -603,9 +669,11 @@ document.addEventListener('wheel', (e) => { if (locked && me.alive && !buyOpen) 
 
 document.addEventListener('keydown', (e) => {
   if (!playing || chatOpen) return;
-  if (['Tab', 'Space', 'ControlLeft', 'KeyB', 'KeyY'].includes(e.code)) e.preventDefault();
-  if (e.repeat && e.code !== 'Tab') { keys[e.code] = true; return; }
-  keys[e.code] = true;
+  const code = toGameCode(e.code);
+  if (['Tab', 'Space', 'ControlLeft', 'KeyB', 'KeyY'].includes(code) || e.code === 'Tab') e.preventDefault();
+  if (!code) return;
+  if (e.repeat && code !== 'Tab') { keys[code] = true; return; }
+  keys[code] = true;
   if (e.code === 'Space') { if (me.alive) me.jumpQueued = true; else nextSpectate(); }
   if (e.code === 'Tab') boardOpen = true;
   if (!locked) return;
@@ -630,8 +698,9 @@ document.addEventListener('keydown', (e) => {
   }
 });
 document.addEventListener('keyup', (e) => {
-  keys[e.code] = false; if (e.code === 'Tab') boardOpen = false;
-  if (e.code === 'KeyF' && me.using) { me.using = false; send({ t: 'use', on: 0 }); }
+  const code = toGameCode(e.code); if (!code) return;
+  keys[code] = false; if (code === 'Tab') boardOpen = false;
+  if (code === 'KeyF' && me.using) { me.using = false; send({ t: 'use', on: 0 }); }
 });
 $('chatin').addEventListener('keydown', (e) => {
   e.stopPropagation();
@@ -662,7 +731,7 @@ function updateMovement(dt) {
     const l = Math.hypot(wx, wz); if (l > 0) { wx /= l; wz /= l; }
   }
   // segurando Shift corre (não dá para correr agachado nem mirando)
-  me.sprint = !!(keys.ShiftLeft || keys.ShiftRight) && !me.crouch && !me.scope && !me.ads && (wx || wz);
+  me.sprint = !!keys.ShiftLeft && !me.crouch && !me.scope && !me.ads && (wx || wz);
   let maxSpeed = (me.sprint ? PHYS.sprintSpeed : PHYS.walkSpeed) * (W ? W.speed : 1);
   if (me.scope || me.ads) maxSpeed *= 0.6;
   if (me.crouch) maxSpeed *= PHYS.crouchMul;
