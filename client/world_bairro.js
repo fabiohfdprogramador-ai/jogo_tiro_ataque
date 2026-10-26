@@ -871,6 +871,18 @@ export function buildBairro(group, MAP, sunLight) {
       taper(M.paint, -hl, 0.32, hl, 0.86, hw, 0.12, 0.08, 0.97, col);                        // carroceria
       taper(M.glass, -hl + 0.45, 0.86, hl - 1.0, 1.34, hw - 0.08, 0.5, 0.32, 0.86);         // cabine de vidro
       taper(M.paint, -hl + 0.77, 1.34, hl - 1.5, 1.42, (hw - 0.08) * 0.86, 0.03, 0.03, 0.98, col);   // teto
+      // detalhes: coluna do meio, retrovisores, linhas das portas, maçanetas, grade, placas e caixas de roda
+      const sw = hw * 0.97 + 0.004;
+      part(M.dark, -0.32, 0.86, -(hw - 0.12), -0.22, 1.32, hw - 0.12);                                     // coluna entre os vidros
+      for (const s of [-1, 1]) {
+        part(M.dark, hl - 1.12, 0.9, s * (hw + 0.02) - 0.05, hl - 0.98, 1.0, s * (hw + 0.02) + 0.05);        // haste do retrovisor
+        part(M.paint, hl - 1.15, 0.92, s * (hw + 0.1) - 0.06, hl - 0.98, 1.06, s * (hw + 0.1) + 0.06, col);  // retrovisor
+        for (const u of [0.25, -0.78]) part(M.dark, u - 0.012, 0.36, s * sw - 0.006, u + 0.012, 0.84, s * sw + 0.006);   // fresta da porta
+        for (const u of [0.0, -1.0]) part(M.alu, u - 0.09, 0.7, s * sw - 0.012, u + 0.09, 0.74, s * sw + 0.012);       // maçaneta
+        for (const u of [hl - 0.78, -hl + 0.78]) part(M.dark, u - 0.45, 0.62, s * (hw - 0.02) - 0.02, u + 0.45, 0.68, s * (hw - 0.02) + 0.02);   // caixa de roda
+      }
+      part(M.dark, hl - 0.01, 0.56, -(hw - 0.45), hl + 0.04, 0.74, hw - 0.45);                              // grade
+      for (const e of [hl + 0.065, -hl - 0.075]) part(M.white, e - 0.005, 0.38, -0.2, e + 0.005, 0.5, 0.2);  // placas
     }
     part(M.dark, hl - 0.04, 0.28, -hw + 0.05, hl + 0.06, 0.52, hw - 0.05); part(M.dark, -hl - 0.06, 0.28, -hw + 0.05, -hl + 0.04, 0.52, hw - 0.05);   // para-choques
     for (const s of [-1, 1]) { part(M.headlight, hl - 0.02, 0.62, s * (hw - 0.3) - 0.17, hl + 0.03, 0.76, s * (hw - 0.3) + 0.17); part(M.taillight, -hl - 0.03, 0.62, s * (hw - 0.25) - 0.13, -hl + 0.02, 0.8, s * (hw - 0.25) + 0.13); }

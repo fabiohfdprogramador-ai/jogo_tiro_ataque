@@ -69,6 +69,7 @@ const clock = new THREE.Clock();
 let timeScale = 1;   // 0 = pausa (para tirar foto de um instante do passo)
 let frames = 0, fpsT = 0;
 const info = document.getElementById('info');
+window.__bonecos = { people, THREE, setTime: (v) => { timeScale = v; } };   // para testes pelo console
 renderer.setAnimationLoop(() => {
   const dt = Math.min(0.05, clock.getDelta()) * timeScale;
   for (const p of people) {

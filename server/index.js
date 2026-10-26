@@ -214,7 +214,17 @@ function startReload(pl) {
   pl.reloadEnd = now() + W.reload; pl.reloadKey = key;
 }
 
-function fireShot(pl, o, d, key) {
+// onde o jogador q estava no instante t (histórico do último segundo), para conferir o tiro onde o atirador o via
+function posAt(q, t) {
+  const h = q.hist;
+  if (!h || !h.length || t >= h[h.length - 1][0]) return { p: q.p, c: q.crouch };
+  for (let i = h.length - 1; i > 0; i--) {
+    const a = h[i - 1], b = h[i];
+    if (a[0] <= t) { const k = (t - a[0]) / Math.max(1e-6, b[0] - a[0]); return { p: [a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k, a[3] + (b[3] - a[3]) * k], c: !!(k < 0.5 ? a[4] : b[4]) }; }
+  }
+  return { p: [h[0][1], h[0][2], h[0][3]], c: !!h[0][4] };
+}
+function fireShot(pl, o, d, key, rt = 0) {
   const W = WEAPONS[key], t = now();
   if (!pl.alive || !key || game.phase === 'freeze' || game.phase === 'waiting') return false;
   if (W.grenade) return false;
@@ -228,9 +238,12 @@ function fireShot(pl, o, d, key) {
   if (W.projectile) { launchProj(pl, o, d, W.projectile, key); return true; }
   const wr = raycastWorld(o, d, W.range, MAP.boxes);
   let best = wr.t, hit = null;
+  // compensação do atraso: volta os outros para onde o atirador os via (no máximo 0,35 s atrás)
+  const back = rt ? Math.min(t, Math.max(t - 0.35, rt)) : t;
   for (const q of players.values()) {
     if (q === pl || !q.alive || q.team === pl.team) continue;
-    const r = rayPlayer(o, d, q.p, q.crouch);
+    const at = back < t ? posAt(q, back) : { p: q.p, c: q.crouch };
+    const r = rayPlayer(o, d, at.p, at.c);
     if (r.t < best) { best = r.t; hit = { q, zone: r.zone }; }
   }
   const e = [o[0] + d[0] * best, o[1] + d[1] * best, o[2] + d[2] * best].map(v => +v.toFixed(3));
@@ -715,7 +728,7 @@ function updateBot(b, dt) {
 
 // ---------------------------------------------------------------- loop
 const TICK = 30;
-let lastTick = now();
+let lastTick = now(), tickNo = 0;
 setInterval(() => {
   const t = now(), dt = Math.min(0.1, t - lastTick); lastTick = t;
   if (!humans().length && !process.env.SO_BOTS) { game.phase = 'waiting'; return; }
@@ -732,9 +745,12 @@ setInterval(() => {
       if (a) { const take = Math.min(W.mag - a.mag, a.res); a.mag += take; a.res -= take; }
       pl.reloadEnd = 0;
     }
-    if (pl.isBot) updateBot(pl, dt);
+    if (pl.isBot && (pl.id + tickNo) % 2 === 0) updateBot(pl, dt * 2);   // bots pensam a 15 por segundo (metade em cada volta): alivia o servidor fraco
     if (pl.alive) autoPickup(pl, t);
+    (pl.hist ||= []).push([t, pl.p[0], pl.p[1], pl.p[2], pl.crouch ? 1 : 0]);
+    while (pl.hist.length && pl.hist[0][0] < t - 1) pl.hist.shift();
   }
+  tickNo++;
   bombTick(dt);
   nadesTick(dt);
   projsTick(dt);
@@ -753,7 +769,7 @@ setInterval(() => {
   for (const pl of players.values()) {
     if (!pl.ws) continue;
     send(pl, {
-      t: 'state', dr: dropsPub, ph: game.phase, tl: +game.timer.toFixed(2), sc: game.score, rd: game.round, buy: canBuyNow() ? 1 : 0, ps: pub, bomb: bp,
+      t: 'state', st: +t.toFixed(3), dr: dropsPub, ph: game.phase, tl: +game.timer.toFixed(2), sc: game.score, rd: game.round, buy: canBuyNow() ? 1 : 0, ps: pub, bomb: bp,
       me: { hp: pl.hp, ar: pl.armor, hm: pl.helmet ? 1 : 0, m: pl.money, sl: pl.slots, b4: pl.bag4, nd: pl.nades, cur: pl.cur, am: pl.ammo, a: pl.alive ? 1 : 0, rl: pl.reloadEnd ? 1 : 0, team: pl.team },
     });
   }
@@ -793,10 +809,10 @@ wss.on('connection', (ws) => {
         pl.yaw = +msg.yaw || 0; pl.pitch = +msg.pitch || 0; pl.crouch = !!msg.c;
         if (msg.slot && pl.slots[msg.slot] && msg.slot !== pl.cur) { pl.cur = msg.slot; pl.reloadEnd = 0; }
         if (!pl.alive) return;
-        const t = now(), dtp = Math.max(0.016, t - pl.lastPosT);
+        const t = now(), dtp = Math.max(1 / 30, t - pl.lastPosT);   // pacotes atrasados chegam juntos: não pune isso
         const dx = msg.p[0] - pl.p[0], dz = msg.p[2] - pl.p[2], dist = Math.hypot(dx, dz);
         const frozen = game.phase === 'freeze';
-        if ((frozen && dist > 0.3) || dist > PHYS.sprintSpeed * 1.25 * dtp + 0.6 || Math.abs(msg.p[1] - pl.p[1]) > 4) {
+        if ((frozen && dist > 0.3) || dist > PHYS.sprintSpeed * 1.3 * dtp + 1.0 || Math.abs(msg.p[1] - pl.p[1]) > 4) {
           send(pl, { t: 'spawn', p: pl.p, yaw: pl.yaw, keepAim: 1 });
         } else {
           pl.v = [dx / dtp, 0, dz / dtp];
@@ -810,7 +826,7 @@ wss.on('connection', (ws) => {
         const len = Math.hypot(...msg.d); if (!len) return;
         const d = msg.d.map(v => v / len);
         const eye = [pl.p[0], pl.p[1] + eyeHeight(pl.crouch), pl.p[2]];
-        fireShot(pl, eye, d, pl.slots[pl.cur]);
+        fireShot(pl, eye, d, pl.slots[pl.cur], +msg.rt || 0);
         break;
       }
       case 'throw': {

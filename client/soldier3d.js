@@ -62,12 +62,33 @@ function bake(size, fn, strength) {
 }
 
 // materiais compartilhados por todos os bonecos: a cor de cada peça vem da cor dos vértices
-const FAB = 0, HARD = 1, SKIN = 2;
-const UV_PER_M = [4, 6, 10];          // repetições da textura por metro
-const GAIN = [1.2, 1, 1.1];           // compensa o tom médio da textura (cinza) para a cor sair certa
+const FAB = 0, HARD = 1, SKIN = 2, CAMO = 3;   // CAMO: uniforme camuflado (a cor vem da textura, não dos vértices)
+const UV_PER_M = [4, 6, 10, 2.2];     // repetições da textura por metro
+const GAIN = [1.2, 1, 1.1, 1];        // compensa o tom médio da textura (cinza) para a cor sair certa
+// camuflagem: manchas recortadas em camadas (como as de verdade), com a trama do tecido por cima
+function camoTex(pal, seed) {
+  return bake(512, (u, v) => {
+    const W = 64, tw = Math.sin(2 * Math.PI * W * (u + v)) * 0.5 + 0.5;
+    let c = pal[0];
+    for (let k = 1; k < pal.length; k++) { const n = fbm(u * 5 + k * 3.1, v * 5 - k * 1.7, 5, seed + k * 17, 4); if (n > 0.56 - k * 0.015) c = pal[k]; }
+    const fine = fbm(u * 40, v * 40, 40, seed + 99, 2), k = 0.9 + tw * 0.08 + (fine - 0.5) * 0.12;
+    return { c: [c[0] * k, c[1] * k, c[2] * k], h: tw * 0.25 + fine * 0.2 };
+  }, 2.2);
+}
+const rgb = (hex) => [((hex >> 16) & 255) / 255, ((hex >> 8) & 255) / 255, (hex & 255) / 255];
+let CAMO_MATS = null;
+function camoMats() {
+  if (CAMO_MATS) return CAMO_MATS;
+  const mk = (pal, seed) => { const t = camoTex(pal.map(rgb), seed); return new THREE.MeshStandardMaterial({ vertexColors: true, map: t.map, normalMap: t.normal, roughness: 0.95 }); };
+  CAMO_MATS = {
+    T: mk([0xb39c74, 0x8c7552, 0x77744c, 0xcdbd95, 0x5a4733], 211),    // deserto (tipo multicam areia)
+    CT: mk([0x2c3248, 0x3d4660, 0x1d2333, 0x4d566c, 0x161a26], 433),   // urbana escura (azul-marinho e cinza)
+  };
+  return CAMO_MATS;
+}
 let MATS = null;
-function materials() {
-  if (MATS) return MATS;
+function materials(team = 'CT') {
+  if (MATS) return [...MATS, camoMats()[team === 'T' ? 'T' : 'CT']];
   // tecido: sarja (trama na diagonal), amassados largos, fiapos e poeira
   const fab = bake(256, (u, v) => {
     const W = 48;
@@ -90,9 +111,10 @@ function materials() {
   MATS = [
     new THREE.MeshStandardMaterial({ vertexColors: true, map: fab.map, normalMap: fab.normal, roughness: 0.95 }),
     new THREE.MeshStandardMaterial({ vertexColors: true, normalMap: hard.normal, normalScale: new THREE.Vector2(0.35, 0.35), roughness: 0.48, metalness: 0.05 }),
-    new THREE.MeshStandardMaterial({ vertexColors: true, map: skin.map, normalMap: skin.normal, normalScale: new THREE.Vector2(0.45, 0.45), roughness: 0.6 }),
+    // pele: um brilho avermelhado nas bordas imita a luz atravessando a pele (menos cara de boneco de plástico)
+    new THREE.MeshPhysicalMaterial({ vertexColors: true, map: skin.map, normalMap: skin.normal, normalScale: new THREE.Vector2(0.5, 0.5), roughness: 0.55, sheen: 0.35, sheenRoughness: 0.5, sheenColor: new THREE.Color(0xff7a5a) }),
   ];
-  return MATS;
+  return [...MATS, camoMats()[team === 'T' ? 'T' : 'CT']];
 }
 
 // ---------------------------------------------------------------- formas (geradas por fórmula)
@@ -251,7 +273,7 @@ function bindPositions() {
 
 // ---------------------------------------------------------------- montagem do corpo
 class Assembler {
-  constructor(binds, seed) { this.binds = binds; this.lists = [[], [], []]; this.seed = seed; }
+  constructor(binds, seed) { this.binds = binds; this.lists = [[], [], [], []]; this.seed = seed; }
   rnd() { this.seed = (this.seed * 16807) % 2147483647; return this.seed / 2147483647; }
   // o: { bone, mat, col, p, r, s, blend(x,y,z) -> [osso, peso], ao(x,y,z) -> fator }
   put(geo, o) {
@@ -311,7 +333,7 @@ function template(team) {
 
   // ---- quadril: calça, cinto tático com fivela, bolsos e kit médico
   const pb = B.pelvis;
-  put(loft([[-0.17, 0.15, 0.1, 0.01], [-0.08, 0.172, 0.112, 0], [0.02, 0.165, 0.108, 0], [0.08, 0.155, 0.1, 0]], 0.7, 24), pb, FAB, C.pants);
+  put(loft([[-0.17, 0.15, 0.1, 0.01], [-0.08, 0.172, 0.112, 0], [0.02, 0.165, 0.108, 0], [0.08, 0.155, 0.1, 0]], 0.7, 24), pb, CAMO, 0xffffff);
   put(loft([[-0.005, 0.18, 0.121, 0], [0.065, 0.177, 0.119, 0]], 0.7, 24), pb, FAB, C.gear);
   put(loft([[0.018, 0.183, 0.124, 0], [0.042, 0.181, 0.122, 0]], 0.7, 24), pb, FAB, C.strap);
   put(rounded(0.06, 0.05, 0.02, 0.3), pb, HARD, DARK, [0, 0.03, -0.124]);
@@ -327,7 +349,7 @@ function template(team) {
   // ---- tronco: cintura fina, peito largo, ombros caídos
   const cb = B.chest;
   put(loft([[-0.03, 0.158, 0.104, 0], [0.1, 0.152, 0.1, 0], [0.24, 0.175, 0.112, -0.004], [0.38, 0.205, 0.122, -0.01],
-    [0.47, 0.212, 0.115, -0.004], [0.53, 0.19, 0.098, 0.006], [0.575, 0.12, 0.075, 0.012], [0.6, 0.065, 0.058, 0.012]], 0.65, 28), cb, FAB, C.shirt);
+    [0.47, 0.212, 0.115, -0.004], [0.53, 0.19, 0.098, 0.006], [0.575, 0.12, 0.075, 0.012], [0.6, 0.065, 0.058, 0.012]], 0.65, 28), cb, CAMO, 0xffffff);
   // colete: placas com grade MOLLE (fitas costuradas), faixa lateral e alças acolchoadas
   put(rounded(0.34, 0.35, 0.065, 0.22, 10), cb, FAB, C.vest, [0, 0.37, -0.122], [0.05, 0, 0]);
   put(rounded(0.35, 0.38, 0.065, 0.22, 10), cb, FAB, C.vest, [0, 0.36, 0.126], [-0.04, 0, 0]);
@@ -361,12 +383,12 @@ function template(team) {
     put(rounded(0.12, 0.12, 0.05, 0.7, 8), cb, FAB, C.shemagh2, [0.02, 0.52, -0.1], [0.4, 0, 0.1]);
     put(rounded(0.05, 0.1, 0.03, 0.6, 6), cb, FAB, C.shemagh2, [0.05, 0.45, -0.11], [0.3, 0, -0.3]);
   } else {   // gola da camisa
-    put(lathe([[0.555, 0.074], [0.6, 0.064], [0.62, 0.062]], 18, 1, 1.05, false), cb, FAB, C.shirt, [0, 0, 0.01]);
+    put(lathe([[0.555, 0.074], [0.6, 0.064], [0.62, 0.062]], 18, 1, 1.05, false), cb, CAMO, 0xffffff, [0, 0, 0.01]);
   }
   // ombros (deltoides) e emblema do time
   for (const sx of [-1, 1]) {
     const sh = SHOULDER(sx);
-    put(rounded(0.12, 0.125, 0.125, 1, 10), cb, FAB, C.shirt, [sh.x + sx * 0.008, sh.y + 0.005, sh.z]);
+    put(rounded(0.12, 0.125, 0.125, 1, 10), cb, CAMO, 0xffffff, [sh.x + sx * 0.008, sh.y + 0.005, sh.z]);
     put(rounded(0.012, 0.065, 0.055, 0.25, 6), cb, HARD, T ? C.pad : C.gear, [sh.x + sx * 0.072, sh.y - 0.035, sh.z], [0, 0, sx * 0.15]);
   }
 
@@ -411,10 +433,10 @@ function template(team) {
 
   // ---- braços: manga com músculo, punho da luva, cotoveleira (CT) e mão com dedos fechados
   for (const [sx, ub, fb, hbn] of [[-1, B.uArmL, B.foreL, B.handL], [1, B.uArmR, B.foreR, B.handR]]) {
-    put(lathe([[0, 0.066], [0.05, 0.068], [0.13, 0.062], [0.22, 0.054], [0.27, 0.051], [0.31, 0.05]], 16), ub, FAB, C.shirt, null, null, null, { blend: toNext(fb, U_ARM), ao: limbAO(U_ARM) });
+    put(lathe([[0, 0.066], [0.05, 0.068], [0.13, 0.062], [0.22, 0.054], [0.27, 0.051], [0.31, 0.05]], 16), ub, CAMO, 0xffffff, null, null, null, { blend: toNext(fb, U_ARM), ao: limbAO(U_ARM) });
     // dobras da manga perto do cotovelo
-    for (let i = 0; i < 2; i++) put(lathe([[0, 0.053], [0.012, 0.055], [0.024, 0.052]], 14, 1, 1, false), ub, FAB, C.shirt, [0, 0.235 + i * 0.03, 0], null, null, { blend: toNext(fb, U_ARM) });
-    put(lathe([[0, 0.054], [0.07, 0.055], [0.17, 0.046], [0.23, 0.042]], 16, 1, 0.9), fb, FAB, C.shirt, null, null, null, { blend: toPrev(ub), ao: limbAO(0.23) });
+    for (let i = 0; i < 2; i++) put(lathe([[0, 0.053], [0.012, 0.055], [0.024, 0.052]], 14, 1, 1, false), ub, CAMO, 0xffffff, [0, 0.235 + i * 0.03, 0], null, null, { blend: toNext(fb, U_ARM) });
+    put(lathe([[0, 0.054], [0.07, 0.055], [0.17, 0.046], [0.23, 0.042]], 16, 1, 0.9), fb, CAMO, 0xffffff, null, null, null, { blend: toPrev(ub), ao: limbAO(0.23) });
     put(lathe([[0.2, 0.044], [0.215, 0.046], [0.29, 0.042]], 14, 1, 0.9), fb, FAB, C.glove);          // punho da luva
     put(lathe([[0, 0.046], [0.012, 0.047]], 14, 1, 0.92, false), fb, FAB, C.strap, [0, 0.205, 0]);    // velcro
     if (!T) put(rounded(0.075, 0.09, 0.045, 0.45, 8), fb, HARD, C.pad, [0, 0.015, 0.044], null, null, { blend: toPrev(ub, 0.12) });
@@ -432,7 +454,7 @@ function template(team) {
 
   // ---- pernas: calça larga, coldre (direita) / bolso cargo (esquerda), joelheira e coturno
   for (const [sx, tb, sb, bb] of [[-1, B.thighL, B.shinL, B.bootL], [1, B.thighR, B.shinR, B.bootR]]) {
-    put(lathe([[0, 0.102], [0.07, 0.11], [0.2, 0.102], [0.33, 0.088], [0.44, 0.077]], 18, 1, 1.05), tb, FAB, C.pants, null, null, null,
+    put(lathe([[0, 0.102], [0.07, 0.11], [0.2, 0.102], [0.33, 0.088], [0.44, 0.077]], 18, 1, 1.05), tb, CAMO, 0xffffff, null, null, null,
       { blend: (x, y) => y < 0.1 ? [B.pelvis, 0.45 * (1 - smooth((y + 0.03) / 0.13))] : toNext(sb, THIGH)(x, y), ao: limbAO(THIGH) });
     if (sx > 0) {
       put(rounded(0.03, 0.18, 0.1, 0.3), tb, FAB, C.gear, [0.105, 0.17, 0]);
@@ -442,11 +464,11 @@ function template(team) {
       put(lathe([[0, 0.098], [0.035, 0.098]], 18, 1, 1.05, false), tb, FAB, C.strap, [0, 0.29, 0]);
       put(rounded(0.025, 0.2, 0.02, 0.4, 6), tb, FAB, C.strap, [0.11, -0.02, 0]);
     } else {
-      put(rounded(0.04, 0.16, 0.12, 0.35), tb, FAB, C.pants, [-0.1, 0.22, 0]);
-      put(rounded(0.045, 0.04, 0.125, 0.4, 6), tb, FAB, C.pants, [-0.103, 0.155, 0]);
+      put(rounded(0.04, 0.16, 0.12, 0.35), tb, CAMO, 0xffffff, [-0.1, 0.22, 0]);
+      put(rounded(0.045, 0.04, 0.125, 0.4, 6), tb, CAMO, 0xffffff, [-0.103, 0.155, 0]);
     }
-    for (let i = 0; i < 2; i++) put(lathe([[0, 0.079], [0.014, 0.081], [0.028, 0.078]], 16, 1, 1.05, false), tb, FAB, C.pants, [0, 0.36 + i * 0.03, 0], null, null, { blend: toNext(sb, THIGH) });
-    put(lathe([[0, 0.074], [0.09, 0.08], [0.2, 0.075], [0.3, 0.066], [0.36, 0.068], [0.4, 0.075], [0.44, 0.07]], 18, 1, 1.05), sb, FAB, C.pants, null, null, null, { blend: toPrev(tb), ao: limbAO(SHIN) });
+    for (let i = 0; i < 2; i++) put(lathe([[0, 0.079], [0.014, 0.081], [0.028, 0.078]], 16, 1, 1.05, false), tb, CAMO, 0xffffff, [0, 0.36 + i * 0.03, 0], null, null, { blend: toNext(sb, THIGH) });
+    put(lathe([[0, 0.074], [0.09, 0.08], [0.2, 0.075], [0.3, 0.066], [0.36, 0.068], [0.4, 0.075], [0.44, 0.07]], 18, 1, 1.05), sb, CAMO, 0xffffff, null, null, null, { blend: toPrev(tb), ao: limbAO(SHIN) });
     put(rounded(0.125, 0.15, 0.08, 0.45, 10), sb, HARD, C.pad, [0, 0.035, 0.068], null, null, { blend: toPrev(tb, 0.1) });   // joelheira
     put(lathe([[0, 0.084], [0.025, 0.084]], 16, 1, 1.05, false), sb, FAB, C.strap, [0, 0.1, 0]);
     // coturno (origem no tornozelo): sola, bico, cano, lingueta, cadarço e alça de puxar
@@ -520,7 +542,7 @@ export class Soldier {
     for (let i = 4; i < 16; i++) { bones[i].position.copy(tpl.binds[i]); this.rig.add(bones[i]); }
     this.root.updateMatrixWorld(true);
     this.skeleton = new THREE.Skeleton(bones);
-    this.mesh = new THREE.SkinnedMesh(tpl.geo, materials());
+    this.mesh = new THREE.SkinnedMesh(tpl.geo, materials(team));
     this.mesh.castShadow = true; this.mesh.receiveShadow = true;
     this.mesh.boundingSphere = new THREE.Sphere(new V3(0, 0.7, 0), 1.9);   // cobre também o corpo caído
     this.root.add(this.mesh);
@@ -534,7 +556,7 @@ export class Soldier {
     // pontos presos no peito: ombros e o bolso de carregadores (a mão vai lá na recarga)
     for (const arm of this.arms) { arm.anchor = new THREE.Object3D(); arm.anchor.position.copy(SHOULDER(arm.sx)); che.add(arm.anchor); }
     this.pouch = new THREE.Object3D(); this.pouch.position.set(-0.09, 0.27, -0.24); che.add(this.pouch);
-    this.state = { t: Math.random() * 10, phase: 0, speed: 0, crouch: 0, dirX: 0, dirZ: -1, kick: 0, flinch: new V3(), deadT: 0, reloadT: -1, seed: Math.random() * 10 };
+    this.state = { t: Math.random() * 10, phase: 0, speed: 0, crouch: 0, dirX: 0, dirZ: -1, kick: 0, flinch: new V3(), stagger: new V3(), lastHit: null, lastHitT: -9, lastHead: false, deadT: 0, reloadT: -1, seed: Math.random() * 10 };
     this.v = { S: new V3(), T: new V3(), E: new V3(), W: new V3(), O: new V3(), H: new V3(), F: new V3(), P: new V3(), M: new V3(), G: new V3(), Q: new V3() };
     this.setWeapon(weaponKey);
     this.update(0);
@@ -574,8 +596,11 @@ export class Soldier {
   fire() { this.state.kick = 1; }
   // levou tiro: o tronco e a cabeça dão um tranco (dir = direção do tiro no espaço do boneco)
   hit(dir, headshot) {
-    const k = headshot ? 1.6 : 1;
-    this.state.flinch.add(new V3(-0.22 * k - dir.z * 0.1, dir.x * 0.25, -dir.x * 0.18));
+    const st = this.state, k = headshot ? 1.6 : 1;
+    st.flinch.add(new V3(-0.22 * k - dir.z * 0.1, dir.x * 0.25, -dir.x * 0.18));
+    // o corpo inteiro é empurrado na direção do tiro e cambaleia (x/z: deslocamento, y: quanto inclina)
+    st.stagger.x += dir.x * 0.09 * k; st.stagger.z += dir.z * 0.09 * k; st.stagger.y = Math.min(1, st.stagger.y + 0.55 * k);
+    st.lastHit = dir.clone(); st.lastHitT = st.t; st.lastHead = !!headshot;
   }
 
   // ponto de um objeto (filho de algum osso) no espaço do rig
@@ -647,6 +672,10 @@ export class Soldier {
     // tronco: postura de tiro; inclina mais para a frente correndo; respira e dá o tranco quando leva tiro
     const leanF = (-st.dirZ * 0.06 + 0.1 * smooth((sp - 3) / 3)) * moveK * (1 - ck) + runK * 0.2, leanS = -st.dirX * moveK * 0.06;
     st.flinch.multiplyScalar(Math.exp(-dt * 9));
+    // cambaleio: o boneco é jogado para trás/de lado e volta ao lugar
+    st.stagger.multiplyScalar(Math.exp(-dt * 6));
+    this.rig.position.set(st.stagger.x, 0, st.stagger.z);
+    this.rig.rotation.set(st.stagger.z * 1.6 * st.stagger.y, 0, -st.stagger.x * 1.6 * st.stagger.y);
     st.kick *= Math.exp(-dt * 14);
     const twist = this.twist * (1 - runK * 0.5);
     this.chest.rotation.set(-(0.05 + leanF + ck * 0.38) + breathe * (0.012 + runK * 0.01) - st.flinch.x, twist - this.pelvis.rotation.y * 1.3 + st.flinch.y, leanS - this.pelvis.rotation.z * 0.8 + st.flinch.z);
@@ -715,12 +744,17 @@ export class Soldier {
   die(dt) {
     const st = this.state, v = this.v;
     if (st.deadT === 0) {
-      st.deadBack = Math.random() < 0.65; st.deadSide = Math.random() < 0.5 ? -1 : 1;
+      // cai para o lado de onde o tiro empurrou (tiro de frente: de costas); sem tiro recente, sorteia
+      const H = st.t - st.lastHitT < 0.6 ? st.lastHit : null;
+      st.deadBack = H ? H.z > -0.2 : Math.random() < 0.65;
+      st.deadSide = H && Math.abs(H.x) > 0.15 ? Math.sign(H.x) : (Math.random() < 0.5 ? -1 : 1);
+      st.deadFast = !!(H && st.lastHead);   // tiro na cabeça: desaba na hora, sem dobrar devagar
+      st.stagger.set(0, 0, 0);
       if (this.gun) this.gun.visible = false;
       st.deadPitch = this.chest.rotation.x;
     }
-    st.deadT = Math.min(1, st.deadT + dt / 0.8);
-    const t = st.deadT, buckle = smooth(t / 0.3);
+    st.deadT = Math.min(1, st.deadT + dt / (st.deadFast ? 0.55 : 0.8));
+    const t = st.deadT, buckle = smooth(t / (st.deadFast ? 0.12 : 0.3));
     const f = clamp01((t - 0.15) / 0.85);
     const e = f < 0.82 ? Math.pow(f / 0.82, 2) : 1 - Math.sin((f - 0.82) / 0.18 * Math.PI) * 0.04;   // queda com um quique leve
     const dir = st.deadBack ? 1 : -1;
@@ -731,7 +765,7 @@ export class Soldier {
     this.chest.rotation.set(st.deadPitch * (1 - buckle) + buckle * 0.25 - dir * e * 0.2, st.deadSide * e * 0.15, 0);
     this.chest.scale.set(1, 1, 1);
     this.neck.rotation.set(-dir * e * 0.45 + buckle * 0.2, st.deadSide * e * 0.7, st.deadSide * e * 0.2);
-    this.head.rotation.set(0, 0, 0);
+    this.head.rotation.set(st.deadFast ? -0.5 * (1 - e * 0.5) : 0, 0, 0);   // tiro na cabeça: a cabeça vai para trás
     for (const arm of this.arms) {
       this.toRig(arm.anchor, v.S);
       const flung = arm.sx === st.deadSide && st.deadBack;

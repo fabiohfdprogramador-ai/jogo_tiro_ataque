@@ -4,6 +4,7 @@ import { Sky } from 'three/addons/objects/Sky.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { MAP, useMap } from '/shared/map.js';
 import { buildBairro } from './world_bairro.js';
+import { addStreetDetails } from './world_details.js';
 
 function rand(seed) { let s = seed; return () => (s = (s * 16807) % 2147483647) / 2147483647; }
 function makeTex(draw, size = 1024, repeat = [1, 1]) {
@@ -119,14 +120,41 @@ export function buildWorld(renderer, scene) {
     t.mapping = THREE.EquirectangularReflectionMapping; photoEnv = pmrem.fromEquirectangular(t).texture; t.dispose();
     applySky();
   });
+  // horário do dia (só no Bairro): 'dia' usa o céu fotográfico; fim de tarde e noite usam o céu calculado com o sol baixo
+  // ou abaixo do horizonte, e as luminárias dos postes acendem (sem luzes novas: brilho, poças de luz e lâmpadas acesas)
+  let timeOfDay = 'dia', details = null, envTime = null;
+  const TIME = {
+    tarde: { sun: [82, 250], turb: 9, ray: 2.6, mie: 0.006, sunCol: 0xffb070, sunI: 3.8, hemiSky: 0xffd2a8, hemiGround: 0x8a6a50, hemiI: 1.3, fog: 0xe0b088, near: 60, far: 240, env: 1.8, lamps: 0.6 },
+    noite: { sun: [96, 250], turb: 2, ray: 0.4, mie: 0.002, sunCol: 0x8aa8e0, sunI: 0.8, hemiSky: 0x5a70a8, hemiGround: 0x262a34, hemiI: 0.7, fog: 0x0c1420, near: 25, far: 150, env: 0.45, lamps: 1 },
+  };
   function applySky() {
-    const photo = current === 'bairro';
+    const photo = current === 'bairro', T = photo ? TIME[timeOfDay] : null;
+    if (T) {   // céu calculado para o horário
+      const sp = new THREE.Vector3().setFromSphericalCoords(1, THREE.MathUtils.degToRad(T.sun[0]), THREE.MathUtils.degToRad(T.sun[1]));
+      u.sunPosition.value.copy(sp); u.turbidity.value = T.turb; u.rayleigh.value = T.ray; u.mieCoefficient.value = T.mie;
+      if (!envTime || envTime.key !== timeOfDay) { const es = new THREE.Scene(); es.add(sky.clone()); envTime = { key: timeOfDay, tex: pmrem.fromScene(es).texture }; }
+      sky.visible = true; scene.background = timeOfDay === 'noite' ? new THREE.Color(0x05080f) : null;
+      scene.environment = envTime.tex; scene.environmentIntensity = T.env;
+      // noite: a lua ilumina de cima, fria e fraca (a sombra continua, mais suave)
+      const lp = timeOfDay === 'noite' ? new THREE.Vector3().setFromSphericalCoords(1, THREE.MathUtils.degToRad(35), THREE.MathUtils.degToRad(200)) : sp;
+      sunLight.position.copy(lp).multiplyScalar(80); sunLight.color.set(T.sunCol); sunLight.intensity = T.sunI;
+      hemi.color.set(T.hemiSky); hemi.groundColor.set(T.hemiGround); hemi.intensity = T.hemiI;
+      scene.fog.color.set(T.fog); scene.fog.near = T.near; scene.fog.far = T.far;
+      if (details) details.setLamps(T.lamps);
+      return;
+    }
+    u.sunPosition.value.copy(sun); u.turbidity.value = 6; u.rayleigh.value = 1.4; u.mieCoefficient.value = 0.004;
+    sunLight.position.copy(sun).multiplyScalar(80);
+    hemi.color.set(0xd8e4f5); hemi.groundColor.set(0xd0a868);
+    if (photo) { scene.fog.color.set(0xc8d6e4); scene.fog.near = 70; scene.fog.far = 260; sunLight.color.set(0xffeed6); sunLight.intensity = 4.3; hemi.intensity = 1.5; }
+    if (details) details.setLamps(0);
     sky.visible = !(photo && photoSky);
     scene.background = photo && photoSky ? photoSky : null;
     scene.backgroundIntensity = 1.5;
     scene.environment = photo && photoEnv ? photoEnv : envMap;
     scene.environmentIntensity = photo && photoEnv ? 2.4 : 1;   // o céu fotográfico ilumina menos que o calculado
   }
+  function setTimeOfDay(t) { timeOfDay = TIME[t] ? t : 'dia'; applySky(); }
 
   const sunLight = new THREE.DirectionalLight(0xfff0d6, 4.2);
   sunLight.position.copy(sun).multiplyScalar(80);
@@ -150,15 +178,17 @@ export function buildWorld(renderer, scene) {
       scene.fog.color.set(0xc8d6e4); scene.fog.near = 70; scene.fog.far = 260;
       sunLight.color.set(0xffeed6); sunLight.intensity = 4.3; hemi.intensity = 1.5;   // luz do céu forte: sombra clara, como no dia tropical
       buildBairro(group, MAP, sunLight);
+      details = addStreetDetails(group, MAP);
     } else {
       scene.fog.color.set(0xe8d8b8); scene.fog.near = 50; scene.fog.far = 170;
+      details = null;
       sunLight.color.set(0xfff0d6); sunLight.intensity = 4.2; hemi.intensity = 0.75;
       const sc = sunLight.shadow.camera; sc.left = -62; sc.right = 62; sc.top = 62; sc.bottom = -62; sc.updateProjectionMatrix(); buildDeserto(group);
     }
     applySky();
   }
   setMap('deserto');
-  return { sunLight, envMap, setMap };
+  return { sunLight, envMap, setMap, setTimeOfDay };
 }
 
 function buildDeserto(scene) {

@@ -117,6 +117,8 @@ export class Sound extends SoundV1 {
     const input = ctx.createGain();
     const lp = ctx.createBiquadFilter(); lp.type = 'lowpass';
     lp.frequency.value = pos ? Math.max(1200, 16000 - distance * 260) : 18000;   // longe = abafado
+    // atrás de parede: bem mais abafado e mais baixo (o som contorna, não atravessa)
+    if (pos && this.occluded && this.occluded(pos)) { lp.frequency.value = Math.min(lp.frequency.value, 900); input.gain.value = 0.55; }
     input.connect(lp);
     lp.connect(this.out(pos));
     const send = ctx.createGain(); send.gain.value = Math.min(1.4, (pos ? 0.35 + distance * 0.02 : 0.28) * wetMul);
@@ -221,6 +223,26 @@ export class Sound extends SoundV1 {
     }
   }
   // ---- granadas, bomba e explosões
+  // passos: o som muda com o chão (pedra/asfalto, grama, areia, terra)
+  step(pos = null, vol = 0.18, ground = 'pedra') {
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime, o = this.out(pos), r = 0.9 + Math.random() * 0.2;
+    if (ground === 'grama') {          // folhas amassando: chiado agudo e macio, quase sem batida
+      this.burst(o, { t, freq: 3800, type: 'highpass', q: 0.5, attack: 0.01, decay: 0.14, vol: vol * 0.9, rate: r });
+      this.thump(o, { t, f0: 120, f1: 70, decay: 0.05, vol: vol * 0.5 });
+    } else if (ground === 'areia') {   // areia: estalinhos granulados, arrastado
+      this.burst(o, { t, freq: 1500, type: 'bandpass', q: 0.6, attack: 0.012, decay: 0.16, vol: vol * 1.1, rate: r });
+      this.burst(o, { t: t + 0.03, freq: 2600, type: 'bandpass', q: 1.5, decay: 0.07, vol: vol * 0.5, rate: r * 1.3 });
+    } else if (ground === 'terra') {   // terra batida: abafado e grave
+      this.burst(o, { t, freq: 650, type: 'bandpass', q: 0.9, decay: 0.1, vol: vol * 1.1, rate: r });
+      this.thump(o, { t, f0: 150, f1: 70, decay: 0.07, vol: vol * 0.9 });
+    } else {                           // pedra, bloquete e asfalto: estalo seco do solado + batida do calcanhar
+      this.burst(o, { t, freq: 2100 + Math.random() * 500, type: 'bandpass', q: 1.6, decay: 0.045, vol: vol * 1.1, rate: r });
+      this.thump(o, { t, f0: 190, f1: 90, decay: 0.05, vol: vol * 0.9 });
+    }
+  }
+  // eco do lugar: beco estreito ecoa bem mais que campo aberto (0 = aberto, 1 = fechado)
+  setRoom(k) { if (this.reverbGain) this.reverbGain.gain.setTargetAtTime(0.32 + k * 0.6, this.ctx.currentTime, 0.4); }
   bounce(pos) { if (!this.ctx) return; const t = this.ctx.currentTime; const o = this.out(pos); this.burst(o, { t, freq: 2100, type: 'bandpass', q: 6, decay: 0.05, vol: 0.5 }); this.thump(o, { t, f0: 300, f1: 120, decay: 0.06, vol: 0.4 }); }
   throwNade() { if (!this.ctx) return; this.burst(this.master, { t: this.ctx.currentTime, freq: 900, type: 'bandpass', q: 1, attack: 0.03, decay: 0.2, vol: 0.25 }); }
   beep(pos) { this.tone({ freq: 2400, decay: 0.07, vol: 0.5, type: 'square', pos }); }

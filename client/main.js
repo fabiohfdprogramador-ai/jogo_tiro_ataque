@@ -21,8 +21,10 @@ function lockPointer() { try { const p = renderer.domElement.requestPointerLock(
 const SOUND_GROUPS = ['tiros', 'passos', 'ambiente', 'avisos'];
 const IMAGE_SOUND_DEFAULTS = { bright: 1, contrast: 1, satur: 1, ...Object.fromEntries(SOUND_GROUPS.map(k => ['vol_' + k, 1])) };
 function loadSettings() {
-  const def = { sens: 1.2, vol: 0.6, quality: true, name: '', map: 'bairro', ...IMAGE_SOUND_DEFAULTS };
-  try { return { ...def, ...JSON.parse(localStorage.getItem('deserto.settings') || '{}') }; } catch { return def; }
+  const def = { sens: 1.2, vol: 0.6, quality: true, name: '', map: 'bairro', time: 'dia', ...IMAGE_SOUND_DEFAULTS };
+  let s; try { s = { ...def, ...JSON.parse(localStorage.getItem('deserto.settings') || '{}') }; } catch { s = def; }
+  if (!['alto', 'medio', 'baixo'].includes(s.gfx)) s.gfx = s.quality === false ? 'medio' : 'alto';   // a caixinha antiga vira a lista nova
+  return s;
 }
 const settings = loadSettings();
 function saveSettings() { try { localStorage.setItem('deserto.settings', JSON.stringify(settings)); } catch { /* sem storage */ } }
@@ -66,7 +68,7 @@ const BASE_FOV = 72;
 const camera = new THREE.PerspectiveCamera(BASE_FOV, innerWidth / innerHeight, 0.03, 500);
 camera.rotation.order = 'YXZ';
 scene.add(camera);
-const { sunLight, envMap, setMap } = buildWorld(renderer, scene);
+const { sunLight, envMap, setMap, setTimeOfDay } = buildWorld(renderer, scene);
 let mapId = 'deserto';
 function changeMap(id) {
   if (!MAPS[id] || id === mapId) return;
@@ -75,11 +77,19 @@ function changeMap(id) {
   if (!playing) { camera.position.set(sp[0], 2.2, sp[1]); camera.rotation.set(-0.05, 0.1, 0); }
 }
 const post = createComposer(renderer, scene, camera);
+let fpsAvg = 60, fpsLowT = 0, fpsHinted = false;
 
+// Alto: tudo ligado. Médio: sem pós-processamento e sombra menor. Baixo: sem sombras e resolução reduzida (PC fraco).
 function applyQuality() {
-  renderer.setPixelRatio(Math.min(devicePixelRatio, settings.quality ? 1.5 : 1));
-  renderer.shadowMap.type = settings.quality ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
-  const size = settings.quality ? 4096 : 2048;
+  const q = settings.gfx;
+  renderer.setPixelRatio(q === 'alto' ? Math.min(devicePixelRatio, 1.5) : q === 'medio' ? Math.min(devicePixelRatio, 1) : 0.75);
+  renderer.shadowMap.type = q === 'alto' ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
+  const shadows = q !== 'baixo';
+  if (renderer.shadowMap.enabled !== shadows) {   // ligar/desligar sombras exige refazer os materiais (uma vez só, ao trocar)
+    renderer.shadowMap.enabled = shadows;
+    scene.traverse(o => { if (o.material) for (const m of [].concat(o.material)) m.needsUpdate = true; });
+  }
+  const size = q === 'alto' ? 4096 : 2048;
   if (sunLight.shadow.mapSize.x !== size) {
     sunLight.shadow.mapSize.set(size, size);
     if (sunLight.shadow.map) { sunLight.shadow.map.dispose(); sunLight.shadow.map = null; }
@@ -94,6 +104,8 @@ vm.setEnvironment(envMap, sunLight.position);
 const remotes = new RemotePlayers(scene);
 const fx = new Effects(scene);
 const sound = new Sound(); sound.setVolume(settings.vol);
+// tiros e explosões atrás de parede soam abafados
+sound.occluded = (p) => !lineOfSight([camera.position.x, camera.position.y, camera.position.z], [p[0], p[1] + 0.3, p[2]], MAP.boxes);
 const hud = new Hud();
 
 addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); post.setSize(innerWidth, innerHeight); });
@@ -267,7 +279,8 @@ function onState(m) {
   else if (me.alive && vm.key !== curKey()) vm.setWeapon(curKey(), true);
   if (me.alive && !wasAlive) { spectate = 0; deathText = ''; lastDeathHtml = ''; hud.death(null); }
   if (!me.alive && buyOpen) buyOpen = false;
-  remotes.sync(m.ps, me.id);
+  remotes.noteServerTime(m.st);
+  remotes.sync(m.ps, me.id, m.st);
   syncDrops(m.dr || []);
 }
 
@@ -326,7 +339,8 @@ const bombObj = (() => {
   pad.position.set(0.05, 0.17, 0); g.add(pad);
   const led = new THREE.Mesh(new THREE.SphereGeometry(0.012, 8, 6), new THREE.MeshBasicMaterial({ color: 0x330000 }));
   led.position.set(-0.04, 0.18, 0.02); g.add(led);
-  const light = new THREE.PointLight(0xff2020, 0, 4, 2); light.position.set(-0.04, 0.3, 0.02); g.add(light);
+  // a luz fica fora do grupo e sempre no cenário (só apaga): uma luz que some e volta faz o navegador recompilar o mapa todo
+  const light = new THREE.PointLight(0xff2020, 0, 4, 2); scene.add(light);
   g.traverse(o => { if (o.isMesh) o.castShadow = true; });
   g.visible = false; scene.add(g);
   return { g, led, light };
@@ -343,6 +357,7 @@ function updateBomb(dt) {
     return;
   }
   o.g.visible = true; o.g.position.set(b.p[0], b.p[1], b.p[2]); o.g.rotation.set(0, 0.6, 0);
+  o.light.position.set(b.p[0] - 0.03, b.p[1] + 0.3, b.p[2] + 0.02);
   if (b.st === 'planted') {
     // bipa cada vez mais rápido conforme o tempo acaba
     const every = Math.max(0.12, Math.min(1, b.tm / BOMB.timer * 1.1));
@@ -449,7 +464,7 @@ function tryFire() {
   const [up, side] = W.auto ? sprayOffset(key, me.spray) : [0, 0];
   const r = Math.random() * spread, ang = Math.random() * Math.PI * 2;
   const d = dirFromAngles(me.yaw + side + Math.cos(ang) * r, me.pitch + up + Math.sin(ang) * r);
-  send({ t: 'shoot', d });
+  send({ t: 'shoot', d, rt: +remotes.renderTime().toFixed(3) });   // o servidor confere o tiro onde eu via os outros
   me.spray++; me.lastShot = t; me.nextFire = t + fireInterval(key);
   vm.fire(); sound.shot(key);
   if (W.melee) return;
@@ -527,8 +542,11 @@ $('sens').value = settings.sens; $('sensv').textContent = settings.sens;
 $('sens').addEventListener('input', () => { settings.sens = +$('sens').value; $('sensv').textContent = settings.sens.toFixed(2); saveSettings(); });
 $('vol').value = settings.vol; $('volv').textContent = Math.round(settings.vol * 100) + '%';
 $('vol').addEventListener('input', () => { settings.vol = +$('vol').value; sound.setVolume(settings.vol); $('volv').textContent = Math.round(settings.vol * 100) + '%'; saveSettings(); });
-$('quality').checked = settings.quality;
-$('quality').addEventListener('change', () => { settings.quality = $('quality').checked; saveSettings(); applyQuality(); });
+// horário do dia (só muda o visual neste computador)
+$('tod').value = settings.time; setTimeOfDay(settings.time);
+$('tod').addEventListener('change', () => { settings.time = $('tod').value; saveSettings(); setTimeOfDay(settings.time); });
+$('gfx').value = settings.gfx;
+$('gfx').addEventListener('change', () => { settings.gfx = $('gfx').value; saveSettings(); applyQuality(); });
 // imagem: brilho mexe na exposição da câmera; contraste e saturação são filtro só no desenho 3D (o HUD não muda)
 function applyImage() {
   // o Bairro usa céu fotográfico (ilumina menos que o céu calculado do Deserto): exposição base maior
@@ -669,9 +687,30 @@ function updateMovement(dt) {
   // passos
   const hs = Math.hypot(v[0], v[2]);
   if (me.onGround && hs > 3.0 && !me.crouch) {
-    me.stepT -= dt; if (me.stepT <= 0) { sound.step(null, me.sprint ? 0.16 : 0.12); me.stepT = me.sprint ? 0.26 : 0.34; }
+    me.stepT -= dt; if (me.stepT <= 0) { sound.step(null, me.sprint ? 0.16 : 0.12, groundAt(me.p[0], me.p[2], me.p[1])); me.stepT = me.sprint ? 0.26 : 0.34; }
   }
   me.eyeH += (eyeHeight(me.crouch) - me.eyeH) * Math.min(1, dt * 12);
+}
+
+// tipo de chão em um ponto (para o som dos passos)
+function groundAt(x, z, y = 0) {
+  if (y > 0.3) return 'pedra';                       // em cima de escada, calçada alta, telhado
+  if (mapId !== 'bairro') return 'areia';
+  const A = MAP.areas || {}, inA = (k, m = 0) => A[k] && x >= A[k][0] + m && x <= A[k][2] - m && z >= A[k][1] + m && z <= A[k][3] - m;
+  if (inA('areia') || inA('parq')) return 'areia';
+  if (inA('trilha')) return 'terra';
+  if (['campo', 'mato', 'mato2', 'fimPap', 'gram'].some(k => inA(k)) || inA('praca', 1.6)) return 'grama';
+  return 'pedra';
+}
+// quanto o lugar é fechado (paredes perto em volta) para o eco
+const ROOM_DIRS = [[1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1], [0.7, 0, 0.7], [-0.7, 0, 0.7], [0.7, 0, -0.7], [-0.7, 0, -0.7], [0, 1, 0]];
+let roomT = 0;
+function updateRoom(dt) {
+  if ((roomT -= dt) > 0) return; roomT = 0.5;
+  const o = [me.p[0], me.p[1] + 1.4, me.p[2]];
+  let close = 0;
+  for (const d of ROOM_DIRS) { const h = raycastWorld(o, d, 14, MAP.boxes); if (h.t < 14) close += 1 - h.t / 14; }
+  sound.setRoom(Math.min(1, close / 4.5));
 }
 
 // ---------------------------------------------------------------- loop principal
@@ -695,7 +734,7 @@ function frame() {
     me.punch *= Math.exp(-dt * 7);
     me.shake = Math.max(0, me.shake - dt * 2.2);
     me.flash = Math.max(0, me.flash - dt);
-    updateNades(dt); updateProjs(dt);
+    updateNades(dt); updateProjs(dt); if (me.alive) updateRoom(dt);
     updateBomb(dt);
 
     sendT -= dt;
@@ -744,7 +783,7 @@ function frame() {
     for (const r of remotes.map.values()) {
       if (!r.alive || r.s < 3.2) continue;
       r.stepT = (r.stepT || 0) - dt;
-      if (r.stepT <= 0) { r.stepT = 0.38; if (Math.hypot(r.p[0] - me.p[0], r.p[2] - me.p[2]) < 35) sound.step([r.p[0], r.p[1], r.p[2]], 0.3); }
+      if (r.stepT <= 0) { r.stepT = 0.38; if (Math.hypot(r.p[0] - me.p[0], r.p[2] - me.p[2]) < 35) sound.step([r.p[0], r.p[1], r.p[2]], 0.3, groundAt(r.p[0], r.p[2], r.p[1])); }
     }
 
     const fwd = new THREE.Vector3(); camera.getWorldDirection(fwd);
@@ -788,7 +827,12 @@ function frame() {
   lookDX = 0; lookDY = 0;
 
   renderer.clear();
-  if (settings.quality) post.render(); else renderer.render(scene, camera);
+  if (settings.gfx === 'alto') post.render(); else renderer.render(scene, camera);
+  // jogo pesado demais para este PC (abaixo de ~30 quadros por segundo por um tempo): sugere baixar os gráficos uma vez
+  fpsAvg += ((dt > 0 ? 1 / dt : 60) - fpsAvg) * 0.02;
+  if (playing && !fpsHinted && settings.gfx !== 'baixo' && fpsAvg < 30 && (fpsLowT += dt) > 8) {
+    fpsHinted = true; hud.notice('O jogo está pesado neste PC: aperte Esc e mude Gráficos para ' + (settings.gfx === 'alto' ? 'Médio' : 'Baixo'), 6);
+  } else if (fpsAvg >= 30) fpsLowT = 0;
   renderer.clearDepth();
   vm.render(renderer, camera);
   requestAnimationFrame(frame);

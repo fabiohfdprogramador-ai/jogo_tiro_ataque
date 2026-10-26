@@ -60,6 +60,16 @@ export class Effects {
     this.fireTex = fireTexture(); this.smokeTex = smokeTexture();
     this.bloodMat = new THREE.MeshBasicMaterial({ map: bloodTexture(), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4 });
     this.lights = []; this.clouds = [];
+    // luzes das explosões: sempre as mesmas 4, só acendem e apagam. Criar e tirar luzes muda a quantidade delas e
+    // obriga o navegador a recompilar todos os materiais do mapa, o que travava o jogo a cada explosão.
+    this.lightPool = Array.from({ length: 4 }, () => { const l = new THREE.PointLight(0xffffff, 0, 20, 2); scene.add(l); return l; });
+  }
+  flashLight(pos, color, peak, dist, life) {
+    const busy = new Set(this.lights.map(L => L.obj));
+    const l = this.lightPool.find(x => !busy.has(x)) || this.lights.sort((a, b) => a.life - b.life)[0].obj;   // todas ocupadas: usa a que está apagando
+    this.lights = this.lights.filter(L => L.obj !== l);
+    l.color.set(color); l.distance = dist; l.position.copy(pos); l.intensity = peak;
+    this.lights.push({ obj: l, life, max: life, peak });
   }
   // sangue: jato, névoa e mancha na parede/chão atrás de quem levou o tiro
   bloodHit(point, dir, boxes, raycast) {
@@ -81,8 +91,7 @@ export class Effects {
   // explosão: clarão, bola de fogo, fumaça escura e terra (big = bomba)
   explosion(pos, big = false) {
     const s = big ? 2.2 : 1;
-    const l = new THREE.PointLight(0xffa050, 60 * s, 22 * s, 2); l.position.copy(pos).add(new THREE.Vector3(0, 1, 0));
-    this.scene.add(l); this.lights.push({ obj: l, life: 0.6, max: 0.6, peak: 60 * s });
+    this.flashLight(pos.clone().add(new THREE.Vector3(0, 1, 0)), 0xffa050, 60 * s, 22 * s, 0.6);
     for (let i = 0; i < 10; i++) {
       const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.fireTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
       sp.position.copy(pos).add(new THREE.Vector3((Math.random() - 0.5) * 1.6 * s, 0.5 + Math.random() * 1.6 * s, (Math.random() - 0.5) * 1.6 * s));
@@ -99,8 +108,7 @@ export class Effects {
     for (let i = 0; i < 25 * s; i++) this.spawn(pos.clone().add(new THREE.Vector3(0, 0.3, 0)), new THREE.Vector3(0, 1, 0), 0xb39a70, 0.25, 1.3, 9 * s);
   }
   flashbang(pos) {
-    const l = new THREE.PointLight(0xffffff, 120, 25, 2); l.position.copy(pos).add(new THREE.Vector3(0, 0.5, 0));
-    this.scene.add(l); this.lights.push({ obj: l, life: 0.3, max: 0.3, peak: 120 });
+    this.flashLight(pos.clone().add(new THREE.Vector3(0, 0.5, 0)), 0xffffff, 120, 25, 0.3);
     for (let i = 0; i < 8; i++) this.spawn(pos, new THREE.Vector3(0, 1, 0), 0xffffee, 0.6, 0.25, 4, true);
   }
   // nuvem de fumaça que enche, fica e some
@@ -161,7 +169,7 @@ export class Effects {
     }
     for (let i = this.lights.length - 1; i >= 0; i--) {
       const L = this.lights[i]; L.life -= dt;
-      if (L.life <= 0) { this.scene.remove(L.obj); L.obj.dispose(); this.lights.splice(i, 1); }
+      if (L.life <= 0) { L.obj.intensity = 0; this.lights.splice(i, 1); }
       else L.obj.intensity = L.peak * (L.life / L.max);
     }
     for (let i = this.clouds.length - 1; i >= 0; i--) {

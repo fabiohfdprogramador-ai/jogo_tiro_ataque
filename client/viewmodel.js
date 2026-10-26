@@ -480,6 +480,21 @@ function adsPose(key, scale, sight) {
   return { pos: [-(S.lat || 0) * scale, -y2 + lift, -dist - z2], rot: [a, 0, 0], scale };
 }
 const RELOAD_DOWN = new THREE.Vector3(-0.03, -0.22, -0.05);
+// recarga da pistola (mesmos campos da RELOAD_KEYS): vira a pistola de lado com o cano para cima, o carregador cai,
+// a mão esquerda traz outro e bate no fundo do cabo, e o ferrolho fecha com um tranco
+const PISTOL_RELOAD = [
+  [0.00, [0, 0, 0, 0, 0, 0, 0, 0]],
+  [0.10, [0.4, 0, 0.42, 0.1, 0.035, -0.01, -0.035, 0]],       // afasta um pouco, vira de lado e levanta o cano (o fundo do cabo aparece)
+  [0.18, [0.6, 0, 0.48, 0.12, 0.04, -0.012, -0.04, 0.6]],     // aperta o botão: o carregador escorrega
+  [0.24, [0.6, 0.6, 0.48, 0.12, 0.04, -0.012, -0.04, 1.4]],   // cai
+  [0.42, [1, 2.2, 0.47, 0.11, 0.038, -0.012, -0.04, 2.2]],    // a mão desce até a cintura
+  [0.58, [1, 0.9, 0.47, 0.12, 0.038, -0.012, -0.04, 0.9]],    // volta com o carregador novo
+  [0.68, [1, 0.12, 0.45, 0.12, 0.036, -0.011, -0.04, 0.12]],  // alinha no cabo
+  [0.73, [1, -0.03, 0.38, 0.05, 0.046, -0.01, -0.036, 0]],    // bate no fundo (a pistola dá um pulo)
+  [0.82, [0.6, 0, 0.26, 0.08, 0.03, -0.008, -0.025, 0]],
+  [0.88, [0.3, 0, 0.1, -0.05, 0.01, 0, 0.012, 0]],            // ferrolho fecha: tranco para trás
+  [1.00, [0, 0, 0, 0, 0, 0, 0, 0]],
+];
 // Curva suave (Catmull-Rom) passando por quadros-chave [[t, [valores...]], ...]: o movimento não para
 // entre um quadro e outro, igual a uma pessoa de verdade.
 export function track(keys, t) {
@@ -716,8 +731,9 @@ export class ViewModel {
     // sacar a arma
     if (this.drawT < 1) {
       this.drawT = Math.min(1, this.drawT + dt / 0.45);
-      const e = 1 - Math.pow(1 - this.drawT, 3);
-      py -= (1 - e) * 0.2; rx -= (1 - e) * 0.8;
+      // sobe de baixo, girando de lado, e passa um pouquinho do ponto antes de assentar
+      const t = this.drawT, e = 1 - Math.pow(1 - t, 3), over = Math.sin(t * Math.PI) * 0.06 * (1 - t);
+      py -= (1 - e) * 0.2 - over * 0.2; rx -= (1 - e) * 0.8; rz += (1 - e) * 0.55; px += (1 - e) * 0.05;
     }
 
     // recarregar: a mão esquerda tira o carregador, ele cai, ela traz outro e encaixa
@@ -726,7 +742,7 @@ export class ViewModel {
       const t = this.reloadT, c = this.cur;
       if (t >= 1) this.cancelReload();
       else {
-        const [g, d, roll, pitch, y, x, z, m] = track(RELOAD_KEYS, t);
+        const [g, d, roll, pitch, y, x, z, m] = track(c.kind === 'pistol' ? PISTOL_RELOAD : RELOAD_KEYS, t);
         rz += roll; rx += pitch; py += y; px += x; pz += z;
         if (c.mag && c.lh && c.grab) {
           if (t >= 0.22 && !c.dropped) { c.mag.position.copy(c.magBase).addScaledVector(RELOAD_DOWN, 0.95); this.spawnDebris(); c.dropped = true; }
