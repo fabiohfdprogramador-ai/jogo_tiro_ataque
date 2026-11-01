@@ -1,13 +1,12 @@
 {
   "ak47": [
     "ak47_1.wav",
-    "ak47_2.wav",
-    "ak47_3.wav",
-    "ak47_4.wav"
+    "ak47_2.wav"
   ],
   "m4a4": [
     "m4a4_1.wav",
-    "m4a4_2.wav"
+    "m4a4_2.wav",
+    "m4a4_3.wav"
   ],
   "awp": [
     "awp_1.wav",
@@ -19,7 +18,137 @@
   ],
   "glock": [
     "glock_1.wav",
-    "glock_2.wav",
-    "glock_3.wav"
+    "glock_2.wav"
+  ],
+  "usp": [
+    "glock_1.wav",
+    "glock_2.wav"
+  ],
+  "reload_glock": [
+    "reload_glock.wav"
+  ],
+  "reload_usp": [
+    "reload_usp.wav"
+  ],
+  "reload_deagle": [
+    "reload_deagle.wav"
+  ],
+  "reload_ak47": [
+    "reload_ak47.wav"
+  ],
+  "reload_m4a4": [
+    "reload_m4a4.wav"
+  ],
+  "reload_awp": [
+    "reload_awp.wav"
+  ],
+  "step": [
+    "step_1.ogg",
+    "step_2.ogg",
+    "step_3.ogg",
+    "step_4.ogg",
+    "step_5.ogg"
+  ],
+  "boom_he": [
+    "boom_he.wav"
+  ],
+  "boom_rpg": [
+    "boom_rpg.wav"
+  ],
+  "boom_bomb": [
+    "boom_bomb.wav"
+  ],
+  "nade_bounce": [
+    "nade_bounce.wav"
+  ],
+  "nade_throw": [
+    "nade_throw.wav"
+  ],
+  "flash_pop": [
+    "flash_pop.wav"
+  ],
+  "imp_concreto": [
+    "imp_concreto.wav"
+  ],
+  "imp_metal": [
+    "imp_metal.wav"
+  ],
+  "imp_madeira": [
+    "imp_madeira.wav"
+  ],
+  "whizz": [
+    "whizz.wav"
+  ],
+  "casing_pistol": [
+    "casing_pistol.wav"
+  ],
+  "casing_rifle": [
+    "casing_rifle.wav"
+  ],
+  "death": [
+    "death.wav"
+  ],
+  "hit_body": [
+    "hit_body.wav"
+  ],
+  "hit_head": [
+    "hit_head.wav"
+  ],
+  "knife_swing": [
+    "knife_swing.wav"
+  ],
+  "knife_hit": [
+    "knife_hit.wav"
+  ],
+  "draw_fuzil": [
+    "draw_fuzil.wav"
+  ],
+  "draw_pistola": [
+    "draw_pistola.wav"
+  ],
+  "draw_awp": [
+    "draw_awp.wav"
+  ],
+  "draw_faca": [
+    "draw_faca.wav"
+  ],
+  "draw_granada": [
+    "draw_granada.wav"
+  ],
+  "dry": [
+    "dry.wav"
+  ],
+  "jump": [
+    "jump.wav"
+  ],
+  "land": [
+    "land.wav"
+  ],
+  "bomb_beep": [
+    "bomb_beep.wav"
+  ],
+  "bomb_planted": [
+    "bomb_planted.wav"
+  ],
+  "bomb_defused": [
+    "bomb_defused.wav"
+  ],
+  "buy": [
+    "buy.wav"
+  ],
+  "amb_dia": [
+    "amb_dia.ogg"
+  ],
+  "amb_noite": [
+    "amb_noite.ogg"
+  ],
+  "amb_dog": [
+    "amb_dog.ogg"
+  ],
+  "amb_car": [
+    "amb_car.ogg"
+  ],
+  "amb_kids": [
+    "amb_kids.ogg"
   ]
 }

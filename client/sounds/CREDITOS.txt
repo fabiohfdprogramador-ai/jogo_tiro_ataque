@@ -2,3 +2,34 @@ Sons de tiro: "The Free Firearm Sound Library" (Prepared SFX Library), licença 
 Fonte: https://opengameart.org/content/the-free-firearm-sound-library
 AK-47 -> ak47, AR-15 -> m4a4, Tikka T3 -> awp, 1911 -> deagle, Walther PPQ -> glock.
 Cortados em tiros individuais e convertidos para 48 kHz / 16-bit.
+Fuzis escolhidos no teste de sons: AK-47 = gravação C_31P (ak47_1-2), M4 = SKS gravação U_19P (m4a4_1-3).
+AWP = Mosin-Nagant gravação M_21P reforçada (estalo original + mesmo tiro mais grave + batida sub-grave + eco de lugar aberto, com saturação) (awp_1-2).
+Pistolas escolhidas no teste de sons: Glock = Bersa gravação F_47P (glock_1-2, também usada na USP-S), Desert Eagle = Ruger Mark III gravação R_35P (deagle_1-2).
+
+Recargas (reload_*.wav): montadas com gravações CC0 do OpenGameArt, encaixadas no tempo da animação de cada arma:
+- "Handgun reload sound effect" (reload.wav) — https://opengameart.org/content/handgun-reload-sound-effect
+- "Gun reload sounds" de SpringySpringo (gunreload1, assaultriflereload1, shotguncock) — https://opengameart.org/content/gun-reload-sounds
+- "Gun Reload Sound Effects" de Brian MacIntosh (clipload1/2, singlebullet1) — https://opengameart.org/content/gun-reload-sound-effects
+
+Passos (step_1-5.ogg): "Impact Sounds" de Kenney (www.kenney.nl), licença CC0 — footstep_grass_000-004.
+
+Explosões e granadas (boom_he, boom_rpg, boom_bomb, nade_bounce, nade_throw, flash_pop): montadas em camadas com gravações
+de BigSoundBank (Joseph Sardin), licença CC0 — https://bigsoundbank.com (explosões #1808, #1807, #1023, #1806; trovão #3113;
+vidro e espelho #0148, #0387; lata #0246; whoosh #1800).
+
+Sons das balas: impactos (imp_concreto, imp_metal, imp_madeira) montados com "75 CC0 breaking, falling and hit sfx" e "4 metal dings"
+(OpenGameArt, CC0) + estalo de BigSoundBank #1807; zunido (whizz) com BigSoundBank #1800 e #1807; cápsulas (casing_pistol,
+casing_rifle) = BigSoundBank #1355 e #1367 (CC0).
+
+Combate (death, hit_body, hit_head, knife_swing, knife_hit), OpenGameArt CC0: "15 vocal male strain/hurt/pain/jump sounds" (grito),
+"37 hits/punches" e independent.nu (pancadas e queda do corpo), "Swishes sound pack" (faca no ar), "20 sword sound effects"
+de starninjas (corte), "4 metal dings" e "75 CC0 breaking, falling and hit sfx" (capacete).
+
+Sacar arma, arma vazia, pulo e aterrissagem (draw_*, dry, jump, land): montados com as gravações de recarga do OpenGameArt
+(acima), "Swishes sound pack", "37 hits/punches", "4 metal dings" e os passos do Kenney (todos CC0).
+
+Bomba e compra (bomb_beep, bomb_planted, bomb_defused, buy): tons eletrônicos feitos para o jogo + clique de carregador e roupa
+das gravações CC0 acima ("Gun Reload Sound Effects", "Swishes sound pack").
+
+Ambiente do Bairro (amb_dia, amb_noite, amb_dog, amb_car, amb_kids): BigSoundBank (Joseph Sardin), licença CC0 —
+#2457 jardim na cidade, #1020 grilo do campo, #2954 cachorro latindo, #2987 carro passando a 50 km/h, #0370 crianças na rua.

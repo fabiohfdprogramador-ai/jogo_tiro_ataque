@@ -117,7 +117,7 @@ const { sunLight, envMap, setMap, setTimeOfDay } = buildWorld(renderer, scene);
 let mapId = 'deserto';
 function changeMap(id) {
   if (!MAPS[id] || id === mapId) return;
-  mapId = id; setMap(id); fx.clearDecals(); applyImage();
+  mapId = id; setMap(id); fx.clearDecals(); applyImage(); sound.setScene(id, settings.time);
   const sp = MAP.spawns.CT[0];            // câmera do menu passeia pelo mapa escolhido
   if (!playing) { camera.position.set(sp[0], 2.2, sp[1]); camera.rotation.set(-0.05, 0.1, 0); }
 }
@@ -226,6 +226,7 @@ function onMessage(m) {
     case 'kill': {
       const k = playerById(m.killer), v = playerById(m.victim);
       if (k && v) hud.feed(k, v, weaponName(m.w), m.hs, m.killer === me.id || m.victim === me.id);
+      { const vr = remotes.map.get(m.victim), vp = vr ? vr.p : v && v.p; sound.death(m.victim === me.id || !vp ? null : [vp[0], vp[1] + 1, vp[2]]); }
       if (m.victim === me.id) {
         me.alive = false; me.scope = 0; buyOpen = false;
         deathText = k ? `Você foi morto por <b class="${k.team === 'T' ? 'tt' : 'c'}">${escapeHtml(k.name)}</b> com ${weaponName(m.w)}${m.hs ? ' (tiro na cabeça)' : ''}` : 'Você morreu';
@@ -238,7 +239,7 @@ function onMessage(m) {
     case 'hurt':
       hud.damage(m.from, me.p, me.yaw); sound.hurt(); me.punch += 0.025; me.shake = Math.min(1, me.shake + 0.15 + (m.dmg || 0) / 120);
       break;
-    case 'hitmark': hud.hitmark(m.hs); sound.hit(m.hs); break;
+    case 'hitmark': hud.hitmark(m.hs); sound.hit(m.hs); if (curKey() === 'knife') sound.knifeHit(null); break;
     case 'msg': hud.notice(m.text); break;
     case 'bought': {
       sound.buy();
@@ -271,7 +272,7 @@ function onMessage(m) {
       if (m.hp) remotes.hit(m.hp, dir, m.hs);
       if (m.kind === 'rocket') {
         const d = pos.distanceTo(camera.position);
-        fx.explosion(pos, true); sound.boom(m.p, true); me.shake = Math.min(1, me.shake + Math.max(0, 1.2 - d / 25));
+        fx.explosion(pos, true); sound.boom(m.p, true, 'rpg'); me.shake = Math.min(1, me.shake + Math.max(0, 1.2 - d / 25));
       } else {
         if (m.hp) fx.bloodHit(pos, dir, MAP.boxes, raycastWorld);
         else if (m.n) { fx.impact(pos, m.n); stickArrow(pos, dir); }
@@ -304,7 +305,7 @@ function onMessage(m) {
       break;
     case 'picked':
       me.slots[m.slot] = m.key; delete me.ammo[m.key];      // a munição certa chega no próximo estado
-      sound.draw(); selectSlot(m.slot, true); me.nextFire = now() + 0.4;
+      selectSlot(m.slot, true); sound.draw(curKey()); me.nextFire = now() + 0.4;
       break;
   }
 }
@@ -339,7 +340,7 @@ function updateNades(dt) {
     n.acc += dt;
     while (n.acc >= 1 / 60) {
       n.acc -= 1 / 60;
-      if (stepNade(n, 1 / 60, MAP.boxes)) sound.bounce(n.p);
+      if (stepNade(n, 1 / 60, MAP.boxes)) sound.bounce(n.p, true);
     }
     n.mesh.position.set(n.p[0], n.p[1], n.p[2]);
     if (!n.rest) { n.mesh.rotation.x += dt * 9; n.mesh.rotation.z += dt * 5; }
@@ -443,6 +444,18 @@ function nearestDrop() {
 }
 
 const tmpV = new THREE.Vector3();
+// material onde a bala bateu (para o som do impacto)
+const METAL_MATS = new Set(['car', 'gate', 'post', 'pole', 'fence', 'lowfence', 'bollard', 'trash', 'sign', 'swing', 'slide', 'barrel']);
+const WOOD_MATS = new Set(['crate', 'woodfence', 'bench', 'table', 'ptable', 'stage', 'palm']);
+function impactMat(p) {
+  const e = 0.03;
+  for (const b of MAP.boxes) {
+    if (b.mat === 'invisible') continue;
+    if (p[0] > b.min[0] - e && p[0] < b.max[0] + e && p[1] > b.min[1] - e && p[1] < b.max[1] + e && p[2] > b.min[2] - e && p[2] < b.max[2] + e)
+      return METAL_MATS.has(b.mat) ? 'metal' : WOOD_MATS.has(b.mat) ? 'madeira' : 'concreto';
+  }
+  return 'concreto';
+}
 function onShot(m) {
   const dir = new THREE.Vector3(m.e[0] - m.o[0], m.e[1] - m.o[1], m.e[2] - m.o[2]);
   if (m.hp) remotes.hit(m.hp, dir, m.hs);
@@ -453,8 +466,18 @@ function onShot(m) {
   const from = remotes.muzzleWorld(m.id, tmpV) ? tmpV.clone() : new THREE.Vector3(...m.o);
   const end = new THREE.Vector3(...m.e);
   if (WEAPONS[m.w] && !WEAPONS[m.w].melee) fx.tracer(from, end);
-  if (m.n) fx.impact(end, m.n);
+  if (m.n) { fx.impact(end, m.n); sound.impact(m.e, impactMat(m.e)); }
+  // zunido: tiro inimigo que passa perto da minha cabeça sem me acertar
+  const W = WEAPONS[m.w];
+  if (me.alive && m.hp !== me.id && W && !W.melee && !W.projectile) {
+    const seg = end.clone().sub(from), len = seg.length(), u = seg.clone().divideScalar(len || 1);
+    const k = Math.max(0, Math.min(len, camera.position.clone().sub(from).dot(u)));
+    const near = from.clone().addScaledVector(u, k);
+    if (k > 2 && k < len - 0.5 && near.distanceTo(camera.position) < 3) sound.whizz([near.x, near.y, near.z]);
+  }
+  if (W && !W.melee && !W.projectile && from.distanceTo(camera.position) < 15) sound.casing([from.x, from.y - 1, from.z], m.w);
   if (m.hp) fx.bloodHit(end, dir, MAP.boxes, raycastWorld);
+  if (m.hp && m.w === 'knife') sound.knifeHit([end.x, end.y, end.z]);
   sound.shot(m.w, [from.x, from.y, from.z]);
 }
 
@@ -464,7 +487,7 @@ function selectSlot(slot, silent = false) {
   if (slot !== me.cur) me.prevSlot = me.cur;
   me.cur = slot; me.reloadEnd = 0; me.scope = 0; me.spray = 0; me.ads = false;
   vm.setWeapon(curKey());
-  if (!silent) { sound.draw(); me.nextFire = now() + 0.45; }
+  if (!silent) { sound.draw(curKey()); me.nextFire = now() + 0.45; }
   send({ t: 'switch', slot });
 }
 function cycleSlot(dir) {
@@ -477,7 +500,7 @@ function startReload() {
   const key = curKey(), W = WEAPONS[key], a = me.ammo[key];
   if (!key || W.melee || !a || a.mag >= W.mag || a.res <= 0 || me.reloadEnd || !me.alive) return;
   me.reloadEnd = now() + W.reload; me.scope = 0;   // mirar volta sozinho quando a recarga acabar
-  vm.reload(W.reload); sound.reload(W.reload, ['glock', 'usp', 'deagle'].includes(key) ? 'pistol' : 'rifle');
+  vm.reload(W.reload); sound.reload(W.reload, ['glock', 'usp', 'deagle'].includes(key) ? 'pistol' : 'rifle', key);
   send({ t: 'reload' });
 }
 
@@ -533,7 +556,8 @@ function tryFire() {
     if (h.t < best) { best = h.t; hitPlayer = true; }
   }
   const end = new THREE.Vector3(eye[0] + d[0] * best, eye[1] + d[1] * best, eye[2] + d[2] * best);
-  if (!hitPlayer && wr.normal && wr.t < W.range) fx.impact(end, wr.normal);
+  if (!hitPlayer && wr.normal && wr.t < W.range) { fx.impact(end, wr.normal); sound.impact([end.x, end.y, end.z], impactMat([end.x, end.y, end.z])); }
+  sound.casing(null, key);
   if (!W.auto || me.spray % 3 === 1) fx.tracer(camera.localToWorld(new THREE.Vector3(0.1, -0.09, -0.55)), end);
   if (key === 'awp') me.scope = 0;
   if (W.kick > 0.03) me.shake = Math.min(1, me.shake + W.kick * 2);
@@ -612,7 +636,7 @@ $('vol').value = settings.vol; $('volv').textContent = Math.round(settings.vol *
 $('vol').addEventListener('input', () => { settings.vol = +$('vol').value; sound.setVolume(settings.vol); $('volv').textContent = Math.round(settings.vol * 100) + '%'; saveSettings(); });
 // horário do dia (só muda o visual neste computador)
 $('tod').value = settings.time; setTimeOfDay(settings.time);
-$('tod').addEventListener('change', () => { settings.time = $('tod').value; saveSettings(); setTimeOfDay(settings.time); });
+$('tod').addEventListener('change', () => { settings.time = $('tod').value; saveSettings(); setTimeOfDay(settings.time); sound.setScene(mapId, settings.time); });
 $('gfx').value = settings.gfx;
 $('gfx').addEventListener('change', () => { settings.gfx = $('gfx').value; saveSettings(); applyQuality(); });
 // imagem: brilho mexe na exposição da câmera; contraste e saturação são filtro só no desenho 3D (o HUD não muda)
@@ -747,7 +771,7 @@ function updateMovement(dt) {
     const acc = Math.min(add, (me.onGround ? PHYS.accel : PHYS.airAccel) * dt * (me.onGround ? 1 : maxSpeed / 2));
     v[0] += wx * acc; v[2] += wz * acc;
   }
-  if (me.jumpQueued && me.onGround && !frozen) { v[1] = PHYS.jumpV; me.onGround = false; }
+  if (me.jumpQueued && me.onGround && !frozen) { v[1] = PHYS.jumpV; me.onGround = false; sound.jump(); }
   me.jumpQueued = false;
   if (frozen && me.onGround) { v[0] = 0; v[2] = 0; }
   v[1] -= PHYS.gravity * dt;
@@ -758,7 +782,7 @@ function updateMovement(dt) {
   // passos
   const hs = Math.hypot(v[0], v[2]);
   if (me.onGround && hs > 3.0 && !me.crouch) {
-    me.stepT -= dt; if (me.stepT <= 0) { sound.step(null, me.sprint ? 0.16 : 0.12, groundAt(me.p[0], me.p[2], me.p[1])); me.stepT = me.sprint ? 0.26 : 0.34; }
+    me.stepT -= dt; if (me.stepT <= 0) { sound.step(null, me.sprint ? 0.16 : 0.12, groundAt(me.p[0], me.p[2], me.p[1]), me.sprint); me.stepT = me.sprint ? 0.26 : 0.34; }
   }
   me.eyeH += (eyeHeight(me.crouch) - me.eyeH) * Math.min(1, dt * 12);
 }
