@@ -96,13 +96,13 @@ const B_AREAS = {   // áreas sem casas geradas (o que tem nelas é colocado à 
   assembleia: [93, 316, 141, 370],   // Igreja Assembleia de Deus (na esquina da Rosas, de frente para o campo)
   areia: [141, 320, 177, 366],       // quadra de areia cercada (bombsite B)
   trilha: [179, 316, 189, 464],      // ruela estreita e reta da Cravos até a Margaridas, que termina na quitanda verde
-  arena: [189, 316, 235, 370],       // quadra coberta com teto em arco (do outro lado da ruela)
+  arena: [189, 316, 263, 370],       // quadra coberta com teto em arco (do outro lado da ruela)
   gram: [141, 370, 177, 404],        // gramado com carro atrás da quadra de areia
   blocoW: [93, 370, 179, 464],       // lojas e casas entre a Assembleia e a Margaridas (oeste da ruela)
   blocoN: [235, 316, 288, 370],      // casas e o bar e restaurante entre a Arena e a Papoulas
   blocoE: [189, 370, 288, 464],      // casas, lanchonete e bar da esquina (leste da ruela)
   margS: [57, 488, 191, 520],
-  miniP: [269, 438, 288, 464],       // pracinha de terra com mesas de xadrez ao lado do bar da esquina        // do outro lado da Margaridas: quitanda verde (de frente para a ruela) e sobrado bege
+  miniP: [253, 438, 288, 464],       // pracinha de terra com mesas de xadrez ao lado do bar da esquina        // do outro lado da Margaridas: quitanda verde (de frente para a ruela) e sobrado bege
   praca: [221, 488, 288, 568],
   parq: [223, 492, 238, 540],        // parquinho (dentro da praça)
   igreja: [219, 592, 288, 715],      // quarteirão inteiro da igreja
@@ -274,27 +274,29 @@ function buildBairro() {
   // ---- quarteirão entre a Cravos e a Margaridas (vista de satélite + fotos): a ruela é reta e termina na quitanda verde
   const shopH = (x0, z0, x1, z1, h, extra) => add(x0, z0, x1, z1, h, 'house', { roof: 0, brick: 0, color: 0, ...extra });
   // oeste da ruela (x -28..-6.5): lojas viradas para a Margaridas e, encostada na ruela, a associação comprida de janelas azuis
-  shopH(-28, -21, -22, -14, 3.3, { hex: 0xf0efe8, shop: 1, sign: 'mercearia', zinc: 1 });                    // bar e mercearia na esquina da Rosas
-  shopH(-22, -21, -17, -14, 3.4, { hex: 0xf2f1ec, shop: 1, tiles: 1, roofTile: 1, sign: 'mercadinho' });       // mercadinho (azulejo azul)
-  shopH(-17, -21, -12, -14, 3.4, { hex: 0xf2e6c8, shop: 1, sign: 'cantinho', zinc: 1 });                     // lanchonete Cantinho
-  shopH(-12, -29, -6.5, -14, 3.4, { hex: 0xf2f1ec, tiles: 1, sign: 'associacao', zinc: 1 });                  // associação de moradores, ao longo da ruela
-  shopH(-28, -29, -21, -21, 12.4, { hex: 0xcfdc92 });                                                         // prédio verde de 4 andares
-  shopH(-21, -29, -12, -21, 3.3, { color: 318 });
-  shopH(-28, -37.5, -22, -29, 6.2, { color: 248 });
+  // bar da esquina da Rosas com a Margaridas (fotos 160 R. das Rosas e 13 R. das Margaridas): alinhado com as lojas, com a varanda
+  // das mesas aberta no canto. O desenho não tem colisão (open); as paredes de verdade são as duas caixas invisíveis.
+  add(-28, -30, -22, -16.5, 3.6, 'barrosas', { open: true });
+  add(-25.2, -30, -22, -16.5, 3.6, 'invisible');                                                               // salão (a varanda na frente é aberta)
+  for (const [tx, tz, col] of [[-26.6, -28.4, 0xf4f4f0], [-26.6, -25.6, 0xf2c81e], [-26.6, -22.6, 0xd83a2e], [-26.6, -19.6, 0xf4f4f0], [-29.0, -26.9, 0xd83a2e], [-29.0, -21.0, 0xf4f4f0]])
+    add(tx - 0.45, tz - 0.45, tx + 0.45, tz + 0.45, 0.75, 'pltable', { hex: col });                          // mesas de plástico na varanda e na calçada
+  add(-11.2, -15.6, -9.8, -14.8, 0.45, 'planter'); add(-8.6, -15.6, -7.2, -14.8, 0.45, 'planter');       // canteiros com arvorezinhas na calçada da associação
+  shopH(-22, -21, -17, -16.5, 3.4, { hex: 0xf2f1ec, shop: 1, tiles: 1, roofTile: 1, sign: 'mercadinho' });       // mercadinho (azulejo azul)
+  shopH(-17, -21, -12, -16.5, 3.4, { hex: 0xf2e6c8, shop: 1, sign: 'cantinho', zinc: 1 });                     // lanchonete Cantinho
+  shopH(-12, -29, -6.5, -16.5, 3.4, { hex: 0xf2f1ec, tiles: 1, sign: 'associacao', zinc: 1 });                  // associação de moradores, ao longo da ruela
+  add(-28, -37.5, -22, -30, 7.4, 'brancorosas');                                                             // prédio branco de janelinhas basculantes (foto 160 R. das Rosas)
+  shopH(-22, -29, -12, -21, 3.3, { color: 318 });
   shopH(-22, -37.5, -16, -29, 3.3, { color: 905, roof: 1 });
   // entre a Arena e a Papoulas (foto da esquina da Cravos): uma casa térrea só, da Arena até a esquina; atrás dela, uma casinha
-  shopH(7.5, -51, 20.75, -42, 3.4, { hex: 0xdcdedc });
-  shopH(7.5, -42, 16, -37.5, 3.3, { color: 57, zinc: 1 });
+
   // leste da ruela (x -4..20.75): lanchonete vermelha colada na ruela, casas e o bar cinza na esquina da Papoulas
-  shopH(-4, -20.5, 0.1, -14, 6.2, { hex: 0xd26060, shop: 1, sign: 'lanches' });
-  shopH(0.1, -20.5, 5, -14, 6.2, { color: 77 });
-  add(5, -20.5, 9.6, -14, 6.2, 'mix');                                                                     // lanchonete Mix (sobrado com varanda rosa)
-  add(9.6, -20.5, 16, -14, 3.4, 'cubal');                                                                  // bar de reboco descascado, ao lado da pracinha
+  add(-4, -20.5, 3, -14, 6.2, 'mix');                                                                      // lanchonete Mix na esquina da ruela (sobrado com varanda rosa)
+  add(3, -20.5, 12, -14, 3.4, 'cubal');                                                                  // bar de reboco descascado, ao lado da pracinha
   shopH(-4, -29, 3, -20.5, 9.3, { hex: 0xa8acb0 });                                                          // sobrado cinza de 3 andares ao lado da ruela
   shopH(3, -29, 12, -20.5, 6.0, { color: 701 });
-  shopH(12, -29, 16, -20.5, 6.4, { hex: 0x8e9296 });                                                        // sobrado cinza atrás da pracinha
-  add(13.0, -20.5, 14.3, -19.7, 2.2, 'shed');                                                                // quartinho com porta e telhadinho
-  add(16, -42, 20.75, -20.5, 6.2, 'tilson');                                                                 // Tilson's, bar e restaurante de esquina na Papoulas
+  add(16, -38.5, 20.75, -30, 6.0, 'tilson');                                                                 // Tilson's: varanda gradeada na Papoulas, perto da esquina da Cravos (foto 458 Rua Papoulas)
+  shopH(16, -30, 20.75, -20.5, 6.2, { hex: 0xe8e4da });                                                       // sobrado entre o Tilson's e a pracinha
+  add(20.45, -51, 20.75, -38.5, 0.6, 'mureta'); add(14.5, -51, 20.45, -50.7, 0.6, 'mureta');                 // mureta branca do canteiro da esquina da Cravos
   shopH(-4, -37.5, 7.5, -29, 6.2, { color: 318 });
   shopH(7.5, -37.5, 16, -29, 3.3, { color: 248, zinc: 1 });
   // do outro lado da Margaridas: quitanda verde bem na saída da ruela, sobrado bege atrás e o bar com mesinhas
@@ -342,7 +344,9 @@ function buildBairro() {
   // cerca de madeira separando a rua do mato (leste da Papoulas e ao lado do campo)
   const [MX0, MZ0] = W(B_AREAS.mato[0], B_AREAS.mato[1]), [, MZ1] = W(0, B_AREAS.mato[3]);
   const KZ0 = -8.5, KZ1 = 16.6, GZ0 = -27;   // trecho dos quiosques em frente à praça e muro grafitado no fim da Margaridas
-  add(MX0 - 0.1, W(0, B_AREAS.mato2[1])[1], MX0 + 0.05, GZ0, 1.25, 'woodfence');
+  // do muro grafitado até o fim do campo: muro cinza de bloco com moitas na frente (foto da Rua Papoulas), sem cerca
+  add(MX0 + 0.9, W(0, B_AREAS.mato2[1])[1], MX0 + 1.2, GZ0, 2.5, 'muroblock');
+  add(MX0 - 0.05, GZ0 - 0.3, MX0 + 1.2, GZ0, 2.5, 'muroblock');                                                 // emenda com o muro grafitado
   add(MX0 - 0.05, GZ0, MX0 + 0.2, KZ0, 2.6, 'grafwall');
   add(MX0 - 0.1, KZ1, MX0 + 0.05, MZ1 + 1.2, 1.25, 'woodfence');
   // praça: canteiros, bancos, brinquedos (parquinho com grade baixa)
@@ -439,7 +443,10 @@ function buildBairro() {
     { type: 'yardtree', x: IX0 + 2.6, z: FZ + 10.5, s: 1.2 },
     { type: 'crane', x: -34, z: 92 },
     { type: 'banana', x: -12, z: -57.6 }, { type: 'banana', x: -14.5, z: -57.4 },                     // bananeira na frente do campo (foto 4)
-    { type: 'woodgate', x: 24.25, z: 55.7, social: 1 },                                                          // fim da Papoulas (foto 1 e foto da tenda)
+    { type: 'woodgate', x: 24.25, z: 55.7, social: 1 },
+    { type: 'bigtree', x: 18.0, z: -46.5, s: 2.3 }, { type: 'bigtree', x: 17.6, z: -40.6, s: 1.6 },
+    { type: 'bigtree', x: 13.6, z: -24.5, s: 2.0 }, { type: 'bigtree', x: 15.2, z: -19.2, s: 1.6 },               // árvores atrás da pracinha (foto do Cubal)
+    { type: 'sidewalk', x0: -28, z0: -16.5, x1: -6.5, z1: -14 },                                                // calçada larga da associação e das lojas (alinhadas com a parede dela)                                                            // árvore no canteiro da esquina da Cravos, ao lado do Tilson's                                                          // fim da Papoulas (foto 1 e foto da tenda)
     { type: 'bigtent', x: 30.8, z: 52.0 },                                                            // tenda grande laranja e verde sobre o bar (foto da tenda)
     { type: 'gatehouse', x0: 15.4, x1: 20.7 },
     { type: 'areca', x: 27.1, z: 69.5 }, { type: 'bigtree', x: 21.6, z: 66, s: 1.5 },
@@ -461,7 +468,6 @@ function buildBairro() {
   for (let z = KZ0 + 1; z < KZ1; z += 5) decor.push({ type: 'bigtree', x: 35.5 + Math.sin(z) * 0.8, z, s: 1.7 + Math.cos(z) * 0.3 });   // árvores atrás dos quiosques
   for (let z = W(0, B_AREAS.mato2[1])[1] + 2; z < MZ0; z += 6.5) decor.push({ type: 'bigtree', x: 31 + Math.sin(z) * 1.2, z, s: 1.4 + (Math.cos(z * 1.3) + 1) * 0.3 });   // mato em frente ao campo
   // mesinhas de plástico dos bares (fotos 9 e 10) e caixotes da quitanda
-  for (const x of [-26, -23.8]) prop(x, -12.95, 0.9, 0.9, 0.75, 'ptable');     // bar e mercearia
   for (const x of [-11.6, -9.2]) prop(x, -9.0, 0.9, 0.9, 0.75, 'ptable');      // bar do outro lado da Margaridas
   prop(-2.9, -6.2, 0.8, 0.8, 0.8, 'crate'); prop(-2.9, -5.3, 0.6, 0.6, 0.6, 'crate');   // caixotes da quitanda
   // caixas nas ruas (cobertura)
