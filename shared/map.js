@@ -517,7 +517,7 @@ function buildBairro() {
   for (let i = 0; i < 10; i++) spawnsCT.push(W(160 + (i % 5) * 26, 218 + ((i / 5) | 0) * 50));
   const siteA = [W(213, 482), W(292, 604)], siteB = [W(137, 300), W(191, 370)];   // B: quadra de areia, começo da ruela e frente da Cravos
   return {
-    id: 'bairro', name: 'Bairro',
+    id: 'bairro', name: 'VR Divineia',
     size: { minX: sz[0], maxX: ez[0], minZ: sz[1], maxZ: ez[1] },
     boxes, poles, decor,
     streets: B_STREETS.map(s => { const r = streetRect(s); const p = W(r[0], r[1]), q = W(r[2], r[3]); return [p[0], p[1], q[0], q[1]]; }),

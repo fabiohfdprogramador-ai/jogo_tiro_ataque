@@ -5,6 +5,21 @@ import { WEAPONS, ITEMS, BUY_MENU, MAX_HP } from '/shared/weapons.js';
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
+// desenhos simples (de lado) dos itens do menu de compra
+const BUY_ICONS = {
+  deagle: '<path d="M22 12h50l3 3h4v6H48l-2 3h-6l-5 13H24l5-13h-7z"/>',
+  ak47: '<path d="M2 17l12-3h34v-2h4v2h20v-2h3v2h21v4H70l-6 3 3 12h-7l-4-9h-5l-5 11h-6l4-13H16L5 25z"/>',
+  m4a4: '<path d="M4 16h12l2-2h30v-4h14v4h8v2h26v4H70l-6 3 3 11h-7l-4-9h-6l-4 11h-6l4-13H18l-2 6H4z"/>',
+  awp: '<path d="M0 19h18l6-4h44v-1h30v4H68l-6 4h-6l-5 12h-7l3-12H26l-12 6H0z"/><path d="M34 7h26v6H34z"/>',
+  rpg: '<path d="M2 15h80v8H2z"/><path d="M82 12l16 7-16 7z"/><path d="M34 23h6v11h-6zM54 23h6v8h-6z"/><path d="M40 10h10v5H40z"/>',
+  bow: '<path d="M34 3Q74 20 34 37" fill="none" stroke="currentColor" stroke-width="4"/><path d="M34 3V37" stroke="currentColor" stroke-width="1"/><path d="M8 19h80v2H8z"/><path d="M88 15l8 5-8 5z"/>',
+  kevlar: '<path d="M33 4h10l7 6 7-6h10l3 8-3 6v18H33V18l-3-6z"/>',
+  helmet: '<path d="M22 30C22 12 34 6 50 6s28 6 28 24h6v5H16v-5z"/>',
+  he: '<path d="M46 6h8v5h-8z"/><path d="M56 6l10 2-2 5-10-3z"/><circle cx="50" cy="25" r="13"/>',
+  flash: '<path d="M44 5h12v5H44z"/><path d="M56 6l10 3-2 4-8-2z"/><rect x="40" y="10" width="20" height="27" rx="3"/>',
+  smoke: '<path d="M43 4h14v5H43z"/><path d="M57 5l10 3-2 4-8-2z"/><rect x="38" y="9" width="24" height="28" rx="2"/>',
+};
+
 export class Hud {
   constructor() {
     this.cache = {};
@@ -24,7 +39,7 @@ export class Hud {
     $('time').classList.toggle('low', srv.phase === 'live' && t <= 10);
     this.set('scT', String(srv.score.T)); this.set('scCT', String(srv.score.CT));
     const aliveT = players.filter(p => p.team === 'T' && p.a).length, aliveCT = players.filter(p => p.team === 'CT' && p.a).length;
-    this.set('aliveCT', `CT vivos: ${aliveCT}`); this.set('aliveT', `TR vivos: ${aliveT}`);
+    this.set('aliveCT', `Campo vivos: ${aliveCT}`); this.set('aliveT', `Macaca vivos: ${aliveT}`);
     this.set('hp', String(me.hp)); $('hp').classList.toggle('low', me.hp <= MAX_HP / 4);
     this.set('armor', me.armor ? `${me.armor}${me.helmet ? '+' : ''}` : '0');
     this.set('money', `$ ${me.money.toLocaleString('pt-BR')}`);
@@ -123,14 +138,22 @@ export class Hud {
   buyMenu(open, me) {
     $('buy').classList.toggle('hidden', !open);
     if (!open) return;
-    const rows = BUY_MENU.map(({ key, item }) => {
+    this.set('buycash', '$ ' + me.money.toLocaleString('pt-BR'));
+    const owned = (item) => item === 'kevlar' ? me.armor >= 100 : item === 'helmet' ? me.helmet && me.armor >= 100
+      : WEAPONS[item].grenade ? me.nd[item] > 0 : Object.values(me.slots).includes(item) || (me.bag4 || []).includes(item);
+    const card = ({ key, item }) => {
       const W = WEAPONS[item], I = ITEMS[item];
-      const name = W ? W.name : I.name, price = W ? W.price : (item === 'helmet' && me.armor >= 100 ? 350 : I.price);
-      const blocked = (W && W.team && W.team !== me.team) || me.money < price;
-      const extra = W && W.team ? (W.team === 'T' ? ' (TR)' : ' (CT)') : '';
-      return `<div class="${blocked ? 'no' : ''}"><span><b>${key}</b>${esc(name)}${extra}</span><span class="p">$ ${price}</span></div>`;
-    }).join('');
-    this.set('buylist', rows, 'innerHTML');
+      const name = ({ he: 'Explosiva', flash: 'De luz', smoke: 'De fumaça' })[item] || (W ? W.name : I.name), price = W ? W.price : (item === 'helmet' && me.armor >= 100 ? 350 : I.price);
+      const other = W && W.team && W.team !== me.team, poor = me.money < price, has = owned(item);
+      const info = W && !W.grenade ? (W.projectile === 'rocket' ? 'Explode na hora' : `Dano ${W.dmg} · ${W.mag} ${W.projectile ? 'flecha' : W.mag > 1 ? 'balas' : 'bala'}`)
+        : ({ kevlar: '+100 de colete', helmet: 'Protege a cabeça', he: 'Dano em área', flash: 'Cega quem olhar', smoke: 'Cortina de fumaça' })[item];
+      const tag = other ? `Só o ${W.team === 'T' ? 'Bonde da Macaca' : 'Bonde do Campo'}` : has ? (W && W.grenade ? 'Você tem ' + me.nd[item] : 'Você já tem') : poor ? 'Falta dinheiro' : '';
+      return `<div class="it ${other ? 'other' : poor ? 'poor' : ''} ${has ? 'has' : ''}"><b class="k">${key}</b><span class="pr">$ ${price.toLocaleString('pt-BR')}</span>
+        <svg viewBox="0 0 100 40">${BUY_ICONS[item] || ''}</svg><span class="nm">${esc(name)}</span><small>${tag || info}</small></div>`;
+    };
+    const groups = [['Pistola e fuzis', ['deagle', 'ak47', 'm4a4']], ['Armas pesadas', ['awp', 'rpg', 'bow']], ['Proteção', ['kevlar', 'helmet']], ['Granadas', ['he', 'flash', 'smoke']]];
+    const html = groups.map(([title, items]) => `<section><h3>${title}</h3><div class="row">${items.map(i => card(BUY_MENU.find(b => b.item === i))).join('')}</div></section>`).join('');
+    this.set('buylist', html, 'innerHTML');
   }
 
   // fim de partida: vitória/derrota, placar, melhor jogador (MVP) e a tabela de todos, com contagem para a próxima
@@ -138,7 +161,7 @@ export class Hud {
     const el = $('matchover');
     clearInterval(this.moTimer);
     if (!m) { el.classList.add('hidden'); return; }
-    const win = m.winner === myTeam, tName = (t) => t === 'T' ? 'Terroristas' : 'Contra-Terroristas';
+    const win = m.winner === myTeam, tName = (t) => t === 'T' ? 'Bonde da Macaca' : 'Bonde do Campo';
     const kd = (p) => (p.k / Math.max(1, p.d)).toFixed(2), hsp = (p) => p.k ? Math.round(100 * p.hs / p.k) + '%' : '—';
     const adr = (p) => Math.round(p.dmg / Math.max(1, m.rounds));
     const rank = (a, b) => b.k - a.k || b.dmg - a.dmg || a.d - b.d;
@@ -168,7 +191,7 @@ export class Hud {
         `<tr class="${p.id === myId ? 'me' : ''} ${p.a ? '' : 'dead'}"><td>${esc(p.name)}</td><td class="n">${p.k}</td><td class="n">${p.d}</td><td class="n">${team === players.find(q => q.id === myId)?.team ? '$' + p.m : ''}</td></tr>`).join('');
       return `<h3 class="${team === 'T' ? 'tt' : 'c'}">${title} — ${score[team]}</h3><table><tr><th>Jogador</th><th class="n">Abates</th><th class="n">Mortes</th><th class="n">$</th></tr>${rows}</table>`;
     };
-    this.set('board', table('CT', 'Contra-Terroristas') + table('T', 'Terroristas'), 'innerHTML');
+    this.set('board', table('CT', 'Bonde do Campo') + table('T', 'Bonde da Macaca'), 'innerHTML');
   }
 
   drawRadar(me, viewPos, viewYaw, players, spotted, bomb) {

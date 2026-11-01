@@ -53,6 +53,8 @@ let nextId = 1;
 const game = { phase: 'waiting', timer: 0, round: 0, score: { T: 0, CT: 0 }, lossStreak: { T: 0, CT: 0 }, plan: 'A', go: false };
 const now = () => performance.now() / 1000;
 const BOT_NAMES = ['Zé', 'Leo', 'Bia', 'Caio', 'Duda', 'Rafa', 'Nina', 'Tito', 'Gabi', 'Juca', 'Lia', 'Beto'];
+// bots do Bonde da Macaca: sorteados desta lista
+const MACACA_NAMES = ['Patrick', 'Borozinho', 'Toshiba', 'Nadinho', 'Diego Gaguinho', 'Farrola', 'Junior Tartaruga', 'Estevão', 'Boca de peixe', 'Davison', 'Vitor kirley', 'Diego Farinha', 'Caiôiô', 'Bruno Álvaro Lins'];
 
 // mapa em uso (o primeiro jogador escolhe no menu; com o servidor vazio dá para trocar)
 let mapId = MAPS[process.env.MAP] ? process.env.MAP : 'bairro';
@@ -99,7 +101,8 @@ function rebalanceBots() {
     while (bots.length > want) players.delete(bots.pop().id);
     while (bots.length < want) {
       const used = new Set([...players.values()].map(p => p.name));
-      const name = 'BOT ' + (BOT_NAMES.find(n => !used.has('BOT ' + n)) || nextId);
+      const free = (team === 'T' ? MACACA_NAMES : BOT_NAMES).filter(n => !used.has('BOT ' + n));
+      const name = 'BOT ' + ((team === 'T' ? free[(Math.random() * free.length) | 0] : free[0]) || nextId);
       const b = newPlayer(name, team, true);
       players.set(b.id, b); bots.push(b);
     }
@@ -162,7 +165,7 @@ function endRound(winner, msg) {
     game.phase = 'matchover'; game.timer = CFG.matchOverTime;
     // tela de fim de partida: placar e números de cada jogador
     const stats = [...players.values()].map(q => ({ id: q.id, name: q.name, team: q.team, k: q.kills, d: q.deaths, hs: q.hsk, dmg: Math.round(q.dmg) }));
-    broadcast({ t: 'round', phase: 'matchover', winner, msg: (winner === 'T' ? 'Terroristas' : 'Contra-Terroristas') + ' venceram a partida!', score: game.score, rounds: game.round, time: CFG.matchOverTime, stats });
+    broadcast({ t: 'round', phase: 'matchover', winner, msg: (winner === 'T' ? 'Bonde da Macaca' : 'Bonde do Campo') + ' venceu a partida!', score: game.score, rounds: game.round, time: CFG.matchOverTime, stats });
   } else {
     game.phase = 'end'; game.timer = CFG.endTime;
     broadcast({ t: 'round', phase: 'end', winner, msg, score: game.score });
@@ -174,8 +177,8 @@ function checkRoundEnd() {
   const aliveT = teamPlayers('T').filter(p => p.alive).length;
   const aliveCT = teamPlayers('CT').filter(p => p.alive).length;
   // com a bomba plantada, o CT ainda precisa desarmar
-  if (aliveT === 0 && teamPlayers('T').length && bomb.state !== 'planted') endRound('CT', 'Contra-Terroristas venceram!');
-  else if (aliveCT === 0 && teamPlayers('CT').length) endRound('T', 'Terroristas venceram!');
+  if (aliveT === 0 && teamPlayers('T').length && bomb.state !== 'planted') endRound('CT', 'Bonde do Campo venceu!');
+  else if (aliveCT === 0 && teamPlayers('CT').length) endRound('T', 'Bonde da Macaca venceu!');
 }
 
 const canBuyNow = () => game.phase === 'freeze' || (game.phase === 'live' && CFG.roundTime - game.timer <= CFG.buyTime);
@@ -400,14 +403,14 @@ function bombTick(dt) {
         bomb.state = 'defused'; bomb.defuse = 0;
         d.money = Math.min(CFG.maxMoney, d.money + BOMB.defuseReward);
         broadcast({ t: 'bomb', ev: 'defused' });
-        endRound('CT', 'Bomba desarmada — Contra-Terroristas venceram!');
+        endRound('CT', 'Bomba desarmada — Bonde do Campo venceu!');
         return;
       }
     } else { bomb.defuse = 0; bomb.defuser = 0; }
     if (bomb.timer <= 0) {
       bomb.state = 'exploded';
       broadcast({ t: 'bomb', ev: 'exploded', p: bomb.p });
-      endRound('T', 'A bomba explodiu — Terroristas venceram!');
+      endRound('T', 'A bomba explodiu — Bonde da Macaca venceu!');
       const att = players.get(bomb.planter);
       for (const q of players.values()) {
         if (!q.alive) continue;
@@ -777,7 +780,7 @@ setInterval(() => {
 
   game.timer -= dt;
   if (game.phase === 'freeze' && game.timer <= 0) { game.phase = 'live'; game.timer = CFG.roundTime; broadcast({ t: 'round', phase: 'live', round: game.round, score: game.score }); }
-  else if (game.phase === 'live' && game.timer <= 0 && bomb.state !== 'planted') endRound('CT', 'Tempo esgotado — Contra-Terroristas venceram!');
+  else if (game.phase === 'live' && game.timer <= 0 && bomb.state !== 'planted') endRound('CT', 'Tempo esgotado — Bonde do Campo venceu!');
   else if (game.phase === 'end' && game.timer <= 0) startRound();
   else if (game.phase === 'matchover' && game.timer <= 0) { resetMatch(); startRound(); }
 
@@ -837,7 +840,7 @@ wss.on('connection', (ws) => {
       pl = newPlayer(name, team, false, ws);
       players.set(pl.id, pl);
       send(pl, { t: 'welcome', id: pl.id, team, cfg: CFG, map: mapId, doors: doorState() });
-      broadcast({ t: 'msg', text: `${name} entrou no time ${team === 'T' ? 'Terrorista' : 'Contra-Terrorista'}` });
+      broadcast({ t: 'msg', text: `${name} entrou no ${team === 'T' ? 'Bonde da Macaca' : 'Bonde do Campo'}` });
       if (first) { resetMatch(); startRound(); }
       else {
         rebalanceBots();
@@ -907,7 +910,7 @@ wss.on('connection', (ws) => {
         if (pl.alive) { pl.alive = false; pl.hp = 0; bombOnDeath(pl); checkRoundEnd(); }
         pl.team = team; pl.lostGear = true;
         send(pl, { t: 'welcome', id: pl.id, team, cfg: CFG, map: mapId });
-        broadcast({ t: 'msg', text: `${pl.name} mudou para ${team === 'T' ? 'Terroristas' : 'Contra-Terroristas'}` });
+        broadcast({ t: 'msg', text: `${pl.name} mudou para ${team === 'T' ? 'Bonde da Macaca' : 'Bonde do Campo'}` });
         break;
       }
       case 'chat': {

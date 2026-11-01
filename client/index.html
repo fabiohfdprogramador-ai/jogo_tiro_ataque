@@ -44,7 +44,10 @@
 <div id="scope" class="hidden"><div class="lens"></div><div class="h"></div><div class="v"></div></div>
 
 <div id="buy" class="hidden">
-  <h2>Comprar <small>(tecle o número · B fecha)</small></h2>
+  <div class="bhead">
+    <div><h2>COMPRAR</h2><small>Tecle o número do item · <b>B</b> fecha</small></div>
+    <div class="cash"><small>Dinheiro</small><span id="buycash"></span></div>
+  </div>
   <div id="buylist"></div>
 </div>
 
@@ -53,17 +56,20 @@
 
 <!-- Menus -->
 <div id="menu" class="overlay">
-  <div class="card">
-    <h1>ATAQUE</h1>
-    <p class="sub">Jogo de tiro online · TR vs CT · plante ou desarme a bomba</p>
-    <label>Seu nome<input id="name" maxlength="16" placeholder="Jogador"></label>
-    <label>Mapa <small>(quem entra primeiro escolhe)</small><select id="map"><option value="bairro">Bairro</option><option value="deserto">Deserto</option></select></label>
-    <div class="teams">
-      <button data-team="T" class="team t">Terroristas</button>
-      <button data-team="CT" class="team ct">Contra-Terroristas</button>
-      <button data-team="auto" class="team auto sel">Automático</button>
+  <div class="card lobby">
+    <div class="brand">
+      <h1>ATAQUE</h1>
+      <p class="sub">Bonde da Macaca <b>vs</b> Bonde do Campo · plante ou desarme a bomba</p>
     </div>
-    <button id="play" class="primary">Jogar</button>
+    <label>Seu nome<input id="name" maxlength="16" placeholder="Jogador"></label>
+    <label>Mapa <small>(quem entra primeiro escolhe)</small><select id="map"><option value="bairro">VR Divineia</option><option value="deserto">Deserto</option></select></label>
+    <div class="field">Time</div>
+    <div class="teams pick">
+      <button data-team="T" class="team t"><div class="ph"></div><i></i><div class="lb">Bonde da Macaca<small>ataca e planta a bomba</small></div></button>
+      <button data-team="CT" class="team ct"><div class="ph"></div><i></i><div class="lb">Bonde do Campo<small>defende e desarma</small></div></button>
+    </div>
+    <button data-team="auto" class="team auto sel">Automático (time com menos gente)</button>
+    <button id="play" class="primary">JOGAR</button>
     <button id="invite" class="invite">Copiar link de convite</button>
     <p id="status" class="status"></p>
     <details class="credits">
@@ -78,37 +84,51 @@
       </ul>
       <p>Sons de tiro: <a href="https://opengameart.org/content/the-free-firearm-sound-library" target="_blank">The Free Firearm Sound Library</a> (CC0).</p>
     </details>
-    <div class="help">
+    <details class="help">
+      <summary>Controles</summary>
       <b>WASD</b> andar · <b>Shift</b> (segurar) correr · <b>Espaço</b> pular · <b>C</b> agachar/levantar · <b>Ctrl</b> (segurar) agachar<br>
       <b>Mouse</b> mirar e atirar · <b>Botão direito</b> (segurar) mirar · luneta na AWP · <b>R</b> recarregar<br>
       <b>1 2 3</b> armas · <b>4</b> AWP, bazuca ou arco · <b>5</b> granadas (5 de novo troca) · roda do mouse / <b>Q</b> trocar · <b>F</b> (segurar) plantar/desarmar<br>
       <b>E</b> pegar arma do chão · <b>G</b> largar arma · <b>B</b> comprar · <b>Tab</b> placar · <b>Y</b> chat · <b>Esc</b> menu<br>
       As teclas podem ser trocadas no menu (<b>Esc</b>) durante o jogo.
-    </div>
+    </details>
   </div>
 </div>
 
 <div id="pause" class="overlay hidden">
-  <div class="card">
-    <h2>Menu</h2>
-    <button id="resume" class="primary">Continuar</button>
-    <div class="teams">
-      <button data-switch="T" class="team t">Ir para TR</button>
-      <button data-switch="CT" class="team ct">Ir para CT</button>
+  <div class="card pmenu" data-tab="partida">
+    <div class="phead">
+      <div><h2>PAUSADO</h2><small>O jogo continua rolando para os outros jogadores</small></div>
+      <button id="resume" class="primary">Continuar</button>
     </div>
-    <button id="invite2" class="invite">Copiar link de convite</button>
-    <h3>Mouse</h3>
+    <nav class="ptabs">
+      <button data-tab="partida" class="on">Partida</button>
+      <button data-tab="video">Mouse e imagem</button>
+      <button data-tab="som">Som</button>
+      <button data-tab="teclas">Teclas</button>
+    </nav>
+    <section data-pane="partida" class="pane on">
+      <h3>Trocar de time</h3>
+      <div class="teams pick">
+        <button data-switch="T" class="team t"><i></i>Bonde da Macaca<small></small></button>
+        <button data-switch="CT" class="team ct"><i></i>Bonde do Campo<small></small></button>
+      </div>
+      <h3>Chamar amigos</h3>
+      <button id="invite2" class="invite">Copiar link de convite</button>
+    </section>
+    <section data-pane="video" class="pane">
+      <h3>Mouse</h3>
     <div class="opts">
-      <label>Sensibilidade <span id="sensv"></span><input id="sens" type="range" min="0.2" max="4" step="0.05"></label>
-      <label>Mirando e na luneta <span id="sensAimv"></span><input id="sensAim" type="range" min="0.2" max="2" step="0.05"></label>
+      <label><span class="ln">Sensibilidade<em id="sensv"></em></span><input id="sens" type="range" min="0.2" max="4" step="0.05"></label>
+      <label><span class="ln">Mirando e na luneta<em id="sensAimv"></em></span><input id="sensAim" type="range" min="0.2" max="2" step="0.05"></label>
     </div>
     <h3>Imagem</h3>
     <div class="opts">
-      <label>Brilho <span id="brightv"></span><input id="bright" type="range" min="0.5" max="1.8" step="0.05"></label>
-      <label>Contraste <span id="contrastv"></span><input id="contrast" type="range" min="0.6" max="1.5" step="0.05"></label>
-      <label>Saturação (cor) <span id="saturv"></span><input id="satur" type="range" min="0" max="1.8" step="0.05"></label>
+      <label><span class="ln">Brilho<em id="brightv"></em></span><input id="bright" type="range" min="0.5" max="1.8" step="0.05"></label>
+      <label><span class="ln">Contraste<em id="contrastv"></em></span><input id="contrast" type="range" min="0.6" max="1.5" step="0.05"></label>
+      <label><span class="ln">Saturação (cor)<em id="saturv"></em></span><input id="satur" type="range" min="0" max="1.8" step="0.05"></label>
     </div>
-    <label>Horário (Bairro)
+    <label>Horário (VR Divineia)
       <select id="tod">
         <option value="dia">Dia</option>
         <option value="tarde">Fim de tarde</option>
@@ -122,19 +142,22 @@
         <option value="baixo">Baixo (PC fraco: sem sombras e resolução menor)</option>
       </select>
     </label>
-    <h3>Som</h3>
-    <div class="opts">
-      <label>Volume geral <span id="volv"></span><input id="vol" type="range" min="0" max="1" step="0.05"></label>
-      <label>Tiros e explosões <span id="vol_tirosv"></span><input id="vol_tiros" type="range" min="0" max="1.5" step="0.05"></label>
-      <label>Passos <span id="vol_passosv"></span><input id="vol_passos" type="range" min="0" max="1.5" step="0.05"></label>
-      <label>Ambiente (vento) <span id="vol_ambientev"></span><input id="vol_ambiente" type="range" min="0" max="1.5" step="0.05"></label>
-      <label>Avisos e menus <span id="vol_avisosv"></span><input id="vol_avisos" type="range" min="0" max="1.5" step="0.05"></label>
+    </section>
+    <section data-pane="som" class="pane">
+      <div class="opts">
+      <label><span class="ln">Volume geral<em id="volv"></em></span><input id="vol" type="range" min="0" max="1" step="0.05"></label>
+      <label><span class="ln">Tiros e explosões<em id="vol_tirosv"></em></span><input id="vol_tiros" type="range" min="0" max="1.5" step="0.05"></label>
+      <label><span class="ln">Passos<em id="vol_passosv"></em></span><input id="vol_passos" type="range" min="0" max="1.5" step="0.05"></label>
+      <label><span class="ln">Ambiente (vento)<em id="vol_ambientev"></em></span><input id="vol_ambiente" type="range" min="0" max="1.5" step="0.05"></label>
+      <label><span class="ln">Avisos e menus<em id="vol_avisosv"></em></span><input id="vol_avisos" type="range" min="0" max="1.5" step="0.05"></label>
     </div>
-    <h3>Teclas <small>(clique e aperte a nova tecla · Esc cancela)</small></h3>
-    <div id="binds" class="binds"></div>
-    <button id="resetbinds">Restaurar teclas</button>
-    <button id="resetopts">Restaurar padrão (imagem e som)</button>
-    <div class="help">Clique em <b>Continuar</b> para voltar ao jogo.</div>
+    </section>
+    <section data-pane="teclas" class="pane">
+      <p class="hint">Clique numa tecla e aperte a nova · <b>Esc</b> cancela</p>
+      <div id="binds" class="binds"></div>
+      <button id="resetbinds" class="ghost">Restaurar teclas</button>
+    </section>
+    <button id="resetopts" class="ghost">Restaurar padrão (imagem e som)</button>
   </div>
 </div>
 

@@ -114,12 +114,11 @@ const camera = new THREE.PerspectiveCamera(BASE_FOV, innerWidth / innerHeight, 0
 camera.rotation.order = 'YXZ';
 scene.add(camera);
 const { sunLight, envMap, setMap, setTimeOfDay } = buildWorld(renderer, scene);
-let mapId = 'deserto';
+let mapId = 'deserto', menuT = 0;
 function changeMap(id) {
   if (!MAPS[id] || id === mapId) return;
   mapId = id; setMap(id); fx.clearDecals(); applyImage(); sound.setScene(id, settings.time);
-  const sp = MAP.spawns.CT[0];            // câmera do menu passeia pelo mapa escolhido
-  if (!playing) { camera.position.set(sp[0], 2.2, sp[1]); camera.rotation.set(-0.05, 0.1, 0); }
+  menuT = 0;                               // câmera do menu passeia pelo mapa escolhido
 }
 const post = createComposer(renderer, scene, camera);
 let fpsAvg = 60, fpsLowT = 0, fpsHinted = false;
@@ -201,7 +200,7 @@ function onMessage(m) {
       for (const d of m.doors || []) setDoor(d.id, d.open);
       vm.setTeam(m.team); remotes.setMyTeam(m.team);
       $('menu').classList.add('hidden'); hud.show(true);
-      hud.notice(`Você está no time ${m.team === 'T' ? 'Terrorista' : 'Contra-Terrorista'}`);
+      hud.notice(`Você está no ${m.team === 'T' ? 'Bonde da Macaca' : 'Bonde do Campo'}`);
       break;
     case 'door': setDoor(m.id, m.open); break;
     case 'spawn':
@@ -609,6 +608,11 @@ $('play').addEventListener('click', () => {
 });
 $('name').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('play').click(); });
 
+document.querySelectorAll('#pause [data-tab]').forEach(b => b.addEventListener('click', () => {   // abas do menu do Esc
+  document.querySelectorAll('#pause [data-tab]').forEach(x => x.classList.toggle('on', x === b));
+  document.querySelector('#pause .pmenu').dataset.tab = b.dataset.tab;
+  document.querySelectorAll('#pause [data-pane]').forEach(p => p.classList.toggle('on', p.dataset.pane === b.dataset.tab));
+}));
 $('resume').addEventListener('click', () => { $('pause').classList.add('hidden'); sound.unlock(); lockPointer(); });
 document.querySelectorAll('#pause [data-switch]').forEach(b => b.addEventListener('click', () => {
   send({ t: 'team', team: b.dataset.switch });
@@ -665,6 +669,10 @@ showOpts();
 document.addEventListener('pointerlockchange', () => {
   locked = document.pointerLockElement === renderer.domElement;
   if (!locked && playing && !chatOpen) {
+    document.querySelectorAll('#pause [data-switch]').forEach(b => {   // marca o time atual
+      const cur = b.dataset.switch === me.team; b.classList.toggle('sel', cur); b.disabled = cur;
+      b.querySelector('small').textContent = cur ? 'seu time' : 'trocar';
+    });
     $('pause').classList.remove('hidden'); mouseDown = false; for (const k in keys) keys[k] = false;
     if (me.using) { me.using = false; send({ t: 'use', on: 0 }); }
   }
@@ -849,9 +857,21 @@ function updateRoom(dt) {
 
 // ---------------------------------------------------------------- loop principal
 let sendT = 0;
+// câmera do menu: no VR Divineia dá a volta devagar em cima da praça; no Deserto, em volta do meio do mapa
+function menuCamera(dt) {
+  menuT += dt;
+  let c, r, h;
+  if (mapId === 'bairro') { c = [12.4, 2]; r = 15; h = 8.5; }
+  else { const a = MAP.spawns.T[0], b = MAP.spawns.CT[0]; c = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]; r = 22; h = 14; }
+  const ang = menuT * 0.045 + 0.6;
+  camera.position.set(c[0] + Math.sin(ang) * r, h, c[1] + Math.cos(ang) * r);
+  camera.rotation.set(-Math.atan2(h - 1.5, r) * 0.8, ang, 0);
+}
+
 function frame() {
   const dt = Math.min(0.05, clock.getDelta());
   const t = now();
+  if (!playing) menuCamera(dt);
 
   if (playing) {
     updateDoors(dt);
@@ -974,7 +994,5 @@ function frame() {
   requestAnimationFrame(frame);
 }
 
-// câmera do menu: passeio lento pelo mapa
-camera.position.set(-33, 2.2, 28); camera.rotation.set(-0.05, 0.1, 0);
 requestAnimationFrame(frame);
 window.__game = { me, srv, remotes, camera, vm, renderer, sound, fx, changeMap, debug: { fire: () => { mouseClicked = true; tryFire(); }, selectSlot, send, startReload, keys, get doorOpen() { return MAP.boxes.some(b => b.mat === 'door' && b.open); } } };

@@ -65,12 +65,29 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #000; font-f
 #scope .h { position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: #000; }
 #scope .v { position: absolute; top: 0; bottom: 0; left: 50%; width: 1px; background: #000; }
 
-#buy { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); background: rgba(14,16,20,.9); border: 1px solid rgba(255,255,255,.15); border-radius: 8px; padding: 16px 20px; min-width: 380px; }
-#buy h2 { margin: 0 0 12px; font-size: 20px; } #buy h2 small { font-size: 12px; opacity: .6; font-weight: 400; }
-#buylist div { display: flex; justify-content: space-between; gap: 20px; padding: 8px 10px; border-radius: 4px; font-size: 15px; }
-#buylist div:nth-child(odd) { background: rgba(255,255,255,.04); }
-#buylist div.no { opacity: .35; }
-#buylist b { color: #ffd27a; margin-right: 8px; } #buylist .p { color: #8fdc6a; }
+#buy { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(760px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow-y: auto; background: rgba(14,15,18,.9); backdrop-filter: blur(6px); border: 1px solid rgba(232,200,138,.18); border-top: 3px solid #d9a441; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,.6); padding: 18px 22px 20px; }
+#buy .bhead { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 4px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,.1); }
+#buy .bhead h2 { margin: 0; font-size: 26px; font-weight: 900; letter-spacing: 6px; background: linear-gradient(180deg, #ffe2a0, #d29a32); -webkit-background-clip: text; background-clip: text; color: transparent; }
+#buy .bhead small { font-size: 12px; opacity: .6; } #buy .bhead small b { color: #ffd27a; }
+#buy .cash { text-align: right; } #buy .cash small { display: block; text-transform: uppercase; letter-spacing: 1px; font-size: 11px; }
+#buy .cash span { font-size: 28px; font-weight: 800; color: #8fdc6a; }
+#buylist { display: grid; grid-template-columns: 2fr 3fr; gap: 0 8px; }
+#buylist section { margin-top: 8px; grid-column: 1 / -1; }
+#buylist section:nth-child(3), #buylist section:nth-child(4) { grid-column: auto; }
+#buylist section:nth-child(3) .row { grid-template-columns: repeat(2, 1fr); }
+#buy { scrollbar-width: thin; scrollbar-color: rgba(232,200,138,.35) transparent; }
+#buylist h3 { margin: 0 0 6px; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; opacity: .55; }
+#buylist .row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+#buylist .it { position: relative; display: flex; flex-direction: column; align-items: center; padding: 6px 8px 7px; border-radius: 8px; background: #1b1d22; border: 1px solid rgba(255,255,255,.08); color: #e8dcc4; }
+#buylist .it svg { width: 100%; height: 30px; margin: 16px 0 1px; fill: currentColor; }
+#buylist .it .k { position: absolute; left: 7px; top: 6px; min-width: 20px; height: 20px; line-height: 20px; text-align: center; border-radius: 4px; background: #d9a441; color: #111; font-size: 13px; }
+#buylist .it .pr { position: absolute; right: 9px; top: 7px; font-size: 13px; font-weight: 700; color: #8fdc6a; }
+#buylist .it .nm { font-size: 14px; font-weight: 700; color: #fff; }
+#buylist .it small { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; opacity: .6; margin-top: 1px; }
+#buylist .it.poor .pr { color: #ff7a6a; } #buylist .it.poor { opacity: .55; } #buylist .it.poor small { color: #ff9a8a; opacity: 1; }
+#buylist .it.other { opacity: .3; }
+#buylist .it.has { border-color: rgba(143,220,106,.45); } #buylist .it.has small { color: #8fdc6a; opacity: 1; }
+@media (max-width: 560px) { #buylist { grid-template-columns: 1fr; } #buylist .row { grid-template-columns: repeat(2, 1fr); } }
 
 #board { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); background: rgba(14,16,20,.88); border-radius: 8px; padding: 16px 20px; min-width: 560px; }
 #board h3 { margin: 10px 0 6px; font-size: 16px; }
@@ -124,7 +141,7 @@ button.invite:hover { background: #24382b; }
 .card select { font-size: 15px; padding: 8px 10px; border-radius: 6px; border: 1px solid #444; background: #0d0f12; color: #fff; }
 .card label small { opacity: .6; }
 /* menu de opções: rola se não couber na tela, opções em duas colunas */
-#pause .card { max-height: calc(100vh - 32px); overflow-y: auto; }
+
 .card h3 { margin: 6px 0 -4px; font-size: 13px; letter-spacing: 1px; text-transform: uppercase; opacity: .6; }
 .opts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 18px; }
 @media (max-width: 520px) { .opts { grid-template-columns: 1fr; } }
@@ -156,3 +173,73 @@ button.invite:hover { background: #24382b; }
 #matchover .star { color: #ffd36a; font-style: normal; margin-right: 5px; }
 #matchover .next { margin-top: 16px; opacity: .8; font-size: 15px; }
 @media (max-width: 700px) { #matchover .tables { flex-direction: column; } #matchover .mvp { min-width: 0; width: 100%; } #matchover .res { font-size: 44px; } }
+
+/* tela inicial: painel à esquerda, o mapa passeando à direita */
+#menu { justify-content: flex-start; padding-left: max(16px, 6vw); background: linear-gradient(90deg, rgba(6,7,9,.88) 0%, rgba(6,7,9,.55) 38%, rgba(6,7,9,.05) 70%); }
+#menu .card.lobby { background: rgba(14,15,18,.82); backdrop-filter: blur(6px); border: 1px solid rgba(232,200,138,.18); border-top: 3px solid #d9a441; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,.55); width: min(420px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow-y: auto; gap: 12px; }
+#menu .brand h1 { font-size: 54px; font-weight: 900; letter-spacing: 10px; line-height: 1; background: linear-gradient(180deg, #ffe2a0, #d29a32); -webkit-background-clip: text; background-clip: text; color: transparent; text-shadow: none; }
+#menu .brand .sub { margin: 8px 0 0; font-size: 13px; opacity: .75; }
+#menu .brand .sub b { color: #d9a441; font-weight: 800; }
+#menu .field { font-size: 14px; opacity: .9; margin-bottom: -6px; }
+#menu .teams.pick .team { position: relative; padding: 16px 10px 14px; font-size: 15px; font-weight: 700; background: #1b1d22; overflow: hidden; }
+#menu .teams.pick .team i { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; }
+#menu .team.t i { background: #e0702e; } #menu .team.ct i { background: #3fa35a; }
+#menu .team.t.sel, #menu .team.t:hover { border-color: #e0702e; color: #ffb27e; background: #2a1d15; }
+#menu .team.ct.sel, #menu .team.ct:hover { border-color: #3fa35a; color: #8fe0a2; background: #15261a; }
+#menu .team.auto { font-size: 13px; padding: 8px; background: transparent; opacity: .8; }
+#menu .team.auto.sel { opacity: 1; border-color: #888; }
+#menu .primary { padding: 14px; font-size: 20px; letter-spacing: 4px; background: linear-gradient(180deg, #e8b44c, #c08424); border: none; box-shadow: 0 6px 18px rgba(217,164,65,.3); }
+#menu .primary:hover { filter: brightness(1.1); }
+#menu .help summary { cursor: pointer; font-size: 13px; opacity: 1; margin-bottom: 4px; }
+#menu .card.lobby { scrollbar-width: thin; scrollbar-color: rgba(232,200,138,.35) transparent; }
+@media (max-width: 700px) { #menu { justify-content: center; padding-left: 0; background: rgba(6,7,9,.6); } }
+
+/* menu do Esc */
+#pause { background: radial-gradient(ellipse at center, rgba(6,7,9,.55), rgba(6,7,9,.85)); backdrop-filter: blur(3px); }
+#pause .card.pmenu { width: min(680px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: hidden; padding: 22px 26px; gap: 14px; background: rgba(14,15,18,.9); border: 1px solid rgba(232,200,138,.18); border-top: 3px solid #d9a441; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,.6); }
+#pause .phead { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+#pause .phead h2 { font-size: 28px; font-weight: 900; letter-spacing: 6px; background: linear-gradient(180deg, #ffe2a0, #d29a32); -webkit-background-clip: text; background-clip: text; color: transparent; }
+#pause .phead small { font-size: 12px; opacity: .55; }
+#pause .phead .primary { padding: 12px 28px; font-size: 17px; letter-spacing: 2px; background: linear-gradient(180deg, #e8b44c, #c08424); border: none; box-shadow: 0 6px 18px rgba(217,164,65,.3); white-space: nowrap; }
+#pause .phead .primary:hover { filter: brightness(1.1); }
+#pause .ptabs { display: flex; gap: 4px; border-bottom: 1px solid rgba(255,255,255,.1); }
+#pause .ptabs button { background: none; border: none; border-bottom: 2px solid transparent; border-radius: 0; padding: 8px 14px; font-size: 14px; opacity: .6; margin-bottom: -1px; }
+#pause .ptabs button:hover { opacity: .9; }
+#pause .ptabs button.on { opacity: 1; color: #ffd27a; border-bottom-color: #d9a441; }
+#pause .pane { display: none; flex-direction: column; gap: 12px; overflow-y: auto; height: min(440px, calc(100vh - 250px)); padding-right: 4px; scrollbar-width: thin; scrollbar-color: rgba(232,200,138,.35) transparent; }
+#pause .pane.on { display: flex; }
+#pause .pane h3 { margin: 4px 0 -2px; }
+#pause .pane label { font-size: 13px; }
+#pause .ln { display: flex; justify-content: space-between; align-items: baseline; }
+#pause .ln em { font-style: normal; font-weight: 700; color: #ffd27a; font-size: 13px; }
+#pause input[type=range] { accent-color: #d9a441; width: 100%; margin: 2px 0 0; }
+#pause .opts { gap: 14px 24px; }
+#pause .teams.pick .team { position: relative; padding: 18px 10px 14px; font-size: 15px; font-weight: 700; background: #1b1d22; overflow: hidden; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+#pause .teams.pick .team i { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; }
+#pause .teams.pick .team small { font-size: 11px; font-weight: 400; opacity: .6; text-transform: uppercase; letter-spacing: 1px; }
+#pause .team.t i { background: #e0702e; } #pause .team.ct i { background: #3fa35a; }
+#pause .team.t:hover:not(:disabled) { border-color: #e0702e; color: #ffb27e; background: #2a1d15; }
+#pause .team.ct:hover:not(:disabled) { border-color: #3fa35a; color: #8fe0a2; background: #15261a; }
+#pause .team.t.sel { border-color: #e0702e; color: #ffb27e; background: #2a1d15; cursor: default; }
+#pause .team.ct.sel { border-color: #3fa35a; color: #8fe0a2; background: #15261a; cursor: default; }
+#pause .hint { margin: 0; font-size: 13px; opacity: .65; }
+#pause .binds .bind { padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,.05); }
+#pause .card.pmenu:not([data-tab=video]):not([data-tab=som]) #resetopts { visibility: hidden; }
+#pause button.ghost { background: transparent; border-color: rgba(255,255,255,.15); font-size: 13px; opacity: .75; padding: 8px; }
+#pause button.ghost:hover { opacity: 1; }
+@media (max-width: 520px) { #pause .phead { flex-direction: column; align-items: stretch; } #pause .ptabs { overflow-x: auto; } }
+
+/* cartões dos times na tela inicial: foto do Bonde da Macaca e gramado do Bonde do Campo */
+#menu .teams.pick .team { height: 150px; padding: 0; display: flex; flex-direction: column; justify-content: flex-end; align-items: stretch; text-align: left; }
+#menu .teams.pick .team .ph { position: absolute; inset: 0; background-size: cover; transition: transform .25s, filter .25s; }
+#menu .teams.pick .team.t .ph { background-image: url(/img/bonde_macaca.webp); background-position: 48% 22%; }
+#menu .teams.pick .team.t:hover .ph, #menu .teams.pick .team.t.sel .ph { transform: scale(1.04); }
+#menu .teams.pick .team.ct .ph { background: repeating-linear-gradient(90deg, #1f5a2c 0 26px, #236432 26px 52px); }
+#menu .teams.pick .team.ct .ph::after { content: ''; position: absolute; left: 50%; top: 50%; width: 56px; height: 56px; margin: -28px; border: 2px solid rgba(255,255,255,.35); border-radius: 50%; }
+#menu .teams.pick .team.ct .ph::before { content: ''; position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background: rgba(255,255,255,.35); }
+#menu .teams.pick .team .lb { position: relative; z-index: 1; padding: 30px 12px 10px; background: linear-gradient(180deg, transparent, rgba(0,0,0,.85)); font-size: 15px; font-weight: 800; color: #fff; }
+#menu .teams.pick .team .lb small { display: block; font-size: 11px; font-weight: 400; opacity: .7; }
+#menu .teams.pick .team i { z-index: 2; }
+#menu .teams.pick .team.sel { box-shadow: 0 0 0 2px currentColor; }
+#menu .teams.pick .team.t.sel { color: #e0702e; } #menu .teams.pick .team.ct.sel { color: #3fa35a; }
+#menu .teams.pick .team:not(.sel) .ph { filter: brightness(.75) saturate(.8); }
