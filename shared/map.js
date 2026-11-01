@@ -352,10 +352,11 @@ function buildBairro() {
   prop(qmx, q1[1] - 3.2, 1.1, 2.6, 2.0, 'slide');               // escorregador
   const pp = (x, y, sx, sz, h, mat, extra) => { const [cx, cz] = W(x, y); prop(cx, cz, sx, sz, h, mat, extra); };
   pp(270, 506, 1.5, 0.8, 0.8, 'table');       // mesa de xadrez de concreto com dois bancos
-  pp(226, 554, 0.5, 1.8, 0.9, 'bench');
-  pp(226, 562, 0.5, 1.8, 0.9, 'bench');
+  pp(226, 554, 0.5, 1.8, 0.9, 'bench', { yellow: 1 });
+  pp(226, 562, 0.5, 1.8, 0.9, 'bench', { yellow: 1 });
   pp(232, 548, 2.2, 2.2, 0.5, 'planter');
-  pp(284, 560, 1.2, 1.2, 1.9, 'shrine');      // oratório
+  pp(254.2, 556, 2.6, 2.6, 0.95, 'shrine');   // oratório azul no canteiro com grade branca, no meio da beira sul, ao lado do palanque (foto da praça)
+  pp(254.2, 556, 1.5, 1.5, 3.4, 'invisible');   // a capelinha em cima do canteiro
   {   // palanque (foto da praça): quarto de círculo pintado em faixas, alambrado atrás e degraus vermelhos virados para a Papoulas
     const [sx, sz] = W(258, 528), r = 4.6, sh = 0.45;
     add(sx, sz, sx + r, sz + r * 0.7, sh, 'stage', { r, main: 1 });
@@ -365,7 +366,7 @@ function buildBairro() {
     add(sx + r - 0.15, sz + 0.25, sx + r + 0.55, sz + 1.55, 0.3, 'steps');
   }
   // coqueiros da praça e do pátio da igreja (o tronco é sólido; as folhas ficam acima da cabeça)
-  for (const [x, y, h] of [[283, 528, 10], [222, 548, 9], [253, 565, 8], [251, 522, 9.5], [285, 540, 7.5]]) pp(x, y, 0.42, 0.42, 3, 'palm', { ph: h });
+  for (const [x, y, h] of [[283, 528, 10], [222, 548, 9], [271, 567, 8], [251, 522, 9.5], [285, 540, 7.5]]) pp(x, y, 0.42, 0.42, 3, 'palm', { ph: h });
   // parquinho: grade baixa (só o desenho; dá para pular por cima)
   add(q0[0], q0[1], q1[0], q0[1] + 0.1, 1.1, 'lowfence');
   add(q0[0], q1[1] - 0.1, q1[0], q1[1], 1.1, 'lowfence');
@@ -496,7 +497,7 @@ function buildBairro() {
   N('B1', 157, 350); N('Be', 184, 344);                          // quadra de areia e o portão para a ruela
   N('T2', 184, 396); N('G1', 166, 396); N('T3', 184, 476);       // ruela reta até a Margaridas e o gramado
   N('W2', 81, 476); N('N1', 205, 476); N('N2', 302, 476);        // Margaridas
-  N('pN', 245, 490); N('pA', 245, 516); N('pB', 243, 560);       // praça
+  N('pN', 245, 490); N('pA', 245, 516); N('pB', 243, 568);       // praça
   N('iA', 253, 596);                                             // pátio da igreja
   N('a2', 205, 547); N('a3', 302, 547); N('p1', 205, 581); N('p2', 302, 581);
   N('t2', 205, 668); N('t3', 302, 668);

@@ -226,6 +226,17 @@ const parkTex = () => canvasTex(128, (g, s) => {   // proibido estacionar (E cor
   g.fillStyle = '#111'; g.font = 'bold 70px Arial'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('E', s / 2, s / 2 + 3);
   g.strokeStyle = '#c81e1e'; g.lineWidth = 11; g.beginPath(); g.moveTo(s * 0.26, s * 0.26); g.lineTo(s * 0.74, s * 0.74); g.stroke();
 });
+const hopscotchTex = () => canvasTexWH(128, 416, (g, w, h) => {   // amarelinha colorida pintada no chão
+  g.clearRect(0, 0, w, h);
+  const C = ['#f2c81e', '#2a64c0', '#d8402a', '#2f8a3a', '#f2c81e', '#2a64c0', '#d8402a'];
+  const rows = [[0], [0, 1], [0], [0, 1], [0], [0, 1], [0]];
+  let y = h, k = 0;
+  for (const r of rows) {
+    y -= 56;
+    for (const c of r) { const x = r.length === 1 ? 36 : 6 + c * 60; g.fillStyle = C[k++ % C.length]; g.fillRect(x, y + 3, 56, 50); }
+  }
+  g.fillStyle = '#d8402a'; g.beginPath(); g.arc(64, 22, 20, Math.PI, 0); g.fill();
+});
 const stripeTex = () => canvasTex(128, (g, s) => {   // lona listrada da barraca
   const cols = ['#e8781e', '#2e8a3a', '#f0c020', '#2e8a3a'];
   for (let i = 0; i < 8; i++) { g.fillStyle = cols[i % 4]; g.fillRect(i * s / 8, 0, s / 8, s); }
@@ -353,6 +364,8 @@ export function buildBairro(group, MAP, sunLight) {
     stripes: new THREE.MeshStandardMaterial({ map: stripeTex(), roughness: 0.8, side: THREE.DoubleSide }),
     silo: new THREE.MeshStandardMaterial({ color: 0xe4e6e6, roughness: 0.5, metalness: 0.3 }),
     rawConcrete: pbr('concrete', 0.5, { color: 0xa4b0b8 }),   // concreto cinza sem reboco
+    hopscotch: new THREE.MeshStandardMaterial({ map: hopscotchTex(), transparent: true, alphaTest: 0.3, roughness: 0.8 }),
+    shrineBlue: pbr('plaster', 0.6, { color: new THREE.Color(0.72, 1.0, 1.6) }, { normal: 0.4 }),
     stageTop: new THREE.MeshStandardMaterial({ map: stageTex(), roughness: 0.8 }),
     mixSign: new THREE.MeshStandardMaterial({ map: mixTex(), roughness: 0.6 }),
     rtbAwning: new THREE.MeshStandardMaterial({ map: rtbTex(), transparent: true, alphaTest: 0.4, side: THREE.DoubleSide, roughness: 0.8 }),
@@ -699,6 +712,11 @@ export function buildBairro(group, MAP, sunLight) {
   flat(M.concrete, P[0], P[1], P[2], P[3], 0.025, 1.5);
   flat(M.grass, P[0] + 1.6, P[1] + 1.6, P[2] - 1.6, P[3] - 1.6, 0.06, 4);
   flat(M.sand, PQ[0], PQ[1], PQ[2], PQ[3], 0.075, 2);
+  {   // caminho de tijolo do canto sul até o palanque, com a amarelinha pintada (foto da praça)
+    const px0 = P[0] + 9.9, px1 = px0 + 2.0;   // entre o oratório e o palanque
+    flat(M.brick, px0, P[3] - 5, px1, P[3], 0.07, 1);
+    const g = new THREE.PlaneGeometry(1.1, 3.6); g.rotateX(-Math.PI / 2); g.translate((px0 + px1) / 2, 0.075, P[3] - 2.4); put(M.hopscotch, g, false);
+  }
 
   // ---- quarteirão da igreja, montado a partir das fotos: fachada com três arcos gradeados, faixa
   // "CREIO NA IGREJA UNA...", frontão com brasão, torre do sino com cruz, anexo com janelas brancas
@@ -864,7 +882,7 @@ export function buildBairro(group, MAP, sunLight) {
         }
         cyl(M.concrete, cx, 0, cz, 0.25, 0.25, 0.75); cyl(M.concrete, cx, 0.72, cz, 0.6, 0.6, 0.08, 16); for (let k = 0; k < 4; k++) cyl(M.concrete, cx + Math.cos(k * Math.PI / 2) * 0.95, 0, cz + Math.sin(k * Math.PI / 2) * 0.95, 0.18, 0.18, 0.45, 8); break;
       case 'bench': {
-        const bm = b.blue ? M.blueMetal : b.black ? M.dark : M.wood;
+        const bm = b.blue ? M.blueMetal : b.black ? M.dark : b.yellow ? M.yellow : M.wood;
         box(bm, x0, 0.42, z0, x1, 0.48, z1);
         if (x1 - x0 > z1 - z0) { box(bm, x0, 0.48, z1 - 0.06, x1, 0.85, z1); for (const xx of [x0 + 0.15, x1 - 0.15]) box(M.dark, xx - 0.03, 0, z0 + 0.05, xx + 0.03, 0.42, z1 - 0.05); }
         else { box(bm, x1 - 0.06, 0.48, z0, x1, 0.85, z1); for (const zz of [z0 + 0.15, z1 - 0.15]) box(M.dark, x0 + 0.05, 0, zz - 0.03, x1 - 0.05, 0.42, zz + 0.03); }
@@ -1070,7 +1088,36 @@ export function buildBairro(group, MAP, sunLight) {
       case 'assembleia': drawAssembleia(b); break;
       case 'arena': drawArena(b); break;
       case 'planter': box(M.concrete, x0, 0, z0, x1, 0.5, z1); tree(cx, 0.5, cz, 1.1); break;
-      case 'shrine': box(M.white, x0, 0, z0, x1, 1.9, z1, 1); box(M.church, cx - 0.3, 0.7, z0 - 0.02, cx + 0.3, 1.5, z0); gable(x0 - 0.2, z0 - 0.2, x1 + 0.2, z1 + 0.2, 1.9, true, 0.6); break;
+      case 'shrine': {   // oratório: canteiro branco com grade e flores, capelinha azul com nicho em arco nas faces e telhado de telha
+        box(M.white, x0, 0, z0, x1, 0.35, z1, 1);
+        flat(M.dirt, x0 + 0.1, z0 + 0.1, x1 - 0.1, z1 - 0.1, 0.36, 1);
+        const RH = h, step = 0.13;
+        for (const [ax, az, bx, bz] of [[x0, z0, x1, z0], [x1, z0, x1, z1], [x1, z1, x0, z1], [x0, z1, x0, z0]]) {
+          const L = Math.hypot(bx - ax, bz - az), n = Math.round(L / step);
+          for (let k = 0; k <= n; k++) { const t = k / n, px = ax + (bx - ax) * t, pz = az + (bz - az) * t; bar(M.gateWhite, [px, 0.35, pz], [px, RH, pz], 0.012); }
+          bar(M.gateWhite, [ax, RH, az], [bx, RH, bz], 0.025); bar(M.gateWhite, [ax, 0.55, az], [bx, 0.55, bz], 0.018);
+        }
+        const r = rand(77);
+        for (let k = 0; k < 60; k++) {   // flores e folhagem no canteiro
+          const a = r() * Math.PI * 2, rr = 0.8 + r() * 0.35, fx = cx + Math.cos(a) * rr * 1.0, fz = cz + Math.sin(a) * rr * 1.0;
+          if (Math.abs(fx - cx) > 1.2 || Math.abs(fz - cz) > 1.2) continue;
+          put(k % 3 ? M.foliage : M.flower, xform(new THREE.IcosahedronGeometry(0.05 + r() * 0.05, 0), [fx, 0.42 + r() * 0.25, fz]), false);
+        }
+        const s2 = 0.72, by = 0.35, top = 2.75;
+        box(M.white, cx - s2 - 0.05, by, cz - s2 - 0.05, cx + s2 + 0.05, by + 0.25, cz + s2 + 0.05, 1);
+        box(M.shrineBlue, cx - s2, by + 0.25, cz - s2, cx + s2, top, cz + s2, 1);
+        for (const [ox, oz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) box(M.white, cx + ox * s2 - 0.08, by + 0.25, cz + oz * s2 - 0.08, cx + ox * s2 + 0.08, top, cz + oz * s2 + 0.08, 1, null, false);
+        box(M.white, cx - s2 - 0.12, top, cz - s2 - 0.12, cx + s2 + 0.12, top + 0.14, cz + s2 + 0.12, 1);
+        for (const [nx, nz] of [[0, -1], [1, 0], [0, 1], [-1, 0]]) {   // nicho em arco: moldura branca e vidro escuro
+          const ry = Math.atan2(nx, nz), fx = cx + nx * (s2 + 0.01), fz = cz + nz * (s2 + 0.01);
+          const fr = new THREE.BoxGeometry(0.66, 1.15, 0.04); fr.translate(0, 1.55, 0); fr.rotateY(ry); fr.translate(fx, 0, fz); put(M.white, fr, false);
+          const ar = new THREE.CylinderGeometry(0.33, 0.33, 0.04, 16, 1, false, -Math.PI / 2, Math.PI); ar.rotateX(-Math.PI / 2); ar.translate(0, 2.12, 0); ar.rotateY(ry); ar.translate(fx, 0, fz); put(M.white, ar, false);
+          const gl = new THREE.BoxGeometry(0.46, 1.0, 0.03); gl.translate(0, 1.55, 0.02); gl.rotateY(ry); gl.translate(fx, 0, fz); put(M.glass, gl, false);
+          const ga = new THREE.CylinderGeometry(0.23, 0.23, 0.03, 16, 1, false, -Math.PI / 2, Math.PI); ga.rotateX(-Math.PI / 2); ga.translate(0, 2.05, 0.02); ga.rotateY(ry); ga.translate(fx, 0, fz); put(M.glass, ga, false);
+        }
+        put(M.roof, xform(new THREE.ConeGeometry(1.3, 0.85, 4, 1), [cx, top + 0.14 + 0.42, cz], Math.PI / 4), true);
+        break;
+      }
       case 'ptable':
         if (b.white) {   // mesa e cadeiras brancas de plástico
           box(M.plastic, x0 + 0.1, 0.7, z0 + 0.1, x1 - 0.1, 0.74, z1 - 0.1, 1, null, false);
