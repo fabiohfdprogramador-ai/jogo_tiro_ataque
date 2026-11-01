@@ -34,7 +34,7 @@ function saveSettings() { try { localStorage.setItem('deserto.settings', JSON.st
 const ACTIONS = [
   ['KeyW', 'Frente'], ['KeyS', 'Trás'], ['KeyA', 'Esquerda'], ['KeyD', 'Direita'],
   ['Space', 'Pular'], ['ShiftLeft', 'Correr (segurar)'], ['ControlLeft', 'Agachar (segurar)'], ['KeyC', 'Agachar/levantar'],
-  ['KeyR', 'Recarregar'], ['KeyF', 'Plantar/desarmar'], ['KeyE', 'Pegar arma'], ['KeyG', 'Largar arma'],
+  ['KeyR', 'Recarregar'], ['KeyF', 'Plantar/desarmar'], ['KeyE', 'Pegar arma / portão'], ['KeyG', 'Largar arma'],
   ['KeyQ', 'Arma anterior'], ['KeyB', 'Comprar'], ['Tab', 'Placar'], ['KeyY', 'Chat'],
 ];
 const bindOf = (def) => settings.binds[def] || def;
@@ -198,10 +198,12 @@ function onMessage(m) {
     case 'welcome':
       me.id = m.id; me.team = m.team; playing = true;
       if (m.map) changeMap(m.map);
+      for (const d of m.doors || []) setDoor(d.id, d.open);
       vm.setTeam(m.team); remotes.setMyTeam(m.team);
       $('menu').classList.add('hidden'); hud.show(true);
       hud.notice(`Você está no time ${m.team === 'T' ? 'Terrorista' : 'Contra-Terrorista'}`);
       break;
+    case 'door': setDoor(m.id, m.open); break;
     case 'spawn':
       me.p = [...m.p]; me.v = [0, 0, 0];
       if (!m.keepAim) { me.crouchToggle = false; me.yaw = m.yaw; me.pitch = 0; me.alive = true; pickPrimary = true; me.reloadEnd = 0; me.scope = 0; me.spray = 0; spectate = 0; deathText = ''; lastDeathHtml = ''; hud.death(null); }
@@ -211,6 +213,7 @@ function onMessage(m) {
       srv.score = m.score;
       if (m.phase === 'freeze') {
         if (m.map) changeMap(m.map);
+      for (const d of m.doors || []) setDoor(d.id, d.open);
         hud.matchOver(null);
         fx.clearDecals(); clearNades(); clearProjs();
         hud.banner(`Round ${m.round}`, '', 2.5);
@@ -548,7 +551,7 @@ function tryFire() {
   me.pitch += W.auto ? W.kick * 0.15 : W.kick * 0.3;
   // impacto previsto na hora (o servidor confirma acertos em jogadores)
   const eye = eyePos();
-  const wr = raycastWorld(eye, d, W.range, MAP.boxes);
+  const wr = raycastWorld(eye, d, W.range, MAP.boxes, !W.melee);
   let best = wr.t, hitPlayer = false;
   for (const rp of remotes.map.values()) {
     if (!rp.alive || rp.team === me.team) continue;
@@ -712,7 +715,12 @@ document.addEventListener('keydown', (e) => {
   }
   if (e.code === 'KeyR') startReload();
   if (e.code === 'KeyC' && me.alive) me.crouchToggle = !me.crouchToggle;
-  if (e.code === 'KeyE' && me.alive) send({ t: 'pickup' });
+  if (code === 'KeyE' && me.alive) {
+    const dr = nearDoor();
+    if (!dr) send({ t: 'pickup' });
+    else if (dr.open) send({ t: 'door', id: dr.id, open: 0 });   // aperta E: fecha
+    else doorHold = 0.001;                                         // segura E: começa a abrir
+  }
   if (e.code === 'KeyG' && me.alive && me.cur !== 3 && me.cur !== 5) send({ t: 'drop' });
   if (e.code === 'KeyF' && me.alive && !me.using) { me.using = true; send({ t: 'use', on: 1 }); }
   if (e.code === 'KeyQ' && me.alive) selectSlot(me.slots[me.prevSlot] ? me.prevSlot : (me.cur === 3 ? 2 : 3));
@@ -725,7 +733,38 @@ document.addEventListener('keyup', (e) => {
   const code = toGameCode(e.code); if (!code) return;
   keys[code] = false; if (code === 'Tab') boardOpen = false;
   if (code === 'KeyF' && me.using) { me.using = false; send({ t: 'use', on: 0 }); }
+  if (code === 'KeyE') doorHold = 0;
 });
+
+// ---------------------------------------------------------------- portões (segurar E abre, apertar E fecha)
+const DOOR_HOLD = 0.6;
+let doorHold = 0;
+function nearDoor() {
+  if (!me.alive) return null;
+  let best = null, bd = 1.9;
+  for (const b of MAP.boxes) {
+    if (b.mat !== 'door') continue;
+    const d = Math.hypot(me.p[0] - (b.min[0] + b.max[0]) / 2, me.p[2] - (b.min[2] + b.max[2]) / 2);
+    if (d < bd) { bd = d; best = b; }
+  }
+  return best;
+}
+function setDoor(id, open) {
+  const b = MAP.boxes.find(q => q.mat === 'door' && q.id === id);
+  if (b) b.open = !!open;
+}
+function updateDoors(dt) {
+  if (doorHold > 0) {
+    const dr = nearDoor();
+    if (!dr || dr.open || !keys.KeyE) doorHold = 0;
+    else if ((doorHold += dt) >= DOOR_HOLD) { send({ t: 'door', id: dr.id, open: 1 }); doorHold = 0; }
+  }
+  for (const b of MAP.boxes) {
+    if (b.mat !== 'door' || !b.mesh) continue;
+    const target = b.open ? (b.hinge === 'e' ? 1.45 : -1.45) : 0;   // abre para dentro (para o sul)
+    b.mesh.rotation.y += (target - b.mesh.rotation.y) * Math.min(1, dt * 7);
+  }
+}
 $('chatin').addEventListener('keydown', (e) => {
   e.stopPropagation();
   if (e.key === 'Enter' || e.key === 'Escape') {
@@ -815,6 +854,7 @@ function frame() {
   const t = now();
 
   if (playing) {
+    updateDoors(dt);
     if (me.alive) {
       updateMovement(dt);
       if (mouseDown || mouseClicked) tryFire();
@@ -897,7 +937,8 @@ function frame() {
     hud.board(boardOpen, srv.players, me.id, srv.score);
     const nd = me.alive ? nearestDrop() : null;
     const ba = bombAction();
-    hud.pickHint(ba && !me.using ? `<b>F</b> segure para ${ba === 'plant' ? 'plantar a bomba' : 'desarmar a bomba'}` : nd ? `<b>E</b> pegar ${WEAPONS[nd.key].name}${me.slots[WEAPONS[nd.key].slot] ? ' (troca pela sua)' : ''}` : '');
+    const dr = nearDoor();
+    hud.pickHint(ba && !me.using ? `<b>F</b> segure para ${ba === 'plant' ? 'plantar a bomba' : 'desarmar a bomba'}` : dr ? (dr.open ? '<b>E</b> fechar o portão' : doorHold > 0 ? `Abrindo o portão... ${Math.round(doorHold / DOOR_HOLD * 100)}%` : '<b>E</b> segure para abrir o portão') : nd ? `<b>E</b> pegar ${WEAPONS[nd.key].name}${me.slots[WEAPONS[nd.key].slot] ? ' (troca pela sua)' : ''}` : '');
     const vp = me.alive ? me.p : [camera.position.x, 0, camera.position.z];
     const vy = me.alive ? me.yaw : camera.rotation.y;
     hud.drawRadar(me, vp, vy, srv.players, spotted, srv.bomb);
@@ -936,4 +977,4 @@ function frame() {
 // câmera do menu: passeio lento pelo mapa
 camera.position.set(-33, 2.2, 28); camera.rotation.set(-0.05, 0.1, 0);
 requestAnimationFrame(frame);
-window.__game = { me, srv, remotes, camera, vm, renderer, sound, fx, changeMap, debug: { fire: () => { mouseClicked = true; tryFire(); }, selectSlot, send, startReload, keys } };
+window.__game = { me, srv, remotes, camera, vm, renderer, sound, fx, changeMap, debug: { fire: () => { mouseClicked = true; tryFire(); }, selectSlot, send, startReload, keys, get doorOpen() { return MAP.boxes.some(b => b.mat === 'door' && b.open); } } };

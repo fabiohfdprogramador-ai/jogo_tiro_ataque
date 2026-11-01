@@ -7,7 +7,7 @@ import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { MAP, MAPS, useMap } from '../shared/map.js';
-import { PHYS, NADE, PROJ, stepProj, moveBody, raycastWorld, rayPlayer, lineOfSight, dirFromAngles, eyeHeight, bodyHeight, stepNade, smokeBlocks, flashAmount } from '../shared/physics.js';
+import { PHYS, NADE, PROJ, stepProj, moveBody, raycastWorld, rayPlayer, lineOfSight, dirFromAngles, eyeHeight, bodyHeight, stepNade, smokeBlocks, flashAmount, crossesFence } from '../shared/physics.js';
 import { WEAPONS, ITEMS, NADES, MAX_HP, BOMB, computeDamage, fireInterval, defaultPistol } from '../shared/weapons.js';
 
 const PORT = Number(process.env.PORT || 3000);
@@ -128,8 +128,10 @@ function spawnPlayer(pl, spot) {
   send(pl, { t: 'spawn', p: pl.p, yaw: pl.yaw });
 }
 
+const doorState = () => MAP.boxes.filter(b => b.mat === 'door').map(b => ({ id: b.id, open: b.open ? 1 : 0 }));
 function startRound() {
   game.phase = 'freeze'; game.timer = CFG.freeze; game.round++;
+  for (const b of MAP.boxes) if (b.mat === 'door' && b.open) { b.open = false; broadcast({ t: 'door', id: b.id, open: 0 }); }   // portões começam fechados
   drops.length = 0; nades.length = 0; smokes.length = 0; projs.length = 0;
   rebalanceBots();
   for (const team of ['T', 'CT']) {
@@ -238,7 +240,7 @@ function fireShot(pl, o, d, key, rt = 0) {
   }
   pl.lastShot = t;
   if (W.projectile) { launchProj(pl, o, d, W.projectile, key); return true; }
-  const wr = raycastWorld(o, d, W.range, MAP.boxes);
+  const wr = raycastWorld(o, d, W.range, MAP.boxes, !W.melee);   // a bala atravessa o alambrado
   let best = wr.t, hit = null;
   // compensação do atraso: volta os outros para onde o atirador os via (no máximo 0,35 s atrás)
   const back = rt ? Math.min(t, Math.max(t - 0.35, rt)) : t;
@@ -251,12 +253,13 @@ function fireShot(pl, o, d, key, rt = 0) {
   const e = [o[0] + d[0] * best, o[1] + d[1] * best, o[2] + d[2] * best].map(v => +v.toFixed(3));
   const worldHit = !hit && wr.t < W.range;
   broadcast({ t: 'shot', id: pl.id, w: key, o: o.map(v => +v.toFixed(3)), e, hp: hit ? hit.q.id : 0, n: worldHit ? wr.normal : null, hs: hit && hit.zone === 'head' ? 1 : 0 });
-  if (hit) applyDamage(pl, hit.q, key, hit.zone, best);
+  if (hit) applyDamage(pl, hit.q, key, hit.zone, best, crossesFence(o, d, best, MAP.boxes) ? 0.5 : 1);   // atrás da tela: metade do dano
   return true;
 }
 
-function applyDamage(att, vic, key, zone, dist) {
+function applyDamage(att, vic, key, zone, dist, mul = 1) {
   const r = computeDamage(key, zone, dist, vic);
+  if (mul !== 1) { r.hp = Math.max(1, Math.round(r.hp * mul)); r.armor = Math.round(r.armor * mul); }
   if (att !== vic && att.team !== vic.team) att.dmg += Math.max(0, Math.min(r.hp, vic.hp));   // dano causado (para o placar final)
   vic.hp -= r.hp;
   vic.armor = Math.max(0, vic.armor - r.armor);
@@ -648,7 +651,7 @@ function updateBot(b, dt) {
       if (dist > 85 || dist >= tdist) continue;
       const facing = (dx * fwd[0] + dz * fwd[2]) / (dist || 1);
       if (facing < 0.45 && dist > 7 && !(B.alert && t < B.alertUntil)) continue;
-      if (!lineOfSight(eye, pt, MAP.boxes) || smokeBlocks(eye, pt, smokes, t)) continue;
+      if (!lineOfSight(eye, pt, MAP.boxes, true) || smokeBlocks(eye, pt, smokes, t)) continue;   // bots enxergam através do alambrado
       target = q; tdist = dist; aimPt = pt;
     }
   }
@@ -833,7 +836,7 @@ wss.on('connection', (ws) => {
       if (first && MAPS[msg.map] && msg.map !== mapId) { loadMap(msg.map); for (const b of [...players.values()]) players.delete(b.id); }
       pl = newPlayer(name, team, false, ws);
       players.set(pl.id, pl);
-      send(pl, { t: 'welcome', id: pl.id, team, cfg: CFG, map: mapId });
+      send(pl, { t: 'welcome', id: pl.id, team, cfg: CFG, map: mapId, doors: doorState() });
       broadcast({ t: 'msg', text: `${name} entrou no time ${team === 'T' ? 'Terrorista' : 'Contra-Terrorista'}` });
       if (first) { resetMatch(); startRound(); }
       else {
@@ -886,6 +889,15 @@ wss.on('connection', (ws) => {
       case 'use': pl.using = !!msg.on; break;
       case 'reload': startReload(pl); break;
       case 'pickup': if (pl.alive) manualPickup(pl); break;
+      case 'door': {   // abrir/fechar portão (só quem está perto)
+        const b = MAP.boxes.find(q => q.mat === 'door' && q.id === msg.id);
+        if (!b || !pl.alive) return;
+        if (Math.hypot(pl.p[0] - (b.min[0] + b.max[0]) / 2, pl.p[2] - (b.min[2] + b.max[2]) / 2) > 2.6) return;
+        const open = !!msg.open;
+        if (b.open === open) return;
+        b.open = open; broadcast({ t: 'door', id: b.id, open: open ? 1 : 0 });
+        break;
+      }
       case 'drop': if (pl.alive && pl.cur !== 3 && pl.cur !== 5 && pl.slots[pl.cur]) { dropWeapon(pl, pl.cur, true); pl.cur = pl.slots[1] ? 1 : pl.slots[2] ? 2 : 3; } break;
       case 'switch': if (pl.slots[msg.slot]) { pl.cur = msg.slot; pl.reloadEnd = 0; } break;
       case 'buy': buy(pl, String(msg.item)); break;

@@ -156,6 +156,76 @@ const bananaTex = () => canvasTex(128, (g, s) => {   // folha de bananeira (comp
   for (let i = 0; i < 9; i++) { const y = 10 + r() * (s - 20), sd = r() < 0.5 ? -1 : 1; g.beginPath(); g.moveTo(s / 2 + sd * 4, y); g.lineTo(s / 2 + sd * s * 0.25, y + 6); g.stroke(); }
   g.restore();
 }, 1);
+const stageTex = () => canvasTex(256, (g, s) => {   // tampo do palanque: faixas em arco a partir do canto (foto da praça)
+  const c = s / 2;
+  for (const [r, col] of [[1, '#e0a020'], [0.9, '#f2c81e'], [0.72, '#2a64c0'], [0.5, '#d8402a'], [0.3, '#f2c81e']]) { g.fillStyle = col; g.beginPath(); g.arc(c, c, c * r, 0, Math.PI * 2); g.fill(); }
+  const r = rand(11); speckle(g, s, r, 900, ['#ffffff', '#6a6a6a'], 0.18);
+});
+const pizzaBandTex = () => canvasTexWH(512, 64, (g, w, h) => {   // faixa de azulejo decorado em losangos da pizzaria
+  g.fillStyle = '#f4efe2'; g.fillRect(0, 0, w, h);
+  for (let x = 0; x < w; x += 64) {
+    g.fillStyle = '#b8402a'; g.beginPath(); g.moveTo(x + 32, 4); g.lineTo(x + 60, 32); g.lineTo(x + 32, 60); g.lineTo(x + 4, 32); g.fill();
+    g.fillStyle = '#f0c040'; g.beginPath(); g.moveTo(x + 32, 14); g.lineTo(x + 50, 32); g.lineTo(x + 32, 50); g.lineTo(x + 14, 32); g.fill();
+    g.fillStyle = '#7a3a22'; g.fillRect(x + 27, 27, 10, 10);
+  }
+});
+const grafTex = () => canvasTexWH(1024, 256, (g, w, h) => {   // muro grafitado: reboco claro, desenhos coloridos e letras
+  const r = rand(23);
+  g.fillStyle = '#d6d4cc'; g.fillRect(0, 0, w, h);
+  speckle(g, w, r, 4000, ['#a8a69e', '#eeece6', '#8a8a80'], 0.4);
+  for (let i = 0; i < 14; i++) {   // manchas de tinta
+    const x = r() * w, y = 60 + r() * 150, rw = 30 + r() * 90, col = ['#2f8a3a', '#2a5ac8', '#e06a1e', '#c82a5a', '#3ab0c8', '#f2c81e', '#7a3aa8'][(r() * 7) | 0];
+    g.fillStyle = col; g.globalAlpha = 0.85; g.beginPath(); g.ellipse(x, y, rw, rw * (0.35 + r() * 0.4), r() * 3, 0, Math.PI * 2); g.fill();
+  }
+  g.globalAlpha = 1; g.lineWidth = 6; g.lineJoin = 'round';
+  for (const [t, x, y, c, sz] of [['VILA', 60, 170, '#1f3f9a', 90], ['ART', 380, 150, '#c8201a', 80], ['PAZ', 640, 175, '#1a1a1a', 86], ['RJ', 880, 160, '#2f8a3a', 96]]) {
+    g.font = `bold ${sz}px Arial Black, Arial`; g.strokeStyle = '#111'; g.strokeText(t, x, y); g.fillStyle = c; g.fillText(t, x, y);
+  }
+  for (let i = 0; i < 5; i++) {   // carinhas e rabiscos
+    const x = 120 + i * 200 + r() * 40, y = 70 + r() * 30;
+    g.strokeStyle = '#111'; g.lineWidth = 3; g.beginPath(); g.arc(x, y, 22, 0, Math.PI * 2); g.stroke();
+    g.beginPath(); g.arc(x - 8, y - 5, 3, 0, 7); g.arc(x + 8, y - 5, 3, 0, 7); g.stroke(); g.beginPath(); g.arc(x, y + 4, 10, 0.2, Math.PI - 0.2); g.stroke();
+  }
+  g.fillStyle = 'rgba(60,58,50,.35)'; g.fillRect(0, h - 30, w, 30);   // barra suja embaixo
+});
+const checkerTex = () => canvasTex(128, (g, s) => {   // tabuleiro de xadrez pintado na mesa
+  g.fillStyle = '#c4c1ba'; g.fillRect(0, 0, s, s);
+  for (let i = 0; i < 8; i++) for (let j = 0; j < 8; j++) if ((i + j) % 2) { g.fillStyle = '#2a2a2a'; g.fillRect(16 + i * 12, 16 + j * 12, 12, 12); }
+});
+const arrowSignTex = () => canvasTex(128, (g, s) => {   // placa de vire à esquerda (círculo vermelho, seta preta)
+  g.fillStyle = '#fff'; g.beginPath(); g.arc(s / 2, s / 2, s / 2 - 2, 0, 7); g.fill();
+  g.strokeStyle = '#c81e1e'; g.lineWidth = 14; g.beginPath(); g.arc(s / 2, s / 2, s / 2 - 9, 0, 7); g.stroke();
+  g.fillStyle = '#111'; g.fillRect(s * 0.38, s * 0.45, s * 0.36, s * 0.1);
+  g.beginPath(); g.moveTo(s * 0.24, s * 0.5); g.lineTo(s * 0.42, s * 0.36); g.lineTo(s * 0.42, s * 0.64); g.fill();
+});
+const mixTex = () => canvasTexWH(1024, 192, (g, w, h) => {   // letreiro preto da lanchonete Mix com desenhos de comida
+  g.fillStyle = '#161616'; g.fillRect(0, 0, w, h);
+  const r = rand(5);
+  for (let i = 0; i < 9; i++) { g.strokeStyle = '#d8d8d8'; g.lineWidth = 3; g.beginPath(); g.ellipse(60 + i * 115 + r() * 30, 40 + r() * 110, 26, 18, r() * 3, 0, 7); g.stroke(); }
+  g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = 'bold 120px Arial Black, Arial';
+  g.lineWidth = 10; g.strokeStyle = '#f2c81e'; g.strokeText('MIX', w * 0.3, h * 0.48); g.fillStyle = '#f06a28'; g.fillText('MIX', w * 0.3, h * 0.48);
+  g.font = 'bold 26px Arial'; g.fillStyle = '#f06a28'; g.fillText('LANCHONETE', w * 0.3, h * 0.88);
+});
+const barSignTex = () => canvasTexWH(512, 192, (g, w, h) => {   // placa preta do bar
+  g.fillStyle = '#1c1c1c'; g.fillRect(0, 0, w, h);
+  g.fillStyle = '#c0281e'; g.beginPath(); g.moveTo(20, 60); g.lineTo(200, 40); g.lineTo(200, 110); g.lineTo(20, 130); g.fill();
+  g.fillStyle = '#f4f0e8'; g.font = 'italic bold 30px Georgia, serif'; g.fillText('cerveja', 50, 95);
+  g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = 'bold 60px Arial Black, Arial'; g.fillText('CUBAL', 340, 62); g.fillText('BAR', 340, 132);
+  for (let y = 10; y < h - 10; y += 14) for (let x = 440; x < 500; x += 16) { g.fillStyle = '#c8502a'; g.fillRect(x, y, 10, 4); }
+});
+const rtbTex = () => canvasTexWH(1024, 128, (g, w, h) => {   // toldo amarelo de babado com o nome do bar
+  g.fillStyle = '#f2c81e'; g.fillRect(0, 0, w, h - 24);
+  for (let x = 0; x < w; x += 48) { g.beginPath(); g.arc(x + 24, h - 24, 24, 0, Math.PI); g.fill(); }
+  g.fillStyle = '#5a4a1a'; g.font = 'bold 54px Arial Black, Arial'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText('ESPAÇO      RTB', w / 2, (h - 24) / 2 + 4);
+  g.clearRect(0, h - 24, 0, 0);
+});
+const parkTex = () => canvasTex(128, (g, s) => {   // proibido estacionar (E cortado)
+  g.fillStyle = '#fff'; g.beginPath(); g.arc(s / 2, s / 2, s / 2 - 2, 0, 7); g.fill();
+  g.strokeStyle = '#c81e1e'; g.lineWidth = 12; g.beginPath(); g.arc(s / 2, s / 2, s / 2 - 8, 0, 7); g.stroke();
+  g.fillStyle = '#111'; g.font = 'bold 70px Arial'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('E', s / 2, s / 2 + 3);
+  g.strokeStyle = '#c81e1e'; g.lineWidth = 11; g.beginPath(); g.moveTo(s * 0.26, s * 0.26); g.lineTo(s * 0.74, s * 0.74); g.stroke();
+});
 const stripeTex = () => canvasTex(128, (g, s) => {   // lona listrada da barraca
   const cols = ['#e8781e', '#2e8a3a', '#f0c020', '#2e8a3a'];
   for (let i = 0; i < 8; i++) { g.fillStyle = cols[i % 4]; g.fillRect(i * s / 8, 0, s / 8, s); }
@@ -282,6 +352,38 @@ export function buildBairro(group, MAP, sunLight) {
     bananaTrunk: new THREE.MeshStandardMaterial({ color: 0x6f7a3a, roughness: 0.9 }),
     stripes: new THREE.MeshStandardMaterial({ map: stripeTex(), roughness: 0.8, side: THREE.DoubleSide }),
     silo: new THREE.MeshStandardMaterial({ color: 0xe4e6e6, roughness: 0.5, metalness: 0.3 }),
+    rawConcrete: pbr('concrete', 0.5, { color: 0xa4b0b8 }),   // concreto cinza sem reboco
+    stageTop: new THREE.MeshStandardMaterial({ map: stageTex(), roughness: 0.8 }),
+    mixSign: new THREE.MeshStandardMaterial({ map: mixTex(), roughness: 0.6 }),
+    rtbAwning: new THREE.MeshStandardMaterial({ map: rtbTex(), transparent: true, alphaTest: 0.4, side: THREE.DoubleSide, roughness: 0.8 }),
+    signPark: new THREE.MeshStandardMaterial({ map: parkTex(), transparent: true, alphaTest: 0.5, roughness: 0.5 }),
+    tentOrange: new THREE.MeshStandardMaterial({ color: 0xe8a868, roughness: 0.85, side: THREE.DoubleSide }),
+    tentGreen: new THREE.MeshStandardMaterial({ color: 0x2f5a46, roughness: 0.85, side: THREE.DoubleSide }),
+    shackGreen: new THREE.MeshStandardMaterial({ color: 0x24402e, roughness: 0.8 }),
+    chairBlue: new THREE.MeshStandardMaterial({ color: 0x2a4a9a, roughness: 0.5 }),
+    rubbleBrick: new THREE.MeshStandardMaterial({ color: 0xa8603e, roughness: 0.95 }),   // tijolo quebrado do entulho
+    oldWood: new THREE.MeshStandardMaterial({ color: 0x9a958c, roughness: 0.95 }),   // madeira velha acinzentada dos pallets
+    flower: new THREE.MeshStandardMaterial({ color: 0xf0642a, roughness: 0.7 }),
+    palmLeaf: new THREE.MeshStandardMaterial({ map: T.frond, color: 0xc8e070, transparent: true, alphaTest: 0.4, side: THREE.DoubleSide, roughness: 0.8 }),
+    tilsonSign: signBoard("TILSON'S", '#6a6e72', '#f4f4f0', 'bar e restaurante'),
+    darkGreen: new THREE.MeshStandardMaterial({ color: 0x1f3a32, roughness: 0.6 }),
+    cobogoOrange: new THREE.MeshStandardMaterial({ map: cobogoTex(), color: 0xf0b088, transparent: true, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.9 }),
+    rust: new THREE.MeshStandardMaterial({ color: 0x6a3a22, roughness: 0.9, metalness: 0.3 }),
+    barSign: new THREE.MeshStandardMaterial({ map: barSignTex(), roughness: 0.6 }),
+    whiteTile: pbr('blueTiles', 1.2, { color: new THREE.Color(1.6, 1.6, 1.6), roughness: 0.4 }),
+    redRollup: pbr('shutter', 0.5, { color: 0xd04040 }, { metal: true }),
+    blackRollup: pbr('shutter', 0.5, { color: 0x2a2a2a }, { metal: true }),
+    greyDoor: new THREE.MeshStandardMaterial({ color: 0x9aa2a4, roughness: 0.5, metalness: 0.4 }),
+    brownFrame: new THREE.MeshStandardMaterial({ color: 0x6a3a22, roughness: 0.6 }),
+    graf: new THREE.MeshStandardMaterial({ map: grafTex(), roughness: 0.9 }),
+    checker: new THREE.MeshStandardMaterial({ map: checkerTex(), roughness: 0.7 }),
+    signLeft: new THREE.MeshStandardMaterial({ map: arrowSignTex(), roughness: 0.5 }),
+    redBin: new THREE.MeshStandardMaterial({ color: 0xc0201a, roughness: 0.6 }),
+    pink: new THREE.MeshStandardMaterial({ color: 0xc23a7a, roughness: 0.6 }),
+    pizzaBand: new THREE.MeshStandardMaterial({ map: pizzaBandTex(), roughness: 0.5 }),
+    plastic: new THREE.MeshStandardMaterial({ color: 0xf4f4f0, roughness: 0.45 }),
+    paintDoor: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5, metalness: 0.35 }),
+    paintWall: pbr('plaster', 0.4, { vertexColors: true, color: new THREE.Color(1.3, 1.3, 1.3) }, { normal: 0.4 }),
   };
 
   // ---- lotes de geometria juntados por material (poucos desenhos = leve)
@@ -393,6 +495,7 @@ export function buildBairro(group, MAP, sunLight) {
   const SIGNS = { mercearia: signBoard('BAR E MERCEARIA', '#f2d23a', '#b8201a', 'Café da manhã · Almoço · Self-service'), associacao: signBoard('ASSOCIAÇÃO DE MORADORES', 'rgba(0,0,0,0)', '#1f3f9a', 'DA VILA RESIDENCIAL'),
     lanches: signBoard('LANCHES', '#151515', '#ff7a3c', 'lanchonete · açaí'), bar: signBoard('BAR', '#1e5a32', '#f4f0e0', 'cerveja gelada'), bar2: signBoard('BAR', '#e8e2d0', '#a0201a', 'petiscos'),
     mercadinho: signBoard('MERCADINHO', '#f4f4f0', '#1f4fa8', 'da Vila Residencial'), cantinho: signBoard('CANTINHO SABOROSO', '#b8261c', '#fff2c0', 'quentinhas · lanches'), restaurante: signBoard('BAR E RESTAURANTE', '#f4efe0', '#a8201a', 'almoço · petiscos') };
+  const KSIGNS = { pizza: signBoard('PIZZAS', '#151515', '#f4c430', 'esfirras · lanches'), acai: signBoard('AÇAÍ', '#f6f2e6', '#6a1f7a', 'sucos · vitaminas'), padaria: signBoard('PADARIA', '#f2f0e8', '#c0281e', 'pão quentinho') };
   // ---- casa: paredes de reboco de verdade tingido com a cor da casa, barra suja embaixo, lajes aparentes,
   // platibanda com rufo, caixa d'água, às vezes o último andar ainda no tijolo com vergalhão para fora;
   // nas fachadas da rua: janelas com moldura e peitoril, portas, portões de enrolar, varandas, ar-condicionado,
@@ -512,27 +615,54 @@ export function buildBairro(group, MAP, sunLight) {
   {
     const r2 = rand(99);
     for (let z = S.minZ - 14; z < S.maxZ + 14; z += 7 + r2() * 4) {
+      if (z > 39 && z < 57) { z = 57; continue; }   // a Vitória Régia continua para oeste fora do mapa
       const floors = r2() < 0.45 ? 1 : r2() < 0.8 ? 2 : 3;
       house({ min: [S.minX - 13, 0, z], max: [S.minX - 1.5, 3.1 * floors, z + 6 + r2() * 4], color: (r2() * 1000) | 0, roof: floors === 1 ? 1 : 0, brick: r2() < 0.22 ? 1 : 0 }, false);
+    }
+    {   // a Vitória Régia seguindo para oeste fora do mapa, com casas dos dois lados
+      const vr = MAP.streets.find(([x0, z0, x1, z1]) => x0 <= S.minX + 1.5 && z0 > 40 && x1 - x0 > z1 - z0);
+      if (vr) {
+        // a rua (já desenhada com o bloquete) segue ~17 m além do limite, com casas que têm janelas e portas para ela,
+        // obra com areia, brita e tijolos, carros parados e, no fim, a casa com portão escuro (foto 10 R. Vitória Régia)
+        const E = vr[0];
+        const north = [[S.minX - 6, 6.4, 0xd8d0b8], [S.minX - 11, 3.3, 0xe8e2c8], [E, 6.2, 0xc8d0b0]];
+        let xa = S.minX - 0.3; for (const [xb, h, hex] of north) { house({ min: [xb, 0, vr[1] - 8], max: [xa, h, vr[1]], hex, roof: h < 4 ? 1 : 0, brick: 0 }); xa = xb; }
+        const south = [[S.minX - 5, 6.4, 0xe4dcc4], [S.minX - 9, 3.3, 0xeeeeea], [E, 6.2, 0xd8b8a0]];
+        xa = S.minX - 0.3; for (const [xb, h, hex] of south) { house({ min: [xb, 0, vr[3]], max: [xa, h, vr[3] + 8], hex, roof: h < 4 ? 1 : 0, brick: xb === E ? 1 : 0 }); xa = xb; }
+        house({ min: [E - 6, 0, vr[1] - 6], max: [E, 3.3, vr[3] + 6], hex: 0xdedcd2, roof: 0, brick: 0, zinc: 1 }, false);
+        const mz = (vr[1] + vr[3]) / 2;
+        box(M.dark, E, 0, mz - 1.4, E + 0.06, 2.3, mz + 1.4, 1, null, false);                                   // portão escuro no fim
+        for (let u = -1.3; u <= 1.3; u += 0.18) box(M.alu, E + 0.06, 0.1, mz + u - 0.015, E + 0.09, 2.2, mz + u + 0.015, 1, null, false);
+        put(M.sand, xform(new THREE.ConeGeometry(1.6, 0.8, 12), [S.minX - 4, 0.4, vr[3] - 1.6]), true);        // areia e brita da obra
+        put(M.concrete, xform(new THREE.ConeGeometry(1.2, 0.6, 10), [S.minX - 6.5, 0.3, vr[3] - 1.4]), true);
+        for (let k = 0; k < 4; k++) box(M.brick, S.minX - 9 + k * 0.05, 0, vr[3] - 2.6 + k * 0.4, S.minX - 8.2, 0.9 - k * 0.15, vr[3] - 2.2 + k * 0.4, 1, 0xffffff);   // tijolos empilhados
+        drawCar({ min: [S.minX - 12.4, 0, vr[1] + 1.5], max: [S.minX - 8.3, 1.45, vr[1] + 3.2], hex: 0xeeeeee, kind: 'car', dir: 0 });
+        drawCar({ min: [S.minX - 17, 0, vr[1] + 1.5], max: [S.minX - 12.9, 1.45, vr[1] + 3.2], hex: 0xe8c838, kind: 'car', dir: 0 });
+      }
     }
     flat(M.grass, S.minX - 1.5, S.minZ - 60, S.maxX + 60, S.minZ, 0.01, 5);
     flat(M.grass, S.maxX, S.minZ, S.maxX + 60, S.maxZ + 60, 0.01, 5);
     flat(M.grass, S.minX - 1.5, S.maxZ, S.maxX, S.maxZ + 60, 0.01, 5);
-    for (let x = S.minX; x < S.maxX + 14; x += 4 + r2() * 3) { tree(x, 0, S.maxZ + 3 + r2() * 6, 1.4 + r2() * 0.8); if (r2() < 0.4) palm(x + 1.5, S.maxZ + 2.5 + r2() * 3, 7 + r2() * 4); }
+    for (const [x0, z0, x1, z1] of MAP.streets) if (z1 > S.maxZ) flat(M.concrete, x0, S.maxZ, x1, z1, 0.011, 1.5);   // calçada das ruas que passam da cerca do sul
+    for (let x = S.minX; x < S.maxX + 14; x += 4 + r2() * 3) if (Math.abs(x - 8) > 4 && x > -2 && (x < 19 || x > 29)) { tree(x, 0, S.maxZ + 3 + r2() * 6, 1.4 + r2() * 0.8); if (r2() < 0.4) palm(x + 1.5, S.maxZ + 2.5 + r2() * 3, 7 + r2() * 4); }
     for (let z = S.minZ; z < S.maxZ; z += 4 + r2() * 3) tree(S.maxX + 2 + r2() * 6, 0, z, 1.4 + r2() * 0.8);
     for (let x = S.minX; x < S.maxX; x += 9 + r2() * 8) tree(x, 0, S.minZ - 6 - r2() * 10, 1.2 + r2() * 0.6);
-    woodFence(S.minX, S.maxZ - 0.1, S.maxX, S.maxZ + 0.05, 1.5);   // cerca do outro lado da Vitória Régia
+    {   // cerca do outro lado da Vitória Régia (com o trecho da casa ao lado do portão, que tem cerca de pallets)
+      const gh = (MAP.decor || []).find(d => d.type === 'gatehouse'), wg = (MAP.decor || []).find(d => d.type === 'woodgate');
+      if (gh && wg) { woodFence(wg.x + 3.5, S.maxZ - 0.1, S.maxX, S.maxZ + 0.05, 1.5); }   // abre no vão da Acácias
+      else woodFence(S.minX, S.maxZ - 0.1, S.maxX, S.maxZ + 0.05, 1.5);
+    }
   }
 
-  // ---- campo de futebol (base CT): traves nas pontas compridas
+  // ---- campo de futebol (base CT): traves nas pontas norte e sul
   const C = MAP.areas.campo;
   flat(M.grass, C[0], C[1], C[2], C[3], 0.02, 6);
   const cmx = (C[0] + C[2]) / 2, cmz = (C[1] + C[3]) / 2;
-  for (const xx of [C[0] + 3, C[2] - 3]) flat(M.dirt, xx - 2, cmz - 3, xx + 2, cmz + 3, 0.03, 3);
+  for (const zz of [C[1] + 3, C[3] - 3]) flat(M.dirt, cmx - 3, zz - 2, cmx + 3, zz + 2, 0.03, 3);
   flat(M.dirt, cmx - 1.5, cmz - 1.5, cmx + 1.5, cmz + 1.5, 0.03, 3);
-  for (const xx of [C[0] + 1.2, C[2] - 1.2]) {
-    for (const sz of [-1, 1]) box(M.white, xx - 0.06, 0, cmz + sz * 2.5 - 0.06, xx + 0.06, 2.0, cmz + sz * 2.5 + 0.06);
-    box(M.white, xx - 0.06, 1.94, cmz - 2.56, xx + 0.06, 2.06, cmz + 2.56);
+  for (const zz of [C[1] + 1.2, C[3] - 1.2]) {
+    for (const sx of [-1, 1]) box(M.white, cmx + sx * 2.5 - 0.06, 0, zz - 0.06, cmx + sx * 2.5 + 0.06, 2.0, zz + 0.06);
+    box(M.white, cmx - 2.56, 1.94, zz - 0.06, cmx + 2.56, 2.06, zz + 0.06);
   }
   // ---- cercas (alambrado do campo) e grades baixas (parquinho)
   for (const b of MAP.boxes) {
@@ -555,7 +685,7 @@ export function buildBairro(group, MAP, sunLight) {
   // ---- chão das áreas novas: quadra de areia, trilha de terra, mato
   const AR = MAP.areas;
   flat(M.sand, AR.areia[0], AR.areia[1], AR.areia[2], AR.areia[3], 0.04, 2);
-  for (const k of ['trilha']) flat(M.dirt, AR[k][0], AR[k][1], AR[k][2], AR[k][3], 0.03, 2);
+  for (const k of ['trilha', 'miniP']) flat(M.dirt, AR[k][0], AR[k][1], AR[k][2], AR[k][3], 0.03, 2);
   for (const k of ['mato', 'mato2', 'fimPap', 'gram']) flat(M.grass, AR[k][0], AR[k][1], AR[k][2], AR[k][3], 0.03, 4);
   {   // rede de vôlei entre os dois postes
     const q = AR.areia, mx = (q[0] + q[2]) / 2, mz = (q[1] + q[3]) / 2;
@@ -704,7 +834,7 @@ export function buildBairro(group, MAP, sunLight) {
     const [x0, y0, z0] = b.min, [x1, y1, z1] = b.max, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, h = y1 - y0;
     switch (b.mat) {
       case 'crate': box(M.crate, x0, y0, z0, x1, y1, z1, x1 - x0); break;
-      case 'post': if (h > 2.2) cyl(M.white, cx, 0, cz, 0.05, 0.05, h, 8); break;   // postes da rede de vôlei (as traves do campo são desenhadas à parte)
+      case 'post': if (b.rust) { cyl(M.rust, cx, 0, cz, 0.05, 0.05, h, 8); break; } if (h > 2.2) cyl(M.white, cx, 0, cz, 0.05, 0.05, h, 8); break;   // postes da rede de vôlei (as traves do campo são desenhadas à parte)
       case 'swing': {
         for (const sz of [-1, 1]) { const fz = cz + sz * 1.6; bar(M.yellow, [cx - 0.8, 0, fz], [cx, 2.3, fz], 0.05, true); bar(M.yellow, [cx + 0.8, 0, fz], [cx, 2.3, fz], 0.05, true); }
         bar(M.yellow, [cx, 2.3, cz - 1.65], [cx, 2.3, cz + 1.65], 0.055, true);
@@ -717,23 +847,206 @@ export function buildBairro(group, MAP, sunLight) {
         const s = new THREE.BoxGeometry(0.6, 0.05, 2.0); s.rotateX(0.6); s.translate(cx, 0.75, z0 + 1.8); put(M.red, s, true);
         break;
       }
-      case 'table': cyl(M.concrete, cx, 0, cz, 0.25, 0.25, 0.75); cyl(M.concrete, cx, 0.72, cz, 0.6, 0.6, 0.08, 16); for (let k = 0; k < 4; k++) cyl(M.concrete, cx + Math.cos(k * Math.PI / 2) * 0.95, 0, cz + Math.sin(k * Math.PI / 2) * 0.95, 0.18, 0.18, 0.45, 8); break;
+      case 'table':
+        if (b.sq) {   // mesa de xadrez quadrada com quatro banquinhos
+          box(M.concrete, cx - 0.12, 0, cz - 0.12, cx + 0.12, 0.72, cz + 0.12, 1);
+          box(M.concrete, x0, 0.72, z0, x1, h, z1, 1);
+          { const g = new THREE.PlaneGeometry(0.62, 0.62); g.rotateX(-Math.PI / 2); g.translate(cx, h + 0.005, cz); put(M.checker, g, false); }
+          for (let k = 0; k < 4; k++) { const ox = cx + Math.cos(k * Math.PI / 2) * 0.8, oz = cz + Math.sin(k * Math.PI / 2) * 0.8; cyl(M.concrete, ox, 0, oz, 0.09, 0.09, 0.4, 8); cyl(M.concrete, ox, 0.4, oz, 0.19, 0.19, 0.07, 12); }
+          break;
+        }
+        if (x1 - x0 > z1 - z0) {   // mesa de xadrez: tampo retangular com tabuleiro e dois bancos compridos
+          box(M.concrete, cx - 0.12, 0, cz - 0.12, cx + 0.12, 0.72, cz + 0.12, 1);
+          box(M.concrete, x0, 0.72, z0, x1, 0.8, z1, 1);
+          { const g = new THREE.PlaneGeometry(0.7, 0.7); g.rotateX(-Math.PI / 2); g.translate(cx, 0.805, cz); put(M.checker, g, false); }
+          for (const sz of [-1, 1]) { const bz = cz + sz * 0.75; box(M.concrete, cx - 0.08, 0, bz - 0.08, cx + 0.08, 0.42, bz + 0.08, 1); box(M.concrete, x0 + 0.1, 0.42, bz - 0.17, x1 - 0.1, 0.48, bz + 0.17, 1); }
+          break;
+        }
+        cyl(M.concrete, cx, 0, cz, 0.25, 0.25, 0.75); cyl(M.concrete, cx, 0.72, cz, 0.6, 0.6, 0.08, 16); for (let k = 0; k < 4; k++) cyl(M.concrete, cx + Math.cos(k * Math.PI / 2) * 0.95, 0, cz + Math.sin(k * Math.PI / 2) * 0.95, 0.18, 0.18, 0.45, 8); break;
       case 'bench': {
-        const bm = b.blue ? M.blueMetal : M.wood;
+        const bm = b.blue ? M.blueMetal : b.black ? M.dark : M.wood;
         box(bm, x0, 0.42, z0, x1, 0.48, z1);
         if (x1 - x0 > z1 - z0) { box(bm, x0, 0.48, z1 - 0.06, x1, 0.85, z1); for (const xx of [x0 + 0.15, x1 - 0.15]) box(M.dark, xx - 0.03, 0, z0 + 0.05, xx + 0.03, 0.42, z1 - 0.05); }
         else { box(bm, x1 - 0.06, 0.48, z0, x1, 0.85, z1); for (const zz of [z0 + 0.15, z1 - 0.15]) box(M.dark, x0 + 0.05, 0, zz - 0.03, x1 - 0.05, 0.42, zz + 0.03); }
         break;
       }
       case 'bollard': cyl(M.white, cx, 0, cz, 0.11, 0.1, 0.75, 10); break;
-      case 'trash': cyl(M.beige, cx, 0, cz, 0.22, 0.26, 0.85, 14); cyl(M.dark, cx, 0.85, cz, 0.27, 0.27, 0.06, 14); break;
+      case 'trash': if (b.square) { box(M.beige, x0, 0, z0, x1, h, z1, 1); box(M.dark, x0 + 0.08, h - 0.02, z0 + 0.08, x1 - 0.08, h + 0.005, z1 - 0.08, 1, null, false); break; } cyl(M.beige, cx, 0, cz, 0.22, 0.26, 0.85, 14); cyl(M.dark, cx, 0.85, cz, 0.27, 0.27, 0.06, 14); break;
       case 'sign':
         bar(M.alu, [cx, 0, cz], [cx, 2.62, cz], 0.04, true);
-        put(M.sign, xform(new THREE.CylinderGeometry(0.32, 0.32, 0.03, 24), [cx, 2.3, cz - 0.06], 0, Math.PI / 2), false);
+        if (b.park) { const g = new THREE.PlaneGeometry(0.64, 0.64); g.rotateY(Math.PI); g.translate(cx, 2.3, cz - 0.06); put(M.signPark, g, false); put(M.alu, xform(new THREE.CylinderGeometry(0.325, 0.325, 0.02, 24), [cx, 2.3, cz - 0.035], 0, Math.PI / 2), false); break; }   // plano virado para o norte (o texto não gira)
+        put(b.left ? M.signLeft : M.sign, xform(new THREE.CylinderGeometry(0.32, 0.32, 0.03, 24), [cx, 2.3, cz - 0.06], 0, Math.PI / 2), false);
         put(M.alu, xform(new THREE.CylinderGeometry(0.325, 0.325, 0.02, 24), [cx, 2.3, cz - 0.035], 0, Math.PI / 2), false);   // verso cinza
         break;
       case 'palm': palm(cx, cz, b.ph || 8); break;
-      case 'stage': box(M.redStep, x0, 0, z0, x1, 0.25, z1, 1); box(M.concrete, x0 + 0.35, 0, z0 + 0.35, x1 - 0.35, h, z1 - 0.35, 1.5); break;
+      case 'stage': {   // quarto de círculo com o centro no canto de dentro (as duas caixas de colisão começam nele)
+        if (!b.main) break;
+        const r = b.r, th = [0, Math.PI / 2];
+        put(M.yellow, xform(new THREE.CylinderGeometry(r, r, h - 0.06, 24, 1, true, th[0], th[1]), [x0, (h - 0.06) / 2, z0]), true);
+        put(M.stageTop, xform(new THREE.CylinderGeometry(r, r, 0.06, 24, 1, false, th[0], th[1]), [x0, h - 0.03, z0]), true);
+        put(M.redStep, xform(new THREE.CylinderGeometry(r + 0.04, r + 0.04, 0.12, 24, 1, true, th[0], th[1]), [x0, 0.06, z0]), false);
+        break;
+      }
+      case 'steps': box(M.redStep, x0, 0, z0, x1, h * 0.5, z1, 1); box(M.redStep, x0, h * 0.5, z0, x1 - (x1 - x0) * 0.5, h, z1, 1); break;
+      case 'kiosk': drawKiosk(b); break;
+      case 'door': {   // portão que abre: peça separada, girando na dobradiça (oeste ou leste, b.hinge); o main.js anima b.mesh
+        const w = x1 - x0, sg = b.hinge === 'e' ? -1 : 1, pivot = new THREE.Group(); pivot.position.set(sg > 0 ? x0 : x1, 0, cz);
+        const leaf = new THREE.Mesh(new THREE.BoxGeometry(w - 0.04, h - 0.05, 0.06), M.doorWood); leaf.position.set(sg * w / 2, h / 2 + 0.03, 0); leaf.castShadow = leaf.receiveShadow = true; pivot.add(leaf);
+        for (let u = 0.12; u < w - 0.05; u += 0.2) { const r = new THREE.Mesh(new THREE.BoxGeometry(0.02, h - 0.1, 0.075), M.dark); r.position.set(sg * u, h / 2 + 0.03, 0); pivot.add(r); }
+        const handle = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.03, 0.12), M.alu); handle.position.set(sg * (w - 0.14), 1.05, 0); pivot.add(handle);
+        pivot.rotation.y = b.open ? -1.45 * sg : 0; group.add(pivot); b.mesh = pivot;
+        break;
+      }
+      case 'raw': {   // sobrado de concreto sem reboco, com cobogó de cimento e a laje marcada
+        // frente para a Vitória Régia (foto 20 R. Acácias): térreo com o vão da garagem e o cobogó, laje saliente com mureta
+        // e o andar de cima recuado com três janelas sem esquadria
+        const SB = 1.2;   // recuo do andar de cima
+        box(M.rawConcrete, x0, 0, z0, x1, 3.0, z1, 0.9);
+        box(M.rawConcrete, x0, 3.0, z0 + SB, x1, h, z1, 0.9);
+        box(M.slab, x0 - 0.2, 3.0, z0 - 0.8, x1 + 0.35, 3.25, z1, 1);
+        box(M.rawConcrete, x0 - 0.2, 3.25, z0 - 0.8, x1 + 0.35, 3.85, z0 - 0.62, 0.9, null, false);
+        box(M.rawConcrete, x0, h, z0 + SB, x1, h + 0.9, z1, 0.9, null, false);
+        box(M.winDark, x1 - 2.6, 0, z0 - 0.02, x1 - 0.3, 2.5, z0, 1, null, false);                 // vão da garagem (lado da Orquídeas)
+        box(M.rawConcrete, x1 - 1.55, 0, z0 - 0.1, x1 - 1.35, 2.5, z0, 1, null, false);
+        box(M.glassBlock, x0 + 2.0, 0.8, z0 - 0.02, x0 + 3.7, 2.3, z0, 0.4, null, false);           // cobogó
+        box(M.winDark, x0 + 0.6, 0, z0 - 0.02, x0 + 1.5, 2.1, z0, 1, null, false);                 // porta sem folha
+        for (const wx of [x0 + 1.0, x0 + 3.4, x0 + 5.6]) box(M.winDark, wx, 3.9, z0 + SB - 0.02, wx + 1.3, 4.9, z0 + SB, 1, null, false);
+        box(M.glassBlock, x1, 0.9, z0 + 4.2, x1 + 0.02, 2.2, z0 + 5.6, 0.4, null, false);
+        box(M.winDark, x1, 0, z0 + 1.0, x1 + 0.02, 2.2, z0 + 2.4, 1, null, false);
+        box(M.winDark, x1, 4.0, z0 + 1.5, x1 + 0.02, 5.2, z0 + 3.0, 1, null, false);
+        break;
+      }
+      case 'ivywall': {   // muro coberto de hera, com o relógio de luz e as casas de telha atrás
+        box(M.plaster, x0, 0, z0, x1, h, z1, 2.5, 0xe0dcc8);
+        for (let z = z0 + 0.4; z < z1 - 0.4; z += 0.9) put(M.foliage, xform(new THREE.PlaneGeometry(1.4, 1.8), [x0 - 0.04, 0.9 + ((z * 3) % 1) * 0.4, z], Math.PI / 2), true);
+        box(M.fenceGreen, x0 - 0.12, 1.2, z0 + 0.5, x0, 1.8, z0 + 0.9, 1, null, false);
+        box(M.alu, x0 - 0.1, 1.0, z0 + 1.0, x0, 1.4, z0 + 1.3, 1, null, false);
+        house({ min: [x1 + 0.3, 0, z0 + 0.4], max: [x1 + 4.4, 3.0, z0 + 7], hex: 0xe8e2a8, roof: 1, brick: 0 }, false);
+        house({ min: [x1 + 0.3, 0, z0 + 7.5], max: [x1 + 4.5, 3.4, z1], hex: 0xe6e0d4, roof: 1, brick: 0 }, false);
+        break;
+      }
+      case 'rtb': {   // barraco verde-escuro aberto para a rua, com toldo amarelo de babado na frente e no lado norte
+        box(M.shackGreen, x1 - 0.15, 0, z0, x1, h, z1, 1);
+        box(M.shackGreen, x0 + 0.4, 0, z0, x1, h, z0 + 0.12, 1);
+        box(M.shackGreen, x0 + 0.4, 0, z1 - 0.12, x1, h, z1, 1);
+        box(M.winDark, x0 + 0.4, h - 0.05, z0, x1, h, z1, 1, null, false);
+        box(M.white, x0 + 1.2, 0, z1 - 1.6, x0 + 1.7, 2.0, z1 - 0.9, 1);                                     // geladeira
+        box(M.crate, x1 - 1.2, 0, z0 + 1.0, x1 - 0.2, 0.9, z0 + 2.4, 1);                                    // balcão de madeira
+        const aw = (g, x, z, ry) => { g.rotateY(ry); g.translate(x, h - 0.1, z); put(M.rtbAwning, g, true); };
+        { const g = new THREE.PlaneGeometry(z1 - z0, 0.75); g.rotateX(0.5); aw(g, x0 + 0.1, (z0 + z1) / 2, -Math.PI / 2); }
+        { const g = new THREE.PlaneGeometry(x1 - x0 - 0.4, 0.75); g.rotateX(0.5); aw(g, (x0 + x1) / 2 + 0.2, z0 - 0.15, Math.PI); }
+        for (const [cx2, cz2] of [[x0 - 0.6, z0 + 1.0], [x0 - 0.9, z0 + 2.0], [x0 + 0.7, z1 - 2.6]]) {   // cadeiras de plástico azuis
+          box(M.chairBlue, cx2 - 0.22, 0.42, cz2 - 0.22, cx2 + 0.22, 0.46, cz2 + 0.22, 1, null, false);
+          box(M.chairBlue, cx2 + 0.18, 0.46, cz2 - 0.22, cx2 + 0.22, 0.85, cz2 + 0.22, 1, null, false);
+          for (const ox of [-0.19, 0.19]) for (const oz of [-0.19, 0.19]) bar(M.chairBlue, [cx2 + ox, 0, cz2 + oz], [cx2 + ox, 0.42, cz2 + oz], 0.02);
+        }
+        break;
+      }
+      case 'drum': {   // tambor de trânsito laranja e branco
+        for (let k = 0; k < 5; k++) cyl(k % 2 ? M.white : M.orange, cx, k * 0.19, cz, 0.28 - k * 0.01, 0.28 - k * 0.01, 0.19, 14);
+        cyl(M.dark, cx, 0, cz, 0.34, 0.34, 0.05, 14);
+        break;
+      }
+      case 'mix': {   // sobrado da lanchonete Mix: embaixo dois portões de enrolar (preto e vermelho) com azulejo branco; em cima varanda com tela
+        box(M.whiteTile, x0, 0, z0, x1, 3.1, z1, 1);
+        box(M.blackRollup, x0 + 0.15, 0, z1, x0 + 2.35, 2.55, z1 + 0.04, 1, null, false);
+        box(M.redRollup, x0 + 2.55, 0, z1, x1 - 0.15, 2.55, z1 + 0.04, 1, null, false);
+        box(M.slab, x0 - 0.1, 3.0, z0, x1 + 0.1, 3.25, z1 + 0.9, 1);
+        { const g = new THREE.PlaneGeometry(x1 - x0 - 0.1, 0.75); g.translate((x0 + x1) / 2, 2.85, z1 + 0.91); put(M.mixSign, g, false); }
+        box(M.concrete, x0, 3.25, z0, x1, h, z1, 0.8);                                                   // bloco cinza sem reboco
+        box(M.plaster, x0, 3.25, z1, x0 + 0.15, h, z1 + 1.0, 2.5, 0xd8707e);                               // parede rosa da varanda na ponta
+        box(M.plaster, x0, 3.25, z1 + 0.9, x0 + 1.8, 4.3, z1 + 1.0, 2.5, 0xd8707e);                  // parapeito rosa
+        box(M.winDark, x0 + 0.2, 3.5, z1, x0 + 1.6, 5.6, z1 + 0.02, 1, null, false);
+        houseWindow([x0 + 3.2, 4.8, z1], [0, 0, 1], 1.1, 1.1, 'grade', M.alu);
+        box(M.concrete, x0 - 0.04, h, z0 - 0.04, x1 + 0.04, h + 0.9, z1 + 0.04, 0.8, null, false);          // mureta do terraço
+        for (const [px, pz] of [[x0, z0], [x1, z0], [x0, z1], [x1, z1]]) bar(M.alu, [px, h + 0.9, pz], [px, h + 2.4, pz], 0.04, true);
+        { const R = [[x0 - 0.3, h + 2.5, z0 - 0.3], [x1 + 0.3, h + 2.5, z0 - 0.3], [x1 + 0.3, h + 2.25, z1 + 0.5], [x0 - 0.3, h + 2.25, z1 + 0.5]];
+          const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute([0, 2, 1, 0, 3, 2].flatMap(i => R[i]), 3));
+          g.setAttribute('uv', new THREE.Float32BufferAttribute([0, 2, 1, 0, 3, 2].flatMap(i => [R[i][0] * 0.8, R[i][2] * 0.8]), 2)); g.computeVertexNormals(); put(M.zincRoof, g, true); }
+        for (const y of [4.6, 5.5]) put(M.alu, xform(new THREE.CylinderGeometry(0.32, 0.28, 0.1, 16), [x1 + 0.35, y, z1 - 0.3], 0, 0, Math.PI / 2 - 0.3), false);   // antenas parabólicas
+        bar(M.pvc, [x1 + 0.08, 0, z1 + 0.06], [x1 + 0.08, h, z1 + 0.06], 0.05, false);
+        break;
+      }
+      case 'shed': {   // quartinho encostado no sobrado: porta de madeira e telhadinho de fibrocimento
+        box(M.plaster, x0, 0, z0, x1, h, z1, 2.5, 0x8e9296);
+        box(M.doorWood, x0 + 0.25, 0, z1, x1 - 0.25, 1.95, z1 + 0.04, 1, null, false);
+        const R = [[x0 - 0.2, h + 0.3, z0], [x1 + 0.2, h + 0.3, z0], [x1 + 0.2, h - 0.05, z1 + 0.5], [x0 - 0.2, h - 0.05, z1 + 0.5]];
+        const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute([0, 2, 1, 0, 3, 2].flatMap(i => R[i]), 3));
+        g.setAttribute('uv', new THREE.Float32BufferAttribute([0, 2, 1, 0, 3, 2].flatMap(i => [R[i][0] * 0.8, R[i][2] * 0.8]), 2)); g.computeVertexNormals(); put(M.zincRoof, g, true);
+        break;
+      }
+      case 'tilson': {   // térreo branco com porta de vidro e janelas, faixa verde-escura com beiral de telha, andar de cima cinza com parabólicas
+        box(M.paintWall, x0, 0, z0, x1, 3.1, z1, 2.5, 0xe8e8e4);
+        box(M.grimeBand, x0 - 0.02, 0, z0 - 0.02, x1 + 0.02, 0.4, z1 + 0.02, 1, 0xa8a8a4, false);
+        box(M.plaster, x0, 3.1, z0, x1, h, z1, 2.5, 0x8a8e92);
+        box(M.darkGreen, x0 - 0.1, 2.9, z0 - 0.1, x1 + 0.7, 3.45, z1 + 0.7, 1);                              // faixa verde que contorna o térreo
+        box(M.roof, x0 - 0.1, 3.45, z1 + 0.35, x1 + 0.75, 3.55, z1 + 0.75, 1, null, false);
+        box(M.roof, x1 + 0.35, 3.45, z0 - 0.1, x1 + 0.75, 3.55, z1 + 0.75, 1, null, false);
+        const dz = z1 - 1.6;   // porta de vidro na Papoulas, perto da pracinha
+        box(M.alu, x1, 0, dz - 0.6, x1 + 0.05, 2.3, dz + 0.6, 1, null, false);
+        box(M.glass, x1 + 0.05, 0.05, dz - 0.55, x1 + 0.07, 2.25, dz + 0.55, 1, null, false);
+        const gates = []; for (let gz = z1 - 7.5; gz > z0 + 3; gz -= 8.5) gates.push(gz);   // portões de garagem ao longo da Papoulas
+        for (let wz = z1 - 3.6; wz > z0 + 0.8; wz -= 2.6) if (gates.every(gz => Math.abs(gz - wz) > 1.9)) houseWindow([x1, 1.6, wz], [1, 0, 0], 0.9, 1.0, 'aluminio', M.alu);   // o prédio vai até perto da esquina da Cravos
+        for (let wz = z1 - 1.4; wz > z0 + 0.6; wz -= 2.0) houseWindow([x1, 4.8, wz], [1, 0, 0], 0.8, 1.2, 'aluminio', M.alu);
+        for (const wz of gates) { box(M.grimeBand, x1, 0, wz - 1.4, x1 + 0.04, 2.6, wz + 1.4, 1, 0x9a9ea2, false); box(M.rollup, x1 + 0.04, 0, wz - 1.25, x1 + 0.07, 2.4, wz + 1.25, 1, null, false); }   // portões de garagem ao longo da Papoulas
+        houseWindow([x0 + 2.4, 4.8, z1], [0, 0, 1], 0.8, 1.2, 'aluminio', M.alu);
+        { const g = new THREE.PlaneGeometry(1.0, 0.6); g.rotateY(Math.PI / 2); g.translate(x1 + 0.03, 4.8, z1 - 2.4); put(M.tilsonSign, g, false); }
+        for (const [y, zz] of [[5.6, z1 - 0.5], [5.4, z1 - 6.4]]) put(M.alu, xform(new THREE.CylinderGeometry(0.32, 0.28, 0.1, 16), [x1 + 0.4, y, zz], 0, 0, -Math.PI / 2 + 0.3), false);
+        bar(M.pvc, [x0 + 0.4, 3.5, z1 + 0.08], [x1 - 0.4, 3.9, z1 + 0.08], 0.07, false);                        // cano branco na fachada da pracinha
+        gable(x0 - 0.3, z0 - 0.3, x1 + 0.3, z1 + 0.3, h, true, 0.9);
+        break;
+      }
+      case 'cubal': {   // bar de reboco cinza descascado: janela gradeada com cobogó em cima, placa preta, porta dupla de metal, faixa de cobogó
+        box(M.plasterPeel, x0, 0, z0, x1, h, z1, 2.2, 0xa8acb0);
+        box(M.grimeBand, x0 - 0.025, 0, z0 - 0.025, x1 + 0.025, 0.45, z1 + 0.025, 1, 0x6a6c70, false);
+        const wx = x0 + 1.5;
+        box(M.sill, wx - 0.6, 1.15, z1, wx + 0.6, 1.95, z1 + 0.05, 1, null, false);
+        box(M.winDark, wx - 0.5, 1.22, z1 + 0.05, wx + 0.5, 1.88, z1 + 0.06, 1, null, false);
+        for (let y = 1.3; y < 1.88; y += 0.11) box(M.fenceGreen, wx - 0.5, y, z1 + 0.06, wx + 0.5, y + 0.05, z1 + 0.08, 1, null, false);
+        box(M.cobogo, wx - 0.35, 2.15, z1, wx + 0.35, 2.6, z1 + 0.02, 0.45, null, false);
+        { const g = new THREE.PlaneGeometry(3.3, 1.15); g.translate(x1 - 2.6, 2.6, z1 + 0.04); put(M.barSign, g, false); }
+        const dx = x1 - 2.6;
+        box(M.brownFrame, dx - 0.85, 0, z1, dx + 0.85, 2.05, z1 + 0.05, 1, null, false);
+        for (const s2 of [-1, 1]) box(M.greyDoor, dx + s2 * 0.41 - 0.36, 0.05, z1 + 0.05, dx + s2 * 0.41 + 0.36, 2.0, z1 + 0.07, 1, null, false);
+        box(M.cobogoOrange, x0, h - 0.4, z1, x1, h - 0.05, z1 + 0.02, 0.35, null, false);
+        box(M.cobogoOrange, x1, h - 0.4, z0, x1 + 0.02, h - 0.05, z1, 0.35, null, false);
+        box(M.brownFrame, x1, 0, z0 + 1.0, x1 + 0.04, 2.1, z0 + 2.4, 1, null, false);                       // portão cinza no fundo do lado da pracinha
+        box(M.greyDoor, x1 + 0.04, 0.05, z0 + 1.05, x1 + 0.06, 2.05, z0 + 2.35, 1, null, false);
+        { const g = new THREE.PlaneGeometry(2.6, 1.0); g.rotateY(Math.PI / 2); g.translate(x1 + 0.05, 2.55, z1 - 1.6); put(M.barSign, g, false); }
+        { const A = [[x1, h - 0.1, z0 - 0.2], [x1 + 1.6, h - 0.55, z0 - 0.2], [x1 + 1.6, h - 0.55, z1 + 0.35], [x1, h - 0.1, z1 + 0.35]];   // cobertura de telha sobre a porta lateral
+          const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute([0, 2, 1, 0, 3, 2].flatMap(i => A[i]), 3));
+          g.setAttribute('uv', new THREE.Float32BufferAttribute([0, 2, 1, 0, 3, 2].flatMap(i => [A[i][0] * 0.8, A[i][2] * 0.8]), 2)); g.computeVertexNormals(); put(M.zincRoof, g, true); }
+        const R = [[x0 - 0.1, h + 0.5, z0 - 0.2], [x1 + 0.3, h + 0.5, z0 - 0.2], [x1 + 0.3, h, z1 + 0.35], [x0 - 0.1, h, z1 + 0.35]];   // telhado de fibrocimento caindo para a Margaridas
+        const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute([0, 2, 1, 0, 3, 2].flatMap(i => R[i]), 3));
+        g.setAttribute('uv', new THREE.Float32BufferAttribute([0, 2, 1, 0, 3, 2].flatMap(i => [R[i][0] * 0.8, R[i][2] * 0.8]), 2)); g.computeVertexNormals(); put(M.zincRoof, g, true);
+        box(M.sill, x0 - 0.1, h - 0.05, z1 + 0.25, x1 + 0.3, h + 0.05, z1 + 0.4, 1, null, false);
+        break;
+      }
+      case 'grafwall': {   // muro grafitado (o desenho vai do lado da rua)
+        box(M.paintWall, x0 + 0.02, 0, z0, x1, h, z1, 2.5, 0xd8d6ce);
+        box(M.concrete, x0 - 0.03, h, z0, x1 + 0.03, h + 0.08, z1, 1, null, false);
+        const L = z1 - z0, g = new THREE.PlaneGeometry(L, h); const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setX(i, uv.getX(i) * L / 7);
+        M.graf.map.wrapS = THREE.RepeatWrapping; g.rotateY(-Math.PI / 2); g.translate(x0, h / 2, cz); put(M.graf, g, false);
+        break;
+      }
+      case 'cart': {   // carrinho de lanche: caixa de metal com vidro, toldo e rodas
+        box(M.dark, x0, 0.25, z0, x1, 1.05, z1, 1);
+        box(M.glass, x0 + 0.05, 1.05, z0 + 0.05, x1 - 0.05, 1.65, z1 - 0.05, 1, null, false);
+        box(M.yellow, x0 - 0.05, 0.45, z0 - 0.01, x0, 0.95, z1 + 0.01, 1, null, false);
+        box(M.alu, x0 - 0.25, 1.65, z0 - 0.1, x1 + 0.05, 1.72, z1 + 0.1, 1);
+        for (const zz of [z0 + 0.25, z1 - 0.25]) cyl(M.tire, cx, 0, zz, 0.25, 0.25, 0.08, 12);
+        break;
+      }
+      case 'banca': {   // banca rosa com balcão de metal e cobertura
+        box(M.pink, x0 + 0.5, 0, z0, x1, h - 0.1, z1, 1);
+        box(M.alu, x0, 0, z0 + 0.1, x0 + 0.5, 0.95, z1 - 0.1, 1);
+        box(M.dark, x0 + 0.48, 1.0, z0 + 0.15, x0 + 0.51, 1.9, z1 - 0.15, 1, null, false);
+        box(M.alu, x0 - 0.5, h - 0.1, z0 - 0.15, x1 + 0.1, h, z1 + 0.15, 1);
+        for (const zz of [z0, z1]) bar(M.alu, [x0 - 0.45, 0, zz], [x0 - 0.45, h - 0.1, zz], 0.02, true);
+        break;
+      }
+      case 'pallet': for (let y = 0.05; y < h; y += 0.19) box(M.crate, x0, y, z0, x1, y + 0.13, z1, 1); for (const zz of [z0, (z0 + z1) / 2 - 0.05, z1 - 0.1]) box(M.wood, x0 - 0.02, 0, zz, x1 + 0.02, h, zz + 0.1, 1); break;
+      case 'bin': if (b.blue) { cyl(M.blueToy, cx, 0, cz, 0.29, 0.31, h - 0.04, 14); cyl(M.dark, cx, h - 0.04, cz, 0.31, 0.31, 0.04, 14); break; } if (b.red) { cyl(M.redBin, cx, 0, cz, 0.24, 0.27, h - 0.06, 14); cyl(M.dark, cx, h - 0.06, cz, 0.28, 0.28, 0.06, 14); break; } cyl(M.orange, cx, 0, cz, 0.27, 0.31, h - 0.08, 14); cyl(M.orange, cx, h - 0.08, cz, 0.33, 0.33, 0.08, 14); break;
       case 'muro':
         box(M.grime, x0, 0, z0, x1, y1, z1, 2.5, 0xeeeee8);
         box(M.grime, x0 - 0.05, y1, z0 - 0.05, x1 + 0.05, y1 + 0.08, z1 + 0.05, 2.5, 0xd8d8d0, false);
@@ -759,6 +1072,17 @@ export function buildBairro(group, MAP, sunLight) {
       case 'planter': box(M.concrete, x0, 0, z0, x1, 0.5, z1); tree(cx, 0.5, cz, 1.1); break;
       case 'shrine': box(M.white, x0, 0, z0, x1, 1.9, z1, 1); box(M.church, cx - 0.3, 0.7, z0 - 0.02, cx + 0.3, 1.5, z0); gable(x0 - 0.2, z0 - 0.2, x1 + 0.2, z1 + 0.2, 1.9, true, 0.6); break;
       case 'ptable':
+        if (b.white) {   // mesa e cadeiras brancas de plástico
+          box(M.plastic, x0 + 0.1, 0.7, z0 + 0.1, x1 - 0.1, 0.74, z1 - 0.1, 1, null, false);
+          for (const [ox, oz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) bar(M.plastic, [cx + ox * 0.3, 0, cz + oz * 0.3], [cx + ox * 0.3, 0.7, cz + oz * 0.3], 0.025);
+          for (const sz of [-1, 1]) {
+            const oz = cz + sz * 0.72;
+            box(M.plastic, cx - 0.22, 0.42, oz - 0.2, cx + 0.22, 0.46, oz + 0.2, 1, null, false);
+            box(M.plastic, cx - 0.22, 0.46, oz + sz * 0.18 - 0.02, cx + 0.22, 0.85, oz + sz * 0.18 + 0.02, 1, null, false);
+            for (const ox of [-0.2, 0.2]) for (const dz of [-0.17, 0.17]) bar(M.plastic, [cx + ox, 0, oz + dz], [cx + ox, 0.42, oz + dz], 0.02);
+          }
+          break;
+        }
         box(M.yellow, x0, 0.71, z0, x1, 0.75, z1, 1, null, false); box(M.yellow, cx - 0.03, 0, cz - 0.03, cx + 0.03, 0.71, cz + 0.03, 1, null, false);
         for (let k = 0; k < 4; k++) { const ox = cx + Math.cos(k * Math.PI / 2) * 0.7, oz = cz + Math.sin(k * Math.PI / 2) * 0.7; box(M.red, ox - 0.2, 0, oz - 0.2, ox + 0.2, 0.44, oz + 0.2, 1, null, false); }
         break;
@@ -813,6 +1137,14 @@ export function buildBairro(group, MAP, sunLight) {
     for (let i = 0; i < 5; i++) {
       const c = [x + (r3() - 0.5) * 2 * size, y + 3.2 * size + r3() * 1.4 * size, z + (r3() - 0.5) * 2 * size];
       for (let k = 0; k < 3; k++) { const g = new THREE.PlaneGeometry(3.2 * size, 3.0 * size); g.rotateY(k * Math.PI / 3 + i); g.translate(...c); put(M.foliage, g, true); }
+    }
+  }
+  function areca(x, z) {   // touceira de palmeirinha
+    for (let k = 0; k < 7; k++) {
+      const a = k * 0.9, h = 1.6 + (k % 3) * 0.5, tx = x + Math.cos(a) * 0.25, tz = z + Math.sin(a) * 0.25;
+      bar(M.bananaTrunk, [x, 0, z], [tx, h, tz], 0.03, true);
+      const g = new THREE.PlaneGeometry(0.7, 1.6); g.translate(0, -0.8, 0); g.rotateX(-1.0); g.rotateY(a); g.translate(tx, h, tz); put(M.palmLeaf, g, true);
+      const g2 = new THREE.PlaneGeometry(0.6, 1.3); g2.translate(0, -0.65, 0); g2.rotateX(-1.1); g2.rotateY(a + Math.PI); g2.translate(tx, h, tz); put(M.palmLeaf, g2, true);
     }
   }
   function palm(x, z, h) {
@@ -915,6 +1247,44 @@ export function buildBairro(group, MAP, sunLight) {
     }
   }
 
+  // ---- quiosques em frente à praça: paredes pintadas, porta colorida, porta de enrolar ou balcão, letreiro e cobertura de zinco
+  function drawKiosk(b) {
+    const [x0, , z0] = b.min, [x1, h, z1] = b.max, cz = (z0 + z1) / 2, L = z1 - z0;
+    if (b.open) {   // galpão aberto: fundo e laterais, pilares na frente
+      box(M.paintWall, x1 - 0.2, 0, z0, x1, h, z1, 2.5, b.hex);
+      for (const [a, c] of [[z0, z0 + 0.15], [z1 - 0.15, z1]]) box(M.paintWall, x0 + 0.6, 0, a, x1, h, c, 2.5, b.hex);
+      for (const zz of [z0 + 0.1, z1 - 0.1]) bar(M.dark, [x0 + 0.1, 0, zz], [x0 + 0.1, h, zz], 0.06, true);
+      box(M.wood, x1 - 1.0, 0, z0 + 0.4, x1 - 0.25, 0.9, z1 - 0.4, 1);   // bancada no fundo
+    } else {
+      box(M.paintWall, x0, 0, z0, x1, h, z1, 2.5, b.hex);
+      box(M.grimeBand, x0 - 0.01, 0, z0, x0, 0.35, z1, 1.4, b.hex, false);
+    }
+    if (b.rollup) {
+      box(M.rollup, x0 - 0.05, 0, z0 + 0.3, x0, 2.35, z1 - 0.3, 1, null, false);
+      box(M.dark, x0 - 0.09, 2.35, z0 + 0.22, x0, 2.5, z1 - 0.22, 1, null, false);
+    }
+    if (b.door) {   // porta de metal pintada e uma janelinha gradeada
+      const dz = b.counter ? z1 - 1.2 : cz + 0.35;
+      box(M.paintDoor, x0 - 0.05, 0, dz - 0.45, x0, 2.1, dz + 0.45, 1, b.door, false);
+      box(M.dark, x0 - 0.06, 1.0, dz + 0.2, x0 - 0.04, 1.06, dz + 0.3, 1, null, false);
+      if (!b.counter && L > 2.6) {
+        box(M.winDark, x0 - 0.02, 1.1, z0 + 0.35, x0, 1.9, z0 + 1.1, 1, null, false);
+        for (let u = z0 + 0.42; u < z0 + 1.1; u += 0.12) bar(M.alu, [x0 - 0.05, 1.1, u], [x0 - 0.05, 1.9, u], 0.012);
+      }
+    }
+    if (b.counter) {   // balcão aberto com a parte de dentro escura
+      const za = z0 + 0.4, zb = b.door ? z1 - 1.8 : z1 - 0.4;
+      box(M.winDark, x0 - 0.02, 1.05, za, x0, 1.95, zb, 1, null, false);
+      box(M.alu, x0 - 0.35, 0.95, za - 0.05, x0, 1.0, zb + 0.05, 1, null, false);
+      if (!b.door) for (const zz of [za + 0.5, (za + zb) / 2, zb - 0.5]) cyl(M.dark, x0 - 0.6, 0, zz, 0.16, 0.16, 0.7, 10);   // banquinhos
+    }
+    if (b.band) { const g = new THREE.PlaneGeometry(L - 0.1, 0.55); g.rotateY(-Math.PI / 2); g.translate(x0 - 0.02, h - 0.45, cz); put(M.pizzaBand, g, false); }
+    if (b.sign) { const g = new THREE.PlaneGeometry(b.band ? 1.5 : Math.min(L - 0.6, 2.4), b.band ? 0.4 : 0.55); g.rotateY(-Math.PI / 2); g.translate(x0 - 0.03, b.band ? 2.25 : h - 0.42, cz); put(KSIGNS[b.sign], g, false); }
+    const o = 1.3, R = [[x1, h + 0.25, z0 - 0.02], [x0 - o, h - 0.2, z0 - 0.02], [x0 - o, h - 0.2, z1 + 0.02], [x1, h + 0.25, z1 + 0.02]];   // cobertura de zinco caindo para a rua
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute([0, 1, 2, 0, 2, 3].flatMap(i => R[i]), 3)); g.computeVertexNormals(); put(M.zinc, g, true);
+    for (const zz of [z0 + 0.08, z1 - 0.08]) bar(M.alu, [x0 - o + 0.1, 0, zz], [x0 - o + 0.1, h - 0.18, zz], 0.03, true);
+  }
+
   // ---- cerca de ripas de madeira com mourões
   function woodFence(x0, z0, x1, z1, h) {
     const alongZ = z1 - z0 > x1 - x0, L = alongZ ? z1 - z0 : x1 - x0, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
@@ -992,8 +1362,71 @@ export function buildBairro(group, MAP, sunLight) {
       for (const sx of [-1, 1]) box(M.stone, x + sx * 1.95 - 0.28, 0, z - 0.28, x + sx * 1.95 + 0.28, 2.7, z + 0.28, 1);
       box(M.doorWood, x - 1.67, 0, z - 0.05, x + 1.67, 2.35, z + 0.05, 1);
       for (let u = -1.5; u <= 1.5; u += 0.3) box(M.dark, x + u - 0.01, 0, z - 0.07, x + u + 0.01, 2.35, z - 0.05, 1, null, false);
-      gable(x - 2.45, z - 0.75, x + 2.45, z + 0.75, 2.7, false, 0.55);
-      box(M.brick, x - 3.5, 0, z - 0.1, x - 2.23, 2.1, z + 0.1, 1, 0xffffff); box(M.concrete, x + 2.23, 0, z - 0.1, x + 3.5, 2.0, z + 0.1, 1);
+      box(M.white, x - 3.5, 0, z - 0.1, x - 2.23, 2.3, z + 0.1, 1);
+      if (d.social) {   // pilar de pedra do portão social (lado leste) e o telhado comprido cobrindo os dois portões
+        box(M.stone, x + 3.22, 0, z - 0.28, x + 3.78, 2.7, z + 0.28, 1);
+        gable(x - 2.45, z - 0.75, x + 4.05, z + 0.75, 2.7, false, 0.55);
+      } else {
+        gable(x - 2.45, z - 0.75, x + 2.45, z + 0.75, 2.7, false, 0.55);
+        box(M.white, x + 2.23, 0, z - 0.1, x + 3.5, 2.3, z + 0.1, 1);
+      }
+    } else if (d.type === 'bigtent') {
+      const R = 4.0, H = 4.6, E = 2.6, P = [[-R, -R], [R, -R], [R, R], [-R, R]];
+      for (let k = 0; k < 4; k++) {
+        const a = P[k], c = P[(k + 1) % 4], g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.Float32BufferAttribute([d.x, H, d.z, d.x + a[0], E, d.z + a[1], d.x + c[0], E, d.z + c[1]], 3)); g.computeVertexNormals();
+        put(k % 2 ? M.tentGreen : M.tentOrange, g, true);
+      }
+      for (const [ox, oz] of [[-R + 0.2, -R + 0.2], [-R + 0.2, R - 0.2]]) bar(M.dark, [d.x + ox, 0, d.z + oz], [d.x + ox, E, d.z + oz], 0.04, true);   // mastros do lado da rua (os de trás ficam no barraco)
+      bar(M.dark, [d.x, 0, d.z], [d.x, H, d.z], 0.05, true);
+    } else if (d.type === 'gatehouse') {   // casa ao lado do portão (foto): cerca de pallets na frente, muro de placas, casa térrea com janela
+      const z = MAP.size.maxZ, { x0, x1 } = d;
+      for (let x = x0; x < x1 - 0.1; x += 1.2) {   // pallets em pé, um do lado do outro, meio tortos
+        const e = Math.min(x1, x + 1.15), lean = ((x * 7) % 3 - 1) * 0.03;
+        for (let y = 0.08; y < 1.0; y += 0.2) { const g = new THREE.BoxGeometry(e - x, 0.12, 0.03); g.rotateX(lean); g.translate((x + e) / 2, y, z + 0.05); put(M.oldWood, g, true); }
+        for (const xx of [x + 0.05, e - 0.08]) box(M.oldWood, xx, 0, z + 0.07, xx + 0.08, 1.05, z + 0.12, 1, null, false);
+      }
+      for (let x = x0; x < x1; x += 4) bar(M.oldWood, [x + 0.3, 0, z + 0.02], [x + 0.3, 1.3, z + 0.02], 0.05, true);   // estacas mais altas
+      box(M.concrete, x0, 0, z + 1.1, x1, 2.1, z + 1.25, 1.2);   // muro de placas de concreto entre pilares
+      for (let x = x0; x <= x1; x += 2) box(M.concrete, x - 0.1, 0, z + 1.0, x + 0.1, 2.25, z + 1.3, 1);
+      for (let y = 0.5; y < 2.1; y += 0.5) box(M.dark, x0, y - 0.01, z + 1.08, x1, y + 0.01, z + 1.1, 1, null, false);
+      house({ min: [x0 + 1, 0, z + 2.6], max: [x1 - 0.5, 3.2, z + 10] , hex: 0xd8dad6, roof: 1, brick: 0 }, false);
+      houseWindow([Math.min(x0 + 8.5, x1 - 2.2), 1.8, z + 2.6], [0, 0, -1], 1.6, 1.0, 'grade', M.alu);
+      box(M.cobogo, x1 - 4.5, 2.1, z + 2.55, x1 - 3.5, 2.7, z + 2.6, 0.45, null, false);
+      for (const [ax, az] of [[x1 - 1.4, z + 0.6], [x1 - 2.3, z + 0.7], [x1 - 0.7, z + 0.75]]) areca(ax, az);   // palmeirinhas atrás da cerca, do lado do portão
+      for (let k = 0; k < 5; k++) { const bx = Math.min(x0 + 6, x1 - 6.2) + k * 1.3; put(M.foliage, xform(new THREE.IcosahedronGeometry(0.6, 0), [bx, 0.6, z + 0.7]), true); }   // arbustos com flor
+      const fx = Math.min(x0 + 7.5, x1 - 2.5), fz = z + 1.8;   // flamboyant: árvore grande com flores laranja
+      tree(fx, 0, fz, 1.8);
+      const r = rand(91);
+      for (let k = 0; k < 160; k++) put(M.flower, xform(new THREE.IcosahedronGeometry(0.07 + r() * 0.07, 0), [fx + (r() - 0.5) * 6, 4.8 + r() * 3.2, fz + (r() - 0.5) * 5]), false);
+      for (let k = 0; k < 30; k++) put(M.flower, xform(new THREE.IcosahedronGeometry(0.06, 0), [Math.min(x0 + 6, x1 - 6.2) + r() * 5.6, 0.7 + r() * 0.6, z + 0.55]), false);
+    } else if (d.type === 'areca') { areca(d.x, d.z);
+    } else if (d.type === 'palmtall') { palm(d.x, d.z, 8 + (d.z % 3));
+    } else if (d.type === 'drum') {   // tambor plástico preto de água
+      cyl(M.dark, d.x, 0, d.z, 0.3, 0.33, 0.95, 14);
+    } else if (d.type === 'rubble') {   // monte de entulho: tijolos e pedaços de concreto
+      const r = rand(57);
+      for (let k = 0; k < 26; k++) {
+        const g = new THREE.BoxGeometry(0.2 + r() * 0.35, 0.08 + r() * 0.15, 0.15 + r() * 0.3); g.rotateY(r() * 3); g.rotateX((r() - 0.5) * 0.6);
+        g.translate(d.x + (r() - 0.5) * 1.4, 0.05 + r() * 0.35 * (1 - Math.abs(r() - 0.5)), d.z + (r() - 0.5) * 3.2); put(r() < 0.55 ? M.rubbleBrick : M.concrete, g, true);
+      }
+    } else if (d.type === 'endhouse') {   // casa do fim da rua, atrás do portão
+      house({ min: [d.x - 5, 0, d.z + 0.6], max: [d.x + 5, 3.3, d.z + 7], hex: 0xeee6d8, roof: 1, brick: 0 }, false);
+    } else if (d.type === 'portal') {   // pórtico de concreto sem portão: dois pilares e a viga em cima
+      for (const dx of [0, 2.4]) box(M.concrete, d.x + dx - 0.15, 0, d.z - 0.15, d.x + dx + 0.15, 2.4, d.z + 0.15, 1);
+      box(M.concrete, d.x - 0.2, 2.4, d.z - 0.17, d.x + 2.6, 2.75, d.z + 0.17, 1);
+    } else if (d.type === 'pallet') {   // pallet encostado
+      const g0 = (y) => { const g = new THREE.BoxGeometry(1.1, 0.1, 0.03); g.translate(0, y, 0); g.rotateX(-0.25); g.translate(d.x, 0, d.z); put(M.crate, g, true); };
+      for (let y = 0.1; y < 1.1; y += 0.17) g0(y);
+    } else if (d.type === 'drytree') {   // arvoreta seca: varas finas abrindo para cima
+      for (let k = 0; k < 6; k++) { const a = k * 1.05, l = 0.35 + (k % 3) * 0.15; bar(M.trunk, [d.x, 0, d.z], [d.x + Math.cos(a) * l, 3.2 + (k % 2) * 0.8, d.z + Math.sin(a) * l], 0.03, true); }
+      box(M.grass, d.x - 0.25, 0, d.z - 0.25, d.x + 0.25, 0.06, d.z + 0.25, 1, null, false);
+    } else if (d.type === 'postbin') {   // lixeira presa num cano
+      bar(M.alu, [d.x, 0, d.z], [d.x, 0.75, d.z], 0.03, true);
+      cyl(d.beige ? M.beige : M.orange, d.x, 0.55, d.z, 0.2, 0.22, 0.55, 12);
+    } else if (d.type === 'ladder') {   // escada de alumínio encostada na parede
+      for (const dz of [-0.22, 0.22]) bar(M.alu, [d.x - 0.75, 0, d.z + dz], [d.x - 0.08, 2.6, d.z + dz], 0.025, true);
+      for (let t = 0.1; t < 1; t += 0.11) bar(M.alu, [d.x - 0.75 + 0.67 * t, 2.6 * t, d.z - 0.22], [d.x - 0.75 + 0.67 * t, 2.6 * t, d.z + 0.22], 0.015);
     } else if (d.type === 'tent') {   // barraca de lona listrada
       for (const [ox, oz] of [[-1.9, -1.9], [1.9, -1.9], [1.9, 1.9], [-1.9, 1.9]]) bar(M.alu, [d.x + ox, 0, d.z + oz], [d.x + ox, 2.4, d.z + oz], 0.035, true);
       put(M.stripes, xform(new THREE.ConeGeometry(3.0, 1.4, 4, 1, true), [d.x, 3.1, d.z], Math.PI / 4), true);

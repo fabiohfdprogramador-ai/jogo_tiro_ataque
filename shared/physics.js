@@ -21,6 +21,7 @@ export function moveBody(p, v, dt, h, boxes) {
   for (const axis of [0, 2, 1]) {
     p[axis] += v[axis] * dt;
     for (const b of boxes) {
+      if (b.open) continue;   // porta aberta
       if (p[0] + r <= b.min[0] || p[0] - r >= b.max[0] ||
           p[1] + h <= b.min[1] || p[1] >= b.max[1] ||
           p[2] + r <= b.min[2] || p[2] - r >= b.max[2]) continue;
@@ -43,6 +44,7 @@ export function moveBody(p, v, dt, h, boxes) {
 export function canStand(p, boxes) {
   const r = PHYS.radius, h = PHYS.standH;
   for (const b of boxes) {
+    if (b.open) continue;
     if (p[0] + r <= b.min[0] || p[0] - r >= b.max[0] || p[1] + h <= b.min[1] || p[1] + 0.05 >= b.max[1] ||
         p[2] + r <= b.min[2] || p[2] - r >= b.max[2]) continue;
     return false;
@@ -67,11 +69,16 @@ export function rayBox(o, d, min, max) {
   return tmin;
 }
 
-// Raio contra o mundo (caixas + chão). Retorna { t, normal }.
-export function raycastWorld(o, d, maxDist, boxes) {
+// alambrado e grades de tela: a bala e a visão passam (a bala perde metade do dano)
+export const SEE_THROUGH = new Set(['fence', 'lowfence']);
+export const isSeeThrough = (b) => SEE_THROUGH.has(b.mat);
+
+// Raio contra o mundo (caixas + chão). Retorna { t, normal }. Com seeThrough, ignora as telas.
+export function raycastWorld(o, d, maxDist, boxes, seeThrough = false) {
   let best = maxDist, normal = null;
   if (d[1] < -1e-6) { const t = -o[1] / d[1]; if (t < best) { best = t; normal = [0, 1, 0]; } }
   for (const b of boxes) {
+    if (b.open || (seeThrough && SEE_THROUGH.has(b.mat))) continue;
     const t = rayBox(o, d, b.min, b.max);
     if (t < best) {
       best = t;
@@ -114,11 +121,17 @@ export function rayPlayer(o, d, p, crouch) {
   return { t: best, zone };
 }
 
-export function lineOfSight(a, b, boxes) {
+export function lineOfSight(a, b, boxes, seeThrough = false) {
   const d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
   const len = Math.hypot(d[0], d[1], d[2]);
   d[0] /= len; d[1] /= len; d[2] /= len;
-  return raycastWorld(a, d, len, boxes).t >= len - 0.01;
+  return raycastWorld(a, d, len, boxes, seeThrough).t >= len - 0.01;
+}
+
+// O raio cruza alguma tela antes da distância t?
+export function crossesFence(o, d, t, boxes) {
+  for (const b of boxes) if (SEE_THROUGH.has(b.mat) && rayBox(o, d, b.min, b.max) < t) return true;
+  return false;
 }
 
 // yaw = 0 olha para -z. pitch positivo = olhar para cima.
