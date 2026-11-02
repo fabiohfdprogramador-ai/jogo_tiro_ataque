@@ -8,6 +8,10 @@
     "m4a4_2.wav",
     "m4a4_3.wav"
   ],
+  "ar470": [
+    "ar470_1.wav",
+    "ar470_2.wav"
+  ],
   "awp": [
     "awp_1.wav",
     "awp_2.wav"
@@ -41,6 +45,9 @@
     "reload_ak47.wav"
   ],
   "reload_m4a4": [
+    "reload_m4a4.wav"
+  ],
+  "reload_ar470": [
     "reload_m4a4.wav"
   ],
   "reload_awp": [

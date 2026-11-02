@@ -180,6 +180,8 @@ ARM_POSES.ak47 = { R: copyPose(ARM_POSES.rifle.R), L: { wrist: [0.25, -0.07, -0.
   curl: { index: [1.1, 1.0, 0.6], middle: [1.2, 1.0, 0.6], ring: [1.25, 1.0, 0.6], pinky: [1.3, 1.0, 0.6], thumb: [0.5, 0.4, 0.2] } } };
 // M4: mesma pegada da AK, abraçando o guarda-mão pelo lado (no cabo vertical a mão some embaixo da tela)
 ARM_POSES.m4a4 = { R: copyPose(ARM_POSES.rifle.R), L: { ...copyPose(ARM_POSES.ak47.L), wrist: [0.2, -0.065, -0.04] } };
+// AR-H470: igual à M4, abraçando a frente do corpo
+ARM_POSES.ar470 = { R: copyPose(ARM_POSES.rifle.R), L: { ...copyPose(ARM_POSES.ak47.L), wrist: [0.2, -0.065, -0.04] } };
 // AWP: mesma pegada da AK, mais à frente no guarda-mão comprido
 ARM_POSES.awp = { R: copyPose(ARM_POSES.rifle.R), L: { ...copyPose(ARM_POSES.ak47.L), wrist: [0.3, -0.03, -0.04] } };
 // Fuzil Tático: igual à AWP, com a mão no guarda-mão octogonal

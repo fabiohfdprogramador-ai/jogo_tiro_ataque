@@ -467,7 +467,7 @@ function onShot(m) {
   if (!me.alive && m.id === spectate) vm.fire();
   const from = remotes.muzzleWorld(m.id, tmpV) ? tmpV.clone() : new THREE.Vector3(...m.o);
   const end = new THREE.Vector3(...m.e);
-  if (WEAPONS[m.w] && !WEAPONS[m.w].melee) fx.tracer(from, end);
+  if (WEAPONS[m.w] && !WEAPONS[m.w].melee) fx.tracer(from, end, m.w === 'ar470' ? 0xff8a2a : null);
   if (m.n) { fx.impact(end, m.n); sound.impact(m.e, impactMat(m.e)); }
   // zunido: tiro inimigo que passa perto da minha cabeça sem me acertar
   const W = WEAPONS[m.w];
@@ -560,7 +560,7 @@ function tryFire() {
   const end = new THREE.Vector3(eye[0] + d[0] * best, eye[1] + d[1] * best, eye[2] + d[2] * best);
   if (!hitPlayer && wr.normal && wr.t < W.range) { fx.impact(end, wr.normal); sound.impact([end.x, end.y, end.z], impactMat([end.x, end.y, end.z])); }
   sound.casing(null, key);
-  if (!W.auto || me.spray % 3 === 1) fx.tracer(camera.localToWorld(new THREE.Vector3(0.1, -0.09, -0.55)), end);
+  if (!W.auto || me.spray % 3 === 1 || key === 'ar470') fx.tracer(camera.localToWorld(new THREE.Vector3(0.1, -0.09, -0.55)), end, key === 'ar470' ? 0xff8a2a : null);
   if (W.scope) me.scope = 0;
   if (W.kick > 0.03) me.shake = Math.min(1, me.shake + W.kick * 2);
 }
@@ -714,8 +714,8 @@ document.addEventListener('keydown', (e) => {
   if (!locked) return;
   if (e.code === 'KeyB' && me.alive) { buyOpen = !buyOpen; if (buyOpen && !srv.buy) { buyOpen = false; hud.notice('O tempo de compra acabou'); } }
   if (e.code === 'Escape' && buyOpen) buyOpen = false;
-  if (/^(Digit[0-9]|Minus|Equal)$/.test(e.code)) {
-    const n = e.code === 'Minus' ? '-' : e.code === 'Equal' ? '=' : e.code.slice(5);
+  if (/^(Digit[0-9]|Minus|Equal|Backquote)$/.test(e.code)) {
+    const n = e.code === 'Minus' ? '-' : e.code === 'Equal' ? '=' : e.code === 'Backquote' ? "'" : e.code.slice(5);
     if (buyOpen) { const it = BUY_MENU.find(b => b.key === n); if (it) send({ t: 'buy', item: it.item }); }
     else if (me.alive && +n === 5 && me.cur === 5) send({ t: 'nextnade' });   // 5 de novo: próxima granada
     else if (me.alive && +n === 4 && me.cur === 4 && (me.bag4 || []).length) send({ t: 'next4' });   // 4 de novo: troca AWP/bazuca/arco
@@ -915,7 +915,7 @@ function frame() {
       const a = me.shake * me.shake * 0.035, tt = t * 47;
       camera.rotation.x += Math.sin(tt) * a; camera.rotation.y += Math.sin(tt * 1.37 + 1) * a; camera.rotation.z += Math.sin(tt * 0.83 + 2) * a * 0.6;
     }
-    const adsFov = curKey() === 'rpg' ? (vm.rpgScoped ? 30 : 60) : WEAPONS[curKey()]?.slot === 2 ? 62 : 54;   // luneta da bazuca: zoom de 2,7x
+    const adsFov = curKey() === 'rpg' ? (vm.scopedKey ? 30 : 60) : curKey() === 'ar470' ? (vm.scopedKey ? 42 : 60) : WEAPONS[curKey()]?.slot === 2 ? 62 : 54;   // luneta da bazuca: 2,7x; mira do AR-H470: 1,8x
     const targetFov = me.scope === 1 ? 40 : me.scope === 2 ? 15 : me.ads && me.alive && !me.reloadEnd ? adsFov : BASE_FOV;
     if (Math.abs(camera.fov - targetFov) > 0.01) { camera.fov += (targetFov - camera.fov) * Math.min(1, dt * 20); camera.updateProjectionMatrix(); }
 
@@ -950,7 +950,7 @@ function frame() {
     const gap = 4 + (W && !W.melee ? currentSpread(W) * 260 : 0) + Math.min(me.spray, 8) * 1.5;
     hud.crosshair(gap, me.alive && !me.scope && !me.ads && !(W && W.scope));
     hud.scope(me.alive && me.scope > 0);
-    hud.rpgScope(me.alive && !specR0() && vm.rpgScoped);
+    hud.sightScope(me.alive && !specR0() ? vm.scopedKey : null);
     hud.flash(Math.min(1, me.flash));
     hud.bomb(srv.bomb, me, bombAction(), me.using);
     hud.buyMenu(buyOpen && srv.buy && me.alive, me);
@@ -980,7 +980,7 @@ function frame() {
     vm.cur.loaded = !!(a && Wk) && (me.reloadEnd ? now() > me.reloadEnd - Wk.reload * 0.4 : a.mag > 0);
   }
   if (specR) vm.update(dt, { speed: specR.s, onGround: true, vy: 0, crouch: specR.crouch, lookDX: 0, lookDY: 0, visible: playing && specR.alive });
-  else vm.update(dt, { speed: hs, onGround: me.onGround, vy: me.v[1], crouch: me.crouch, lookDX, lookDY, visible: playing && me.alive && me.scope === 0 && !vm.rpgScoped, firing: me.alive && (mouseDown || now() - me.lastShot < 0.35), ads: me.ads && me.alive, sprint: me.alive && me.sprint && me.onGround && hs > PHYS.walkSpeed * 0.9 });
+  else vm.update(dt, { speed: hs, onGround: me.onGround, vy: me.v[1], crouch: me.crouch, lookDX, lookDY, visible: playing && me.alive && me.scope === 0 && !vm.scopedKey, firing: me.alive && (mouseDown || now() - me.lastShot < 0.35), ads: me.ads && me.alive, sprint: me.alive && me.sprint && me.onGround && hs > PHYS.walkSpeed * 0.9 });
   lookDX = 0; lookDY = 0;
 
   renderer.clear();

@@ -17,7 +17,7 @@ const DEBUG = !!process.env.DEBUG;
 
 const CFG = {
   freeze: 5, roundTime: 115, buyTime: 20, endTime: 5, matchOverTime: 15, winRounds: Number(process.env.WIN_ROUNDS || 13),
-  startMoney: Number(process.env.START_MONEY || 800), maxMoney: 16000, winMoney: 3250, lossBase: 1400, lossStep: 500, lossMax: 3400,
+  startMoney: Number(process.env.START_MONEY || 800), maxMoney: 30000, winMoney: 3250, lossBase: 1400, lossStep: 500, lossMax: 3400,
 };
 
 // ---------------------------------------------------------------- HTTP

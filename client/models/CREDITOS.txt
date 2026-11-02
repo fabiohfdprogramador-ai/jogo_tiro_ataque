@@ -8,6 +8,7 @@ Os arquivos foram otimizados (texturas reduzidas e comprimidas) e encaixados no 
 - "S.W.A.T. Operator" por SpatialNeglect (jeandiz) — https://sketchfab.com/3d-models/swat-operator-9e82fabf26194896b5ad4a364d864eab
   (o autor credita peças de ErhanMatur, Bzovius, SrGeneroso, shedmon, Albin, Mayess e a carabina M4 de bobeer)
 - "First Person hands rigged" por davidfischer — https://sketchfab.com/davidfischer (braços e mãos em primeira pessoa: maos.glb; a pele é desenhada pelo jogo)
+- "AR-H470" por Frostoise — https://sketchfab.com/3d-models/ar-h470-4b38c160243743d681d6fdaf3bd77ddb (fuzil futurista: arh470.glb)
 
 Baixados mas não usados no momento:
 - "Insurgent. Low poly Game ready" por badbih337 (o arquivo veio com as partes em escalas erradas)

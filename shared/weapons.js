@@ -30,6 +30,12 @@ export const WEAPONS = {
     price: 3100, reload: 2.18, speed: 0.9, armorPen: 0.7, reward: 300,
     spread: 0.0035, moveSpread: 0.08, jumpSpread: 0.25, kick: 0.0068, sway: 0.75, range: 200,
   },
+  // fuzil futurista (modelo AR-H470): caríssimo, mata com 3 tiros no corpo, quase sem coice
+  ar470: {
+    name: 'AR-H470', slot: 1, dmg: 90, rpm: 700, auto: true, mag: 40, reserve: 120,
+    price: 30000, reload: 2.0, speed: 0.9, armorPen: 0.95, reward: 100,
+    spread: 0.002, moveSpread: 0.05, jumpSpread: 0.2, kick: 0.005, sway: 0.5, range: 250,
+  },
   awp: {
     name: 'AWP', slot: 4, dmg: 115, rpm: 41, auto: false, mag: 5, reserve: 30,
     price: 4750, reload: 2.53, speed: 0.8, armorPen: 0.975, reward: 100,
@@ -75,15 +81,16 @@ export const BUY_MENU = [
   { key: '1', item: 'deagle' },
   { key: '2', item: 'ak47' },
   { key: '3', item: 'm4a4' },
-  { key: '4', item: 'awp' },
-  { key: '5', item: 'tac' },
-  { key: '6', item: 'rpg' },
-  { key: '7', item: 'bow' },
-  { key: '8', item: 'kevlar' },
-  { key: '9', item: 'helmet' },
-  { key: '0', item: 'he' },
-  { key: '-', item: 'flash' },
-  { key: '=', item: 'smoke' },
+  { key: '4', item: 'ar470' },
+  { key: '5', item: 'awp' },
+  { key: '6', item: 'tac' },
+  { key: '7', item: 'rpg' },
+  { key: '8', item: 'bow' },
+  { key: '9', item: 'kevlar' },
+  { key: '0', item: 'helmet' },
+  { key: '-', item: 'he' },
+  { key: '=', item: 'flash' },
+  { key: "'", item: 'smoke' },
 ];
 
 export const ZONE_MULT = { head: 4, chest: 1, stomach: 1.25, legs: 0.75 };

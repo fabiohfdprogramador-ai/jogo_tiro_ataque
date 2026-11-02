@@ -10,6 +10,7 @@ const BUY_ICONS = {
   deagle: '<path d="M22 12h50l3 3h4v6H48l-2 3h-6l-5 13H24l5-13h-7z"/>',
   ak47: '<path d="M2 17l12-3h34v-2h4v2h20v-2h3v2h21v4H70l-6 3 3 12h-7l-4-9h-5l-5 11h-6l4-13H16L5 25z"/>',
   m4a4: '<path d="M4 16h12l2-2h30v-4h14v4h8v2h26v4H70l-6 3 3 11h-7l-4-9h-6l-4 11h-6l4-13H18l-2 6H4z"/>',
+  ar470: '<path d="M6 13h52l4-3h18v3h10v5h8v3H86v4H70l-4 3h-8l-6 10h-7l5-11-4-2H40l-6 12h-7l5-12H22v6H6z"/><path d="M40 6h20v6H40z"/>',
   awp: '<path d="M0 19h18l6-4h44v-1h30v4H68l-6 4h-6l-5 12h-7l3-12H26l-12 6H0z"/><path d="M34 7h26v6H34z"/>',
   tac: '<path d="M2 12h3v20H2z"/><path d="M5 14h18v3H5zM5 26l18-9v3L7 29z"/><path d="M22 16h46v6H40l-3 2 2 10h-6l-2-10h-5l-4-3h-4z"/><path d="M42 22h7v8h-7z"/><path d="M68 17h12v4H68z"/><path d="M80 15h18v8H80z"/><path d="M28 7h36v6H28z"/>',
   rpg: '<path d="M2 15h80v8H2z"/><path d="M82 12l16 7-16 7z"/><path d="M34 23h6v11h-6zM54 23h6v8h-6z"/><path d="M40 10h10v5H40z"/>',
@@ -114,7 +115,7 @@ export class Hud {
   }
 
   scope(on) { $('scope').classList.toggle('hidden', !on); }
-  rpgScope(on) { $('rpgscope').classList.toggle('hidden', !on); }
+  sightScope(key) { $('rpgscope').classList.toggle('hidden', key !== 'rpg'); $('arscope').classList.toggle('hidden', key !== 'ar470'); }
 
   // tela branca da granada de luz (a = 0..1)
   flash(a) {
@@ -153,7 +154,7 @@ export class Hud {
       return `<div class="it ${other ? 'other' : poor ? 'poor' : ''} ${has ? 'has' : ''}"><b class="k">${key}</b><span class="pr">$ ${price.toLocaleString('pt-BR')}</span>
         <svg viewBox="0 0 100 40">${BUY_ICONS[item] || ''}</svg><span class="nm">${esc(name)}</span><small>${tag || info}</small></div>`;
     };
-    const groups = [['Pistola e fuzis', ['deagle', 'ak47', 'm4a4']], ['Armas pesadas', ['awp', 'tac', 'rpg', 'bow']], ['Proteção', ['kevlar', 'helmet']], ['Granadas', ['he', 'flash', 'smoke']]];
+    const groups = [['Pistola e fuzis', ['deagle', 'ak47', 'm4a4', 'ar470']], ['Armas pesadas', ['awp', 'tac', 'rpg', 'bow']], ['Proteção', ['kevlar', 'helmet']], ['Granadas', ['he', 'flash', 'smoke']]];
     const html = groups.map(([title, items]) => `<section><h3>${title}</h3><div class="row">${items.map(i => card(BUY_MENU.find(b => b.item === i))).join('')}</div></section>`).join('');
     this.set('buylist', html, 'innerHTML');
   }

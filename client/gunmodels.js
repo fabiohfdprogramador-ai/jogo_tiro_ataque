@@ -29,6 +29,13 @@ const DEFS = {
     grip: [-108, 6], fore: [10, 24], muzzle: [232, 30],
     mag: { a: [-76, -43], y: [-3, 12] },
   },
+  // AR-H470: no arquivo o fuzil vem inclinado ~13,5°; tilt endireita (giro em volta do eixo x antes de medir)
+  ar470: {
+    file: 'arh470', fwd: '+z', scale: 0.27, tilt: -0.2356,
+    grip: [-1.45, 0.62], fore: [-0.1, 0.95], muzzle: [0.48, 0.96],
+    sight: { rear: [-1.1, 1.415], front: [-0.7, 1.415] },   // centro da luneta laranja
+    mag: { material: /Clip/, a: [-9, 9], y: [-9, 9] },
+  },
   pistol: {
     file: 'pistola', fwd: '+z', scale: 1.0,
     region: { a: [-0.26, 0.0], y: [-0.07, 0.12] }, exclude: /supressor/i,
@@ -37,7 +44,7 @@ const DEFS = {
     mag: { a: [-0.23, -0.13], y: [-0.07, 0.05], material: /magazine/i },
   },
 };
-const KEY_DEF = { ak47: 'ak47', m4a4: 'm4a4', awp: 'awp', glock: 'pistol', usp: 'pistol', deagle: 'pistol' };
+const KEY_DEF = { ak47: 'ak47', m4a4: 'm4a4', ar470: 'ar470', awp: 'awp', glock: 'pistol', usp: 'pistol', deagle: 'pistol' };
 
 const templates = {};
 let loadPromise = null;
@@ -110,6 +117,7 @@ function dropLens(geo, L, k) {
 async function prepare(key, def, loader) {
   const gltf = await loader.loadAsync(`/models/${def.file}.glb`);
   const scene = gltf.scene;
+  if (def.tilt) scene.rotation.x = def.tilt;
   scene.updateMatrixWorld(true);
   const { k, sign, lat } = axisInfo(def.fwd);
   const inRange = (v, r) => v >= r[0] && v <= r[1];

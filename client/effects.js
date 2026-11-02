@@ -124,9 +124,10 @@ export class Effects {
     }
     this.clouds.push({ parts, t: 0, dur });
   }
-  tracer(from, to) {
+  tracer(from, to, color = null) {   // color: rastro colorido (laranja do AR-H470)
     const geo = new THREE.BufferGeometry().setFromPoints([from.clone(), to.clone()]);
     const line = new THREE.Line(geo, this.tracerMat.clone());
+    if (color !== null) { line.material.color.setHex(color); line.material.opacity = 1; }
     this.scene.add(line);
     this.tracers.push({ obj: line, life: 0.06 });
   }

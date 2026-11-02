@@ -431,13 +431,14 @@ function leftPistolHand(sleeve) {
 
 // ---------- controlador do view-model ----------
 const SPECIAL = { rpg: true, bow: true };   // armas que disparam projéteis (heavy.js)
-const KIND = { ak47: 'rifle', m4a4: 'rifle', awp: 'awp', tac: 'awp', rpg: 'rpg', bow: 'bow', glock: 'pistol', usp: 'pistol', deagle: 'pistol', knife: 'knife', he: 'nade', flash: 'nade', smoke: 'nade' };
+const KIND = { ak47: 'rifle', m4a4: 'rifle', ar470: 'rifle', awp: 'awp', tac: 'awp', rpg: 'rpg', bow: 'bow', glock: 'pistol', usp: 'pistol', deagle: 'pistol', knife: 'knife', he: 'nade', flash: 'nade', smoke: 'nade' };
 export const POSES = {
   // enquadramento do Far Cry 3: arma grande e perto, quase deitada do centro até a borda direita;
   // só a mão esquerda aparece, segurando a frente com o braço descendo reto
   rifle: { pos: [0.2, -0.19, -0.165], rot: [0.09, 0.3, -0.1], scale: 1.0 },
   ak47: { pos: [0.115, -0.215, -0.1], rot: [0.0, 0.06, -0.1], scale: 1.4 },   // AK alinhada: reta para frente, grande, subindo do canto de baixo
-  m4a4: { pos: [0.115, -0.165, -0.1], rot: [0.0, 0.06, -0.1], scale: 1.2 },   // alinhada como a AK; menor para a mira holográfica não tapar o canto
+  m4a4: { pos: [0.115, -0.165, -0.1], rot: [0.0, 0.06, -0.1], scale: 1.2 },
+  ar470: { pos: [0.13, -0.16, -0.14], rot: [0.0, 0.06, -0.1], scale: 0.9 },   // menor que a M4: a luneta grande taparia a tela   // alinhada como a AK; menor para a mira holográfica não tapar o canto
   awp: { pos: [0.105, -0.13, -0.1], rot: [0.0, 0.06, -0.1], scale: 1.12 },   // alinhada como a AK; menor porque é mais comprida
   rpg: { pos: [0.085, -0.165, -0.44], rot: [0.02, 0.03, 0.0], scale: 1.0 },   // bazuca centralizada no ombro, vista pela traseira, as duas mãos nas empunhaduras
   bow: { pos: [0.11, -0.05, -0.56], rot: [0.03, 0.06, -0.3], scale: 1.0 },     // arco inclinado, flecha encaixada
@@ -450,6 +451,7 @@ const FIRE_POSES = {
   rifle: { pos: [0.185, -0.182, -0.165], rot: [0.07, 0.24, -0.07] },
   ak47: { pos: [0.11, -0.207, -0.095], rot: [0.0, 0.04, -0.08] },
   m4a4: { pos: [0.11, -0.158, -0.095], rot: [0.0, 0.04, -0.08] },
+  ar470: { pos: [0.125, -0.153, -0.135], rot: [0.0, 0.04, -0.08] },
   awp: { pos: [0.1, -0.123, -0.095], rot: [0.0, 0.04, -0.08] },
   rpg: { pos: [0.082, -0.16, -0.435], rot: [0.015, 0.02, 0.0] },
   bow: { pos: [0.1, -0.045, -0.55], rot: [0.02, 0.04, -0.28] },
@@ -613,6 +615,7 @@ export class ViewModel {
     if (w.muzzle && key !== 'bow' && key !== 'tac') {   // o supressor do Fuzil Tático esconde o clarão
       flash = new THREE.Sprite(new THREE.SpriteMaterial({ map: FLASH_TEX, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
       flash.scale.setScalar(key === 'rpg' ? 0.5 : key === 'awp' ? 0.32 : kind === 'pistol' ? 0.16 : 0.24); flash.visible = false;
+      if (key === 'ar470') flash.material.color.setHex(0xffa040);   // clarão laranja do fuzil futurista
       w.muzzle.add(flash);
     }
     let backFlash = null;   // bazuca: fogo saindo pela traseira
@@ -659,8 +662,8 @@ export class ViewModel {
     c.gunGroup.add(obj);
     this.debris.push({ obj, parent: c.gunGroup, v: new THREE.Vector3(-0.15, -0.6, -0.25), life: 0.8 });
   }
-  // bazuca com a luneta encostada no olho: a tela da luneta aparece no lugar da arma
-  get rpgScoped() { return !!(this.cur && this.cur.key === 'rpg' && this.adsBlend > 0.9); }
+  // bazuca ou AR-H470 com a luneta encostada no olho: a tela da luneta aparece no lugar da arma (devolve qual arma)
+  get scopedKey() { return this.cur && (this.cur.key === 'rpg' || this.cur.key === 'ar470') && this.adsBlend > 0.9 ? this.cur.key : null; }
   update(dt, s) {
     this.time += dt;
     if (!this.cur) return;

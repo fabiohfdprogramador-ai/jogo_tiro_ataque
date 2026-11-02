@@ -6,6 +6,7 @@ const GUN = {
   //        estalo     explosão (corte, duração)  grave (freq, dur)   mecanismo   eco   volume
   ak47:   { crack: 1.0, blastF: 2400, blastD: 0.16, boomF: 120, boomD: 0.22, mech: 'ak', tail: 1.0, vol: 1.0, drive: 3.2 },
   m4a4:   { crack: 0.9, blastF: 3200, blastD: 0.12, boomF: 140, boomD: 0.17, mech: 'm4', tail: 0.85, vol: 0.9, drive: 2.6 },
+  ar470:  { crack: 0.9, blastF: 3000, blastD: 0.12, boomF: 130, boomD: 0.16, mech: 'm4', tail: 0.9, vol: 0.95, drive: 2.6 },   // gravação própria (ar470_*.wav)
   awp:    { crack: 1.3, blastF: 1600, blastD: 0.3,  boomF: 75,  boomD: 0.45, mech: 'bolt', tail: 1.6, vol: 1.35, drive: 4.5 },
   deagle: { crack: 0.8, blastF: 1900, blastD: 0.2,  boomF: 95,  boomD: 0.3,  mech: 'pistol', tail: 1.2, vol: 1.15, drive: 3.8 },
   glock:  { crack: 0.5, blastF: 3600, blastD: 0.08, boomF: 170, boomD: 0.12, mech: 'pistol', tail: 0.6, vol: 0.7, drive: 2.0 },

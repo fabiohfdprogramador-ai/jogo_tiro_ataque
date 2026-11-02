@@ -66,6 +66,9 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #000; font-f
 #scope .v { position: absolute; top: 0; bottom: 0; left: 50%; width: 1px; background: #000; }
 #rpgscope { position: fixed; inset: 0; pointer-events: none; }
 #rpgscope .lens { position: absolute; inset: 0; background: radial-gradient(circle at 50% 50%, rgba(255,196,110,.07) 0, rgba(255,196,110,.09) 40vh, rgba(0,0,0,.6) 45vh, #000 47vh); }
+#arscope { position: fixed; inset: 0; pointer-events: none; }
+#arscope .lens { position: absolute; inset: 0; background: radial-gradient(circle at 50% 50%, rgba(90,170,255,.07) 0, rgba(90,170,255,.1) 40vh, rgba(10,18,30,.75) 45vh, #05080c 48vh); }
+#arscope svg { position: absolute; left: 50%; top: 50%; width: 94vh; height: 94vh; transform: translate(-50%, -50%); filter: drop-shadow(0 0 3px rgba(255,120,40,.8)); }
 #rpgscope svg { position: absolute; left: 50%; top: 50%; width: 94vh; height: 94vh; transform: translate(-50%, -50%); }
 
 #buy { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(760px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow-y: auto; background: rgba(14,15,18,.9); backdrop-filter: blur(6px); border: 1px solid rgba(232,200,138,.18); border-top: 3px solid #d9a441; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,.6); padding: 18px 22px 20px; }
@@ -74,8 +77,8 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #000; font-f
 #buy .bhead small { font-size: 12px; opacity: .6; } #buy .bhead small b { color: #ffd27a; }
 #buy .cash { text-align: right; } #buy .cash small { display: block; text-transform: uppercase; letter-spacing: 1px; font-size: 11px; }
 #buy .cash span { font-size: 28px; font-weight: 800; color: #8fdc6a; }
-#buylist { display: grid; grid-template-columns: 3fr 4fr; gap: 0 8px; }
-#buylist section:nth-child(2) .row { grid-template-columns: repeat(4, 1fr); }
+#buylist { display: grid; grid-template-columns: 1fr 1fr; gap: 0 8px; }
+#buylist section:nth-child(1) .row, #buylist section:nth-child(2) .row { grid-template-columns: repeat(4, 1fr); }
 #buylist section { margin-top: 8px; grid-column: 1 / -1; }
 #buylist section:nth-child(3), #buylist section:nth-child(4) { grid-column: auto; }
 #buylist section:nth-child(3) .row { grid-template-columns: repeat(2, 1fr); }
