@@ -2,7 +2,7 @@
 // Coordenadas da arma em metros: +x = frente (cano), +y = cima, +z = lado direito.
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { makeGunFromModel, buildAWPPro } from './gunmodels.js';
+import { makeGunFromModel, buildAWPPro, buildTacPro } from './gunmodels.js';
 import { armsReady, makeArm, poseArm, ARM_POSES, dressArm, gloveArm } from './arms.js';
 import { buildRPG, buildBow, buildGrenade } from './heavy.js';
 
@@ -431,7 +431,7 @@ function leftPistolHand(sleeve) {
 
 // ---------- controlador do view-model ----------
 const SPECIAL = { rpg: true, bow: true };   // armas que disparam projéteis (heavy.js)
-const KIND = { ak47: 'rifle', m4a4: 'rifle', awp: 'awp', rpg: 'rpg', bow: 'bow', glock: 'pistol', usp: 'pistol', deagle: 'pistol', knife: 'knife', he: 'nade', flash: 'nade', smoke: 'nade' };
+const KIND = { ak47: 'rifle', m4a4: 'rifle', awp: 'awp', tac: 'awp', rpg: 'rpg', bow: 'bow', glock: 'pistol', usp: 'pistol', deagle: 'pistol', knife: 'knife', he: 'nade', flash: 'nade', smoke: 'nade' };
 export const POSES = {
   // enquadramento do Far Cry 3: arma grande e perto, quase deitada do centro até a borda direita;
   // só a mão esquerda aparece, segurando a frente com o braço descendo reto
@@ -439,7 +439,7 @@ export const POSES = {
   ak47: { pos: [0.115, -0.215, -0.1], rot: [0.0, 0.06, -0.1], scale: 1.4 },   // AK alinhada: reta para frente, grande, subindo do canto de baixo
   m4a4: { pos: [0.115, -0.165, -0.1], rot: [0.0, 0.06, -0.1], scale: 1.2 },   // alinhada como a AK; menor para a mira holográfica não tapar o canto
   awp: { pos: [0.105, -0.13, -0.1], rot: [0.0, 0.06, -0.1], scale: 1.12 },   // alinhada como a AK; menor porque é mais comprida
-  rpg: { pos: [0.13, -0.075, -0.38], rot: [0.1, 0.14, -0.05], scale: 1.0 },   // bazuca no ombro, tubo do canto direito até o meio
+  rpg: { pos: [0.085, -0.165, -0.44], rot: [0.02, 0.03, 0.0], scale: 1.0 },   // bazuca centralizada no ombro, vista pela traseira, as duas mãos nas empunhaduras
   bow: { pos: [0.11, -0.05, -0.56], rot: [0.03, 0.06, -0.3], scale: 1.0 },     // arco inclinado, flecha encaixada
   pistol: { pos: [0.015, 0.012, -0.19], rot: [0.04, 0.0, 0.0], scale: 1.0 },   // como no Far Cry 3: reta no meio da tela, mira por cima e as mãos embaixo
   knife: { pos: [0.155, -0.15, -0.26], rot: [0.15, 0.3, -0.85], scale: 0.55 },
@@ -451,7 +451,7 @@ const FIRE_POSES = {
   ak47: { pos: [0.11, -0.207, -0.095], rot: [0.0, 0.04, -0.08] },
   m4a4: { pos: [0.11, -0.158, -0.095], rot: [0.0, 0.04, -0.08] },
   awp: { pos: [0.1, -0.123, -0.095], rot: [0.0, 0.04, -0.08] },
-  rpg: { pos: [0.125, -0.07, -0.375], rot: [0.09, 0.12, -0.04] },
+  rpg: { pos: [0.082, -0.16, -0.435], rot: [0.015, 0.02, 0.0] },
   bow: { pos: [0.1, -0.045, -0.55], rot: [0.02, 0.04, -0.28] },
   pistol: { pos: [0.015, 0.015, -0.19], rot: [0.03, 0.0, 0.0] },
 };
@@ -466,6 +466,7 @@ const SIGHTS = {
   glock: { rear: [-0.07, 0.0425], front: [0.12, 0.04] },
   usp: { rear: [-0.07, 0.0425], front: [0.12, 0.04] },
   deagle: { rear: [-0.07, 0.0565], front: [0.16, 0.054] },
+  rpg: { rear: [-0.24, 0.1], front: [-0.06, 0.1], lat: -0.05 },   // luneta do lado esquerdo do tubo (heavy.js: buildRPG)
 };
 // pose em que a alça e a massa ficam alinhadas no centro da tela
 function adsPose(key, scale, sight) {
@@ -474,7 +475,7 @@ function adsPose(key, scale, sight) {
   const a = -Math.atan2(dy, dx);
   const y = S.rear[1] * scale, z = -S.rear[0] * scale;
   const y2 = y * Math.cos(a) - z * Math.sin(a), z2 = y * Math.sin(a) + z * Math.cos(a);
-  const dist = key === 'm4a4' ? 0.033 : key === 'ak47' ? 0.022 : KIND[key] === 'pistol' ? 0.165 : 0.07;
+  const dist = key === 'm4a4' ? 0.033 : key === 'ak47' ? 0.022 : key === 'rpg' ? 0.03 : KIND[key] === 'pistol' ? 0.165 : 0.07;
   const lift = 0;   // o ponto vermelho fica exatamente no centro da tela, onde o tiro vai
   // a arma é girada 90° no view-model: o lado (z da arma) vira o x da tela
   return { pos: [-(S.lat || 0) * scale, -y2 + lift, -dist - z2], rot: [a, 0, 0], scale };
@@ -576,7 +577,7 @@ export class ViewModel {
   build(key) {
     const kind = KIND[key], sleeve = this.team === 'T' ? M.sleeveT : M.sleeveCT;
     // modelo 3D realista (se carregou); senão, a arma feita por código
-    const w = kind === 'nade' ? buildNade(key) : (key === 'awp' && buildAWPPro()) || (kind !== 'knife' && !SPECIAL[key] && makeGunFromModel(key, { suppressor: M.metalDark, silver: M.silver })) || (key === 'ak47' ? buildAK() : key === 'm4a4' ? buildM4() : key === 'awp' ? buildAWP() : key === 'rpg' ? buildRPG() : key === 'bow' ? buildBow() : kind === 'pistol' ? buildPistol(key) : buildKnife());
+    const w = kind === 'nade' ? buildNade(key) : (key === 'awp' && buildAWPPro()) || (key === 'tac' && buildTacPro()) || (kind !== 'knife' && !SPECIAL[key] && makeGunFromModel(key, { suppressor: M.metalDark, silver: M.silver })) || (key === 'ak47' ? buildAK() : key === 'm4a4' ? buildM4() : key === 'awp' ? buildAWP() : key === 'rpg' ? buildRPG() : key === 'bow' ? buildBow() : kind === 'pistol' ? buildPistol(key) : buildKnife());
     if (kind === 'nade') w.group.position.set(-0.05, -0.035, 0.04);   // na palma da mão
     if (w.group) w.group.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });
     // a mão esquerda vai para o guarda-mão do modelo
@@ -609,7 +610,7 @@ export class ViewModel {
     const holder = new THREE.Group(); holder.add(inner);
     noShadows(holder);
     let flash = null;
-    if (w.muzzle && key !== 'bow') {
+    if (w.muzzle && key !== 'bow' && key !== 'tac') {   // o supressor do Fuzil Tático esconde o clarão
       flash = new THREE.Sprite(new THREE.SpriteMaterial({ map: FLASH_TEX, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
       flash.scale.setScalar(key === 'rpg' ? 0.5 : key === 'awp' ? 0.32 : kind === 'pistol' ? 0.16 : 0.24); flash.visible = false;
       w.muzzle.add(flash);
@@ -658,6 +659,8 @@ export class ViewModel {
     c.gunGroup.add(obj);
     this.debris.push({ obj, parent: c.gunGroup, v: new THREE.Vector3(-0.15, -0.6, -0.25), life: 0.8 });
   }
+  // bazuca com a luneta encostada no olho: a tela da luneta aparece no lugar da arma
+  get rpgScoped() { return !!(this.cur && this.cur.key === 'rpg' && this.adsBlend > 0.9); }
   update(dt, s) {
     this.time += dt;
     if (!this.cur) return;
@@ -805,7 +808,7 @@ export function simplifyMaterials(root) {
 export function buildWeaponModel(key) {
   const kind = KIND[key];
   if (kind === 'nade') { const w = buildNade(key); simplifyMaterials(w.group); w.group.traverse(o => { if (o.isMesh) o.castShadow = true; }); return w; }
-  const w = (key === 'awp' && buildAWPPro()) || (kind !== 'knife' && !SPECIAL[key] && makeGunFromModel(key, { suppressor: M.metalDark, silver: M.silver })) || (key === 'ak47' ? buildAK() : key === 'm4a4' ? buildM4() : key === 'awp' ? buildAWP() : key === 'rpg' ? buildRPG() : key === 'bow' ? buildBow() : kind === 'pistol' ? buildPistol(key) : buildKnife());
+  const w = (key === 'awp' && buildAWPPro()) || (key === 'tac' && buildTacPro()) || (kind !== 'knife' && !SPECIAL[key] && makeGunFromModel(key, { suppressor: M.metalDark, silver: M.silver })) || (key === 'ak47' ? buildAK() : key === 'm4a4' ? buildM4() : key === 'awp' ? buildAWP() : key === 'rpg' ? buildRPG() : key === 'bow' ? buildBow() : kind === 'pistol' ? buildPistol(key) : buildKnife());
   simplifyMaterials(w.group);
   w.group.traverse(o => { if (o.isMesh) o.castShadow = true; });
   return w;

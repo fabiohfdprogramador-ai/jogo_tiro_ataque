@@ -9,6 +9,7 @@ const GUN = {
   awp:    { crack: 1.3, blastF: 1600, blastD: 0.3,  boomF: 75,  boomD: 0.45, mech: 'bolt', tail: 1.6, vol: 1.35, drive: 4.5 },
   deagle: { crack: 0.8, blastF: 1900, blastD: 0.2,  boomF: 95,  boomD: 0.3,  mech: 'pistol', tail: 1.2, vol: 1.15, drive: 3.8 },
   glock:  { crack: 0.5, blastF: 3600, blastD: 0.08, boomF: 170, boomD: 0.12, mech: 'pistol', tail: 0.6, vol: 0.7, drive: 2.0 },
+  tac:    { suppressed: true, vol: 0.8, tail: 0.7, mech: 'bolt' },   // gravação própria (tac_*.wav); o abafado só vale se faltar o arquivo
   usp:    { suppressed: true, vol: 0.7, tail: 0.6, mech: 'pistol' },   // usa a gravação da Glock (manifest); o abafado só vale se faltar o arquivo
   rpg:    { vol: 1.2, tail: 1.8 },
   bow:    { vol: 0.6, tail: 0.3 },
@@ -254,7 +255,7 @@ export class Sound extends SoundV1 {
   // sacar a arma: cada tipo tem o seu (fuzil, pistola, AWP, faca, granada)
   draw(key) {
     if (!this.ctx) return;
-    const kind = { glock: 'pistola', usp: 'pistola', deagle: 'pistola', awp: 'awp', knife: 'faca', he: 'granada', flash: 'granada', smoke: 'granada' }[key] || 'fuzil';
+    const kind = { glock: 'pistola', usp: 'pistola', deagle: 'pistola', awp: 'awp', tac: 'awp', knife: 'faca', he: 'granada', flash: 'granada', smoke: 'granada' }[key] || 'fuzil';
     if (!this.playSample(this.master, 'draw_' + kind, this.ctx.currentTime, 0.6, 0.97 + Math.random() * 0.06)) super.draw();
   }
   // gatilho sem bala

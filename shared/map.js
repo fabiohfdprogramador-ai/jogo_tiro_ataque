@@ -113,6 +113,45 @@ const B_AREAS = {   // áreas sem casas geradas (o que tem nelas é colocado à 
 };
 const B_BOUNDS = [57, 135, 338, 744];
 
+// Ruas 35% mais largas (a ruela estreita não entra): em vez de redesenhar tudo, o mapa pronto é "aberto" em cada rua.
+// Tudo que fica depois do meio-fio anda para o lado o quanto a rua alargou, então casas e objetos mantêm o tamanho.
+// Faixas em metros, nas coordenadas originais: [centro, meia largura, quanto alarga]. As ruas do sul (Flor de Lis, Violetas
+// e Orquídeas) só existem depois da Vitória Régia, então só abrem o que fica ao sul dela (z > WARP_SOUTH).
+const WIDEN = 0.35;
+const band = (c, w) => [c, w / 2, w * WIDEN];
+const WARP_X = [band(-31, 6), band(0, 7), band(24.25, 7)];                    // Rosas, Acácias, Papoulas
+const WARP_XS = [band(-28, 4.5), band(-14, 4.5), band(8, 5)];                 // Flor de Lis, Violetas, Orquídeas
+const WARP_Z = [band(-54, 6), band(-11, 6), band(15.25, 5.5), [52, 2.5, 6 * WIDEN]];   // Cravos, Margaridas, rua da praça, Vitória Régia
+const WARP_SOUTH = 55.3;   // logo depois do meio-fio sul da Vitória Régia
+const shiftBy = (v, bands) => { let d = 0; for (const [c, h, e] of bands) d += v <= c - h ? 0 : v >= c + h ? e : e * (v - (c - h)) / (2 * h); return d; };
+const inBand = (a, b, bands) => bands.some(([c, h]) => a >= c - h - 1e-6 && b <= c + h + 1e-6);
+const wx = (x, z) => x + shiftBy(x, WARP_X) + (z > WARP_SOUTH ? shiftBy(x, WARP_XS) : 0);
+const wz = (z) => z + shiftBy(z, WARP_Z);
+export const BAIRRO_WARP = { x: wx, z: wz };
+// intervalo [a, b]: se está todo dentro de uma rua (carro, poste, mesa), só anda; senão as pontas andam (e ele estica se cruzar a rua)
+const wInt = (a, b, f, bands) => { if (bands && inBand(a, b, bands)) { const m = f((a + b) / 2); return [m - (b - a) / 2, m + (b - a) / 2]; } return [f(a), f(b)]; };
+function warpBairro(m) {
+  const xb = (z) => z > WARP_SOUTH ? [...WARP_X, ...WARP_XS] : WARP_X;
+  const box = (x0, z0, x1, z1, keep = true) => {
+    const zr = (z0 + z1) / 2, [a, b] = wInt(x0, x1, (x) => wx(x, zr), keep && xb(zr)), [c, d] = wInt(z0, z1, wz, keep && WARP_Z);
+    return [a, c, b, d];
+  };
+  for (const b of m.boxes) { const [a, c, d, e] = box(b.min[0], b.min[2], b.max[0], b.max[2]); b.min[0] = a; b.min[2] = c; b.max[0] = d; b.max[2] = e; }
+  for (const p of m.poles) { p[0] = wx(p[0], p[1]); p[1] = wz(p[1]); }
+  const S0 = m.size;
+  for (const d of m.decor) {
+    if (d.x0 !== undefined) { const z0 = d.z0 ?? S0.maxZ, z1 = d.z1 ?? S0.maxZ; const [a, c, b, e] = box(d.x0, z0, d.x1, z1); d.x0 = a; d.x1 = b; if (d.z0 !== undefined) { d.z0 = c; d.z1 = e; } }
+    if (d.x !== undefined) { d.x = wx(d.x, d.z); d.z = wz(d.z); }
+  }
+  m.streets = m.streets.map(([x0, z0, x1, z1]) => box(x0, z0, x1, z1, false));
+  for (const k in m.areas) m.areas[k] = box(...m.areas[k], false);
+  for (const t of ['T', 'CT']) m.spawns[t] = m.spawns[t].map(([x, z]) => [wx(x, z), wz(z)]);
+  for (const k in m.nodes) { const [x, z] = m.nodes[k]; m.nodes[k] = [wx(x, z), wz(z)]; }
+  for (const k in m.sites) { const s = m.sites[k], [a, c, b, e] = box(s.min[0], s.min[1], s.max[0], s.max[1], false); s.min = [a, c]; s.max = [b, e]; }
+  const [a, c, b, e] = box(S0.minX, S0.minZ, S0.maxX, S0.maxZ, false); m.size = { minX: a, maxX: b, minZ: c, maxZ: e };
+  return m;
+}
+
 function buildBairro() {
   const boxes = [];
   const add = (x0, z0, x1, z1, h, mat, extra = {}, y0 = 0) => boxes.push({ min: [x0, y0, z0], max: [x1, y0 + h, z1], mat, ...extra });
@@ -537,7 +576,7 @@ function buildBairro() {
   };
 }
 
-export const MAPS = { deserto: buildDeserto(), bairro: buildBairro() };
+export const MAPS = { deserto: buildDeserto(), bairro: warpBairro(buildBairro()) };
 export const MAP_IDS = Object.keys(MAPS);
 // mapa em uso (o servidor escolhe; o cliente troca quando o servidor avisa)
 export const MAP = { ...MAPS.deserto };

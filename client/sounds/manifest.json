@@ -12,6 +12,10 @@
     "awp_1.wav",
     "awp_2.wav"
   ],
+  "tac": [
+    "tac_1.wav",
+    "tac_2.wav"
+  ],
   "deagle": [
     "deagle_1.wav",
     "deagle_2.wav"
@@ -40,6 +44,9 @@
     "reload_m4a4.wav"
   ],
   "reload_awp": [
+    "reload_awp.wav"
+  ],
+  "reload_tac": [
     "reload_awp.wav"
   ],
   "step": [

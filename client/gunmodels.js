@@ -406,3 +406,83 @@ export function buildAWPPro() {
   const muzzle = new THREE.Object3D(); muzzle.position.set(0.79, ry, 0); g.add(muzzle);
   return { group: g, mag: magG, muzzle, fore: new THREE.Vector3(0.24, 0.0, 0) };
 }
+
+// ---------- Fuzil tático do Bonde do Campo, feito por código ----------
+// Ferrolho com chassi de alumínio cor de areia, guarda-mão octogonal comprido, coronha dobrável vazada, supressor e luneta grande.
+// Mesmo espaço da AWP (+x cano, +y cima, +z direita), com a empunhadura no mesmo lugar.
+let TAC_MATS = null;
+function tacMaterials() {
+  if (TAC_MATS) return TAC_MATS;
+  const A = awpMaterials();
+  TAC_MATS = {
+    tan: new THREE.MeshPhysicalMaterial({ map: wornPaint('#a58a5e', 'rgba(62,54,42,1)', 13), roughnessMap: grainRough, normalMap: grainNormal, normalScale: new THREE.Vector2(0.3, 0.3), metalness: 0.15, roughness: 0.7, clearcoat: 0.1, clearcoatRoughness: 0.6, envMapIntensity: 0.45 }),
+    black: new THREE.MeshPhysicalMaterial({ map: wornPaint('#1b1c1e', 'rgba(95,96,98,1)', 17), roughnessMap: grainRough, normalMap: grainNormal, normalScale: new THREE.Vector2(0.4, 0.4), metalness: 0.3, roughness: 0.65, envMapIntensity: 0.4 }),
+    rubber: A.grip, steel: A.steel, glass: A.glass,
+    slot: new THREE.MeshStandardMaterial({ color: 0x050505, roughness: 1 }),
+  };
+  return TAC_MATS;
+}
+const boxAt = (mat, x0, y0, z0, x1, y1, z1) => { const m = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, y1 - y0, z1 - z0), mat); m.position.set((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2); return m; };
+const rectPts = (x0, y0, x1, y1) => [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
+function tacScope(g, M, x0, x1, y, railY) {
+  const r = 0.0165, obj = 0.027, eye = 0.021, L = x1 - x0;
+  const Yv = new THREE.Vector3(0, 1, 0), Xv = new THREE.Vector3(1, 0, 0);
+  const lathe = (pts, mat) => { const m = new THREE.Mesh(new THREE.LatheGeometry(pts.map(([x, rr]) => new THREE.Vector2(rr, x)), 40), mat); m.quaternion.setFromUnitVectors(Yv, Xv); m.position.set(0, y, 0); g.add(m); };
+  lathe([[x0, eye * 0.85], [x0 + 0.005, eye], [x0 + 0.03, eye], [x0 + 0.035, eye * 0.95]], M.rubber);
+  lathe([[x0 + 0.035, eye * 0.95], [x0 + 0.05, eye * 0.95], [x0 + 0.075, r], [x1 - L * 0.28, r], [x1 - L * 0.18, obj * 0.85], [x1 - L * 0.1, obj], [x1, obj], [x1, obj * 0.9]], M.tan);
+  for (const [x, rr, s] of [[x1 - 0.0005, obj * 0.88, 1], [x0 + 0.0005, eye * 0.82, -1]]) { const l = new THREE.Mesh(new THREE.CircleGeometry(rr, 32), M.glass); l.position.set(x, y, 0); l.rotation.y = s * Math.PI / 2; g.add(l); }
+  const tx = x0 + L * 0.42;
+  const cyl = (pos, axis, rr, h, mat) => { const t = new THREE.Mesh(new THREE.CylinderGeometry(rr, rr, h, 24), mat); t.position.set(...pos); t.quaternion.setFromUnitVectors(Yv, axis); g.add(t); };
+  cyl([tx, y, 0], Xv, r * 1.25, 0.05, M.tan);
+  cyl([tx, y + r * 1.25 + 0.008, 0], Yv, 0.011, 0.018, M.tan); cyl([tx, y + r * 1.25 + 0.019, 0], Yv, 0.0118, 0.008, M.black);
+  cyl([tx, y, r * 1.25 + 0.008], new THREE.Vector3(0, 0, 1), 0.011, 0.018, M.tan);
+  cyl([tx, y, -r * 1.25 - 0.006], new THREE.Vector3(0, 0, 1), 0.013, 0.012, M.tan);
+  for (const x of [x0 + L * 0.27, x0 + L * 0.66]) {
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(r + 0.002, 0.0035, 10, 32), M.black); ring.position.set(x, y, 0); ring.rotation.y = Math.PI / 2; g.add(ring);
+    g.add(boxAt(M.black, x - 0.008, railY, -0.013, x + 0.008, y - r + 0.004, 0.013));
+  }
+}
+export function buildTacPro() {
+  const M = tacMaterials(), g = new THREE.Group(), add = (m) => { g.add(m); return m; };
+  const ry = 0.024, DX = -0.04;   // DX: puxa tudo para trás, para a empunhadura cair no mesmo lugar da AWP
+  // chassi: corpo de baixo com o poço do carregador
+  add(slab(roundedPath([[-0.13, 0.006], [0.15, 0.006], [0.15, -0.04], [0.11, -0.048], [0.03, -0.048], [-0.04, -0.04], [-0.13, -0.035]], 0.008), 0.042, 0.004, M.tan));
+  // guarda-mão octogonal comprido com fendas, trilho contínuo em cima
+  const hg = add(tubeX(0.026, 0.026, 0.14, 0.53, ry - 0.004, 0, M.tan, 8)); hg.rotation.x = Math.PI / 8;
+  for (let i = 0; i < 6; i++) for (const zs of [-1, 1]) { const x = 0.18 + i * 0.055; add(boxAt(M.slot, x, ry - 0.016, zs * 0.0255 - 0.0006, x + 0.032, ry - 0.004, zs * 0.0255 + 0.0006)); }
+  add(slab(roundedPath(rectPts(-0.13, ry + 0.02, 0.53, ry + 0.03), 0.002), 0.02, 0.002, M.black));
+  for (let i = 0; i < 34; i++) add(boxAt(M.black, -0.125 + i * 0.019, ry + 0.03, -0.01, -0.117 + i * 0.019, ry + 0.035, 0.01));
+  // receptor redondo, ferrolho e alavanca com bola cilíndrica
+  add(tubeX(0.018, 0.018, -0.13, 0.14, ry, 0, M.black));
+  const bolt = add(new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.05, 12), M.steel)); bolt.position.set(-0.095, ry - 0.008, 0.034); bolt.rotation.x = Math.PI / 2 - 0.4;
+  const knob = add(new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.02, 16), M.black)); knob.position.set(-0.095, ry - 0.018, 0.058); knob.rotation.x = Math.PI / 2;
+  // cano pesado e supressor grosso
+  add(tubeX(0.0135, 0.0135, 0.53, 0.62, ry, 0, M.steel));
+  add(tubeX(0.022, 0.022, 0.62, 0.84, ry, 0, M.black, 32)); add(tubeX(0.019, 0.022, 0.84, 0.85, ry, 0, M.black, 32));
+  // empunhadura de polímero quase vertical e guarda-mato
+  add(slab(roundedPath([[-0.045, -0.035], [-0.01, -0.035], [-0.035, -0.135], [-0.075, -0.14], [-0.08, -0.12]], 0.012), 0.032, 0.006, M.black));
+  const guard = new THREE.CatmullRomCurve3([[0.03, -0.042], [0.025, -0.072], [-0.005, -0.078], [-0.02, -0.06]].map(([x, y]) => new THREE.Vector3(x, y, 0)));
+  add(new THREE.Mesh(new THREE.TubeGeometry(guard, 20, 0.004, 8, false), M.tan));
+  const trig = new THREE.CatmullRomCurve3([[0.006, -0.042], [0.01, -0.055], [0.006, -0.064]].map(([x, y]) => new THREE.Vector3(x, y, 0)));
+  add(new THREE.Mesh(new THREE.TubeGeometry(trig, 10, 0.0028, 8, false), M.steel));
+  // coronha dobrável vazada: dobradiça, duas barras, apoio de rosto ajustável, telha de borracha e monopé
+  add(boxAt(M.black, -0.15, -0.03, -0.018, -0.13, 0.02, 0.018));
+  add(slab(roundedPath([[-0.15, 0.018], [-0.42, 0.018], [-0.42, 0.0], [-0.15, 0.0]], 0.006), 0.026, 0.003, M.tan));
+  add(slab(roundedPath([[-0.15, -0.03], [-0.41, -0.11], [-0.42, -0.095], [-0.15, -0.014]], 0.006), 0.022, 0.003, M.tan));
+  add(slab(roundedPath([[-0.36, 0.06], [-0.2, 0.06], [-0.2, 0.042], [-0.36, 0.042]], 0.008), 0.03, 0.004, M.black));
+  for (const x of [-0.33, -0.23]) add(boxAt(M.steel, x - 0.004, 0.018, -0.004, x + 0.004, 0.042, 0.004));
+  add(slab(roundedPath(rectPts(-0.445, -0.125, -0.42, 0.03), 0.008), 0.044, 0.004, M.rubber));
+  add(boxAt(M.black, -0.39, -0.14, -0.006, -0.38, -0.1, 0.006));
+  // bipé dobrado debaixo do guarda-mão
+  add(boxAt(M.black, 0.47, -0.012, -0.012, 0.5, -0.004, 0.012));
+  for (const zs of [-1, 1]) add(tubeX(0.005, 0.005, 0.3, 0.48, -0.016, zs * 0.012, M.black, 10));
+  tacScope(g, M, -0.17, 0.24, ry + 0.062, ry + 0.035);
+  // carregador de caixa (sai na recarga)
+  const magG = new THREE.Group(); g.add(magG);
+  magG.add(slab(roundedPath(rectPts(0.04, -0.12, 0.1, -0.045), 0.005), 0.03, 0.003, M.black));
+  magG.add(slab(roundedPath(rectPts(0.037, -0.128, 0.103, -0.12), 0.003), 0.034, 0.002, M.tan));
+  for (const c of g.children) c.position.x += DX;
+  g.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });
+  const muzzle = new THREE.Object3D(); muzzle.position.set(0.86 + DX, ry, 0); g.add(muzzle);
+  return { group: g, mag: magG, muzzle, fore: new THREE.Vector3(0.28 + DX, 0.03, 0) };
+}

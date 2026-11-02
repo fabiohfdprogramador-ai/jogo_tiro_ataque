@@ -95,7 +95,7 @@ export class RemotePlayers {
       r.vx = Number.isFinite(r.vx) ? r.vx : 0; r.vz = Number.isFinite(r.vz) ? r.vz : 0;
       const vel = [r.vx * cy - r.vz * sy, r.vx * sy + r.vz * cy];   // no espaço do boneco
       if (M.root.visible) M.soldier.update(dt, { speed: Math.min(8, Math.hypot(r.vx, r.vz)), vel, crouch: r.crouch ? 1 : 0, pitch: r.pitch, reload: !!r.reloading });
-      r.flashT -= dt; M.flash.visible = r.flashT > 0;
+      r.flashT -= dt; M.flash.visible = r.flashT > 0 && r.w !== 'tac';   // supressor: sem clarão
       if (M.flash.visible) M.flash.material.rotation = Math.random() * 3;
     }
   }

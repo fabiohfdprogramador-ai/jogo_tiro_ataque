@@ -35,6 +35,13 @@ export const WEAPONS = {
     price: 4750, reload: 2.53, speed: 0.8, armorPen: 0.975, reward: 100,
     spread: 0.0005, unscopedSpread: 0.07, moveSpread: 0.15, jumpSpread: 0.3, kick: 0.03, scope: true, range: 300,
   },
+  // fuzil de mira do Bonde do Campo (a AWP é a do Bonde da Macaca); os dois times podem comprar os dois.
+  // Mesmos números da AWP, com supressor: tiro mais baixo e sem clarão no cano
+  tac: {
+    name: 'Fuzil Tático', slot: 4, dmg: 115, rpm: 41, auto: false, mag: 5, reserve: 30,
+    price: 4750, reload: 2.53, speed: 0.8, armorPen: 0.975, reward: 100, suppressed: true,
+    spread: 0.0005, unscopedSpread: 0.07, moveSpread: 0.15, jumpSpread: 0.3, kick: 0.03, scope: true, range: 300,
+  },
   // armas especiais (espaço 4, no lugar da AWP): disparam projéteis que voam de verdade (shared/physics.js: PROJ)
   rpg: {
     name: 'Bazuca', slot: 4, dmg: 0, rpm: 30, auto: false, mag: 1, reserve: 2,
@@ -69,13 +76,14 @@ export const BUY_MENU = [
   { key: '2', item: 'ak47' },
   { key: '3', item: 'm4a4' },
   { key: '4', item: 'awp' },
-  { key: '5', item: 'rpg' },
-  { key: '6', item: 'bow' },
-  { key: '7', item: 'kevlar' },
-  { key: '8', item: 'helmet' },
-  { key: '9', item: 'he' },
-  { key: '0', item: 'flash' },
-  { key: '-', item: 'smoke' },
+  { key: '5', item: 'tac' },
+  { key: '6', item: 'rpg' },
+  { key: '7', item: 'bow' },
+  { key: '8', item: 'kevlar' },
+  { key: '9', item: 'helmet' },
+  { key: '0', item: 'he' },
+  { key: '-', item: 'flash' },
+  { key: '=', item: 'smoke' },
 ];
 
 export const ZONE_MULT = { head: 4, chest: 1, stomach: 1.25, legs: 0.75 };

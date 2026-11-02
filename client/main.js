@@ -561,7 +561,7 @@ function tryFire() {
   if (!hitPlayer && wr.normal && wr.t < W.range) { fx.impact(end, wr.normal); sound.impact([end.x, end.y, end.z], impactMat([end.x, end.y, end.z])); }
   sound.casing(null, key);
   if (!W.auto || me.spray % 3 === 1) fx.tracer(camera.localToWorld(new THREE.Vector3(0.1, -0.09, -0.55)), end);
-  if (key === 'awp') me.scope = 0;
+  if (W.scope) me.scope = 0;
   if (W.kick > 0.03) me.shake = Math.min(1, me.shake + W.kick * 2);
 }
 
@@ -694,7 +694,7 @@ document.addEventListener('mousedown', (e) => {
     mouseDown = true; mouseClicked = true;
   }
   if (e.button === 2 && me.alive) {
-    if (curKey() === 'awp') { if (!me.reloadEnd) me.scope = (me.scope + 1) % 3; }
+    if (WEAPONS[curKey()] && WEAPONS[curKey()].scope) { if (!me.reloadEnd) me.scope = (me.scope + 1) % 3; }
     else if (WEAPONS[curKey()] && !WEAPONS[curKey()].melee) me.ads = true;          // segurar o botão direito = mirar
   }
 });
@@ -714,8 +714,8 @@ document.addEventListener('keydown', (e) => {
   if (!locked) return;
   if (e.code === 'KeyB' && me.alive) { buyOpen = !buyOpen; if (buyOpen && !srv.buy) { buyOpen = false; hud.notice('O tempo de compra acabou'); } }
   if (e.code === 'Escape' && buyOpen) buyOpen = false;
-  if (/^(Digit[0-9]|Minus)$/.test(e.code)) {
-    const n = e.code === 'Minus' ? '-' : e.code.slice(5);
+  if (/^(Digit[0-9]|Minus|Equal)$/.test(e.code)) {
+    const n = e.code === 'Minus' ? '-' : e.code === 'Equal' ? '=' : e.code.slice(5);
     if (buyOpen) { const it = BUY_MENU.find(b => b.key === n); if (it) send({ t: 'buy', item: it.item }); }
     else if (me.alive && +n === 5 && me.cur === 5) send({ t: 'nextnade' });   // 5 de novo: próxima granada
     else if (me.alive && +n === 4 && me.cur === 4 && (me.bag4 || []).length) send({ t: 'next4' });   // 4 de novo: troca AWP/bazuca/arco
@@ -861,7 +861,7 @@ let sendT = 0;
 function menuCamera(dt) {
   menuT += dt;
   let c, r, h;
-  if (mapId === 'bairro') { c = [12.4, 2]; r = 15; h = 8.5; }
+  if (mapId === 'bairro') { c = [14.85, 6.2]; r = 16; h = 8.5; }
   else { const a = MAP.spawns.T[0], b = MAP.spawns.CT[0]; c = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]; r = 22; h = 14; }
   const ang = menuT * 0.045 + 0.6;
   camera.position.set(c[0] + Math.sin(ang) * r, h, c[1] + Math.cos(ang) * r);
@@ -915,7 +915,7 @@ function frame() {
       const a = me.shake * me.shake * 0.035, tt = t * 47;
       camera.rotation.x += Math.sin(tt) * a; camera.rotation.y += Math.sin(tt * 1.37 + 1) * a; camera.rotation.z += Math.sin(tt * 0.83 + 2) * a * 0.6;
     }
-    const adsFov = WEAPONS[curKey()]?.slot === 2 ? 62 : 54;
+    const adsFov = curKey() === 'rpg' ? (vm.rpgScoped ? 30 : 60) : WEAPONS[curKey()]?.slot === 2 ? 62 : 54;   // luneta da bazuca: zoom de 2,7x
     const targetFov = me.scope === 1 ? 40 : me.scope === 2 ? 15 : me.ads && me.alive && !me.reloadEnd ? adsFov : BASE_FOV;
     if (Math.abs(camera.fov - targetFov) > 0.01) { camera.fov += (targetFov - camera.fov) * Math.min(1, dt * 20); camera.updateProjectionMatrix(); }
 
@@ -950,6 +950,7 @@ function frame() {
     const gap = 4 + (W && !W.melee ? currentSpread(W) * 260 : 0) + Math.min(me.spray, 8) * 1.5;
     hud.crosshair(gap, me.alive && !me.scope && !me.ads && !(W && W.scope));
     hud.scope(me.alive && me.scope > 0);
+    hud.rpgScope(me.alive && !specR0() && vm.rpgScoped);
     hud.flash(Math.min(1, me.flash));
     hud.bomb(srv.bomb, me, bombAction(), me.using);
     hud.buyMenu(buyOpen && srv.buy && me.alive, me);
@@ -972,14 +973,14 @@ function frame() {
   remotes.update(dt);
   fx.update(dt);
   const hs = Math.hypot(me.v[0], me.v[2]);
-  const specR = !me.alive && spectate ? remotes.get(spectate) : null;
+  const specR = specR0();
   remotes.hidden = specR ? specR.id : 0;
   if (vm.cur && vm.cur.projectile) {   // foguete/flecha aparece na arma quando carregada (e no fim da recarga)
     const k = curKey(), a = me.ammo[k], Wk = WEAPONS[k];
     vm.cur.loaded = !!(a && Wk) && (me.reloadEnd ? now() > me.reloadEnd - Wk.reload * 0.4 : a.mag > 0);
   }
   if (specR) vm.update(dt, { speed: specR.s, onGround: true, vy: 0, crouch: specR.crouch, lookDX: 0, lookDY: 0, visible: playing && specR.alive });
-  else vm.update(dt, { speed: hs, onGround: me.onGround, vy: me.v[1], crouch: me.crouch, lookDX, lookDY, visible: playing && me.alive && me.scope === 0, firing: me.alive && (mouseDown || now() - me.lastShot < 0.35), ads: me.ads && me.alive, sprint: me.alive && me.sprint && me.onGround && hs > PHYS.walkSpeed * 0.9 });
+  else vm.update(dt, { speed: hs, onGround: me.onGround, vy: me.v[1], crouch: me.crouch, lookDX, lookDY, visible: playing && me.alive && me.scope === 0 && !vm.rpgScoped, firing: me.alive && (mouseDown || now() - me.lastShot < 0.35), ads: me.ads && me.alive, sprint: me.alive && me.sprint && me.onGround && hs > PHYS.walkSpeed * 0.9 });
   lookDX = 0; lookDY = 0;
 
   renderer.clear();
@@ -995,4 +996,5 @@ function frame() {
 }
 
 requestAnimationFrame(frame);
+function specR0() { return !me.alive && spectate ? remotes.get(spectate) : null; }
 window.__game = { me, srv, remotes, camera, vm, renderer, sound, fx, changeMap, debug: { fire: () => { mouseClicked = true; tryFire(); }, selectSlot, send, startReload, keys, get doorOpen() { return MAP.boxes.some(b => b.mat === 'door' && b.open); } } };

@@ -33,3 +33,6 @@ das gravações CC0 acima ("Gun Reload Sound Effects", "Swishes sound pack").
 
 Ambiente do Bairro (amb_dia, amb_noite, amb_dog, amb_car, amb_kids): BigSoundBank (Joseph Sardin), licença CC0 —
 #2457 jardim na cidade, #1020 grilo do campo, #2954 cachorro latindo, #2987 carro passando a 50 km/h, #0370 crianças na rua.
+
+Fuzil Tático (tac_1-2.wav): feito a partir das gravações da AWP acima (CC0), com filtros para soar com supressor
+(estouro abafado, estalo curto, sopro do gás e eco mais curto). Recarga e sacar usam os sons da AWP.

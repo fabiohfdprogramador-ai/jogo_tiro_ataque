@@ -3,6 +3,7 @@
 // Poly Haven) com cor, relevo (normal) e brilho/oclusão (arm). As colisões vêm de shared/map.js.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { BAIRRO_WARP as BW } from '/shared/map.js';
 
 function rand(seed) { let s = seed; return () => (s = (s * 16807) % 2147483647) / 2147483647; }
 
@@ -628,7 +629,7 @@ export function buildBairro(group, MAP, sunLight) {
   {
     const r2 = rand(99);
     for (let z = S.minZ - 14; z < S.maxZ + 14; z += 7 + r2() * 4) {
-      if (z > 39 && z < 57) { z = 57; continue; }   // a Vitória Régia continua para oeste fora do mapa
+      if (z > BW.z(39) && z < BW.z(57)) { z = BW.z(57); continue; }   // a Vitória Régia continua para oeste fora do mapa
       const floors = r2() < 0.45 ? 1 : r2() < 0.8 ? 2 : 3;
       house({ min: [S.minX - 13, 0, z], max: [S.minX - 1.5, 3.1 * floors, z + 6 + r2() * 4], color: (r2() * 1000) | 0, roof: floors === 1 ? 1 : 0, brick: r2() < 0.22 ? 1 : 0 }, false);
     }
@@ -657,7 +658,7 @@ export function buildBairro(group, MAP, sunLight) {
     flat(M.grass, S.maxX, S.minZ, S.maxX + 60, S.maxZ + 60, 0.01, 5);
     flat(M.grass, S.minX - 1.5, S.maxZ, S.maxX, S.maxZ + 60, 0.01, 5);
     for (const [x0, z0, x1, z1] of MAP.streets) if (z1 > S.maxZ) flat(M.concrete, x0, S.maxZ, x1, z1, 0.011, 1.5);   // calçada das ruas que passam da cerca do sul
-    for (let x = S.minX; x < S.maxX + 14; x += 4 + r2() * 3) if (Math.abs(x - 8) > 4 && x > -2 && (x < 19 || x > 29)) { tree(x, 0, S.maxZ + 3 + r2() * 6, 1.4 + r2() * 0.8); if (r2() < 0.4) palm(x + 1.5, S.maxZ + 2.5 + r2() * 3, 7 + r2() * 4); }
+    for (let x = S.minX; x < S.maxX + 14; x += 4 + r2() * 3) if (Math.abs(x - BW.x(8, 60)) > 4 && x > BW.x(-2, 60) && (x < BW.x(19, 60) || x > BW.x(29, 60))) { tree(x, 0, S.maxZ + 3 + r2() * 6, 1.4 + r2() * 0.8); if (r2() < 0.4) palm(x + 1.5, S.maxZ + 2.5 + r2() * 3, 7 + r2() * 4); }
     for (let z = S.minZ; z < S.maxZ; z += 4 + r2() * 3) tree(S.maxX + 2 + r2() * 6, 0, z, 1.4 + r2() * 0.8);
     for (let x = S.minX; x < S.maxX; x += 9 + r2() * 8) tree(x, 0, S.minZ - 6 - r2() * 10, 1.2 + r2() * 0.6);
     {   // cerca do outro lado da Vitória Régia (com o trecho da casa ao lado do portão, que tem cerca de pallets)

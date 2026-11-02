@@ -113,11 +113,11 @@ function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = (Math.r
 
 function spawnPlayer(pl, spot) {
   if (pl.lostGear) {
-    // todo mundo começa com faca, pistola, fuzil, AWP (tecla 4) e uma granada de cada
+    // todo mundo começa com faca, pistola, fuzil, o fuzil de mira do time (tecla 4: AWP na Macaca, Fuzil Tático no Campo) e uma granada de cada
     pl.slots = { 1: null, 2: defaultPistol(pl.team), 3: 'knife', 4: null, 5: null }; pl.bag4 = []; pl.ammo = {};
     giveWeapon(pl, pl.slots[2]);
     giveWeapon(pl, pl.team === 'T' ? 'ak47' : 'm4a4');
-    giveWeapon(pl, 'awp');
+    giveWeapon(pl, pl.team === 'T' ? 'awp' : 'tac');
     pl.nades = { he: 1, flash: 1, smoke: 1 };
     pl.armor = 0; pl.helmet = false; pl.lostGear = false;
   }
@@ -490,7 +490,7 @@ function rocketBlast(q, at, direct) {
     const dd = Math.hypot(chest[0] - at[0], chest[1] - at[1], chest[2] - at[2]);
     if (dd > P.radius || !lineOfSight([at[0], at[1] + 0.2, at[2]], chest, MAP.boxes)) continue;
     const k = 1 - dd / P.radius;
-    rawDamage(att || v, v, P.damage * k * k + (v === direct ? P.direct : 0), 'rpg');
+    rawDamage(att || v, v, P.damage * Math.pow(k, P.falloff) + (v === direct ? P.direct : 0), 'rpg');
   }
 }
 function projsTick(dt) {
@@ -556,7 +556,7 @@ function botBuyAndPlan(b) {
   for (const k of NADES) if (!(b.nades[k] > 0) && b.money >= WEAPONS[k].price + 500) { b.money -= WEAPONS[k].price; b.nades[k] = 1; }
   nextNade(b);
   b.cur = b.slots[1] ? 1 : 2;
-  if (Math.random() < 0.15 && b.slots[4]) b.cur = 4;          // às vezes vai de AWP
+  if (Math.random() < 0.15 && b.slots[4]) b.cur = 4;          // às vezes vai de fuzil de mira
   const B = b.bot;
   B.target = null; B.alert = null; B.alertMove = false; B.cover = null; B.burst = 0; B.pushAt = CFG.roundTime - (25 + Math.random() * 30); B.obj = null; B.blind = 0;
   if (b.team === 'T') {
@@ -674,7 +674,7 @@ function updateBot(b, dt) {
     const err = Math.abs(angleDiff(wantYaw, b.yaw)) + Math.abs(wantPitch - b.pitch);
     B.strafeT -= dt;
     if (B.strafeT <= 0) { B.strafe = Math.random() < 0.5 ? -1 : 1; B.strafeT = 0.5 + Math.random() * 0.9; if (Math.random() < 0.3) B.strafe = 0; }
-    if (key !== 'awp') { wish = [Math.cos(b.yaw) * B.strafe, -Math.sin(b.yaw) * B.strafe]; speed *= 0.45; }
+    if (!WEAPONS[key].scope) { wish = [Math.cos(b.yaw) * B.strafe, -Math.sin(b.yaw) * B.strafe]; speed *= 0.45; }
     // agacha às vezes quando o inimigo está longe (fica parado e mira melhor)
     B.crouchT -= dt;
     if (B.crouchT <= 0) { B.crouchT = 1 + Math.random() * 1.5; b.crouch = tdist > 15 && Math.random() < 0.55; }

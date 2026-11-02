@@ -168,7 +168,7 @@ export function stepNade(n, dt, boxes) {
 // ---------------------------------------------------------------- foguete da bazuca e flecha do arco
 // Voam com velocidade e gravidade próprias (a flecha cai bem mais); o servidor decide onde bateram.
 export const PROJ = {
-  rocket: { speed: 42, gravity: 1.2, life: 6, radius: 7, damage: 450, direct: 140 },
+  rocket: { speed: 42, gravity: 1.2, life: 6, radius: 8.5, damage: 450, direct: 140, falloff: 1.6 },   // falloff: quanto o dano cai com a distância (2 = cai rápido)
   arrow: { speed: 80, gravity: 5, life: 5 },
 };
 // Avança o projétil q = { kind, p, v } por dt. Retorna o trecho percorrido { o, d, len } para testar batidas.

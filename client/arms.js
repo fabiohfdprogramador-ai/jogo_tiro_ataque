@@ -182,8 +182,10 @@ ARM_POSES.ak47 = { R: copyPose(ARM_POSES.rifle.R), L: { wrist: [0.25, -0.07, -0.
 ARM_POSES.m4a4 = { R: copyPose(ARM_POSES.rifle.R), L: { ...copyPose(ARM_POSES.ak47.L), wrist: [0.2, -0.065, -0.04] } };
 // AWP: mesma pegada da AK, mais à frente no guarda-mão comprido
 ARM_POSES.awp = { R: copyPose(ARM_POSES.rifle.R), L: { ...copyPose(ARM_POSES.ak47.L), wrist: [0.3, -0.03, -0.04] } };
-// bazuca: só a mão direita aparece, no cabo; arco: a direita segura o punho e a esquerda puxa a corda pelo nock
-ARM_POSES.rpg = { R: ARM_POSES.rifle.R };
+// Fuzil Tático: igual à AWP, com a mão no guarda-mão octogonal
+ARM_POSES.tac = { R: copyPose(ARM_POSES.rifle.R), L: { ...copyPose(ARM_POSES.ak47.L), wrist: [0.3, -0.03, -0.04] } };
+// bazuca: a direita no cabo e a esquerda na empunhadura da frente; arco: a direita segura o punho e a esquerda puxa a corda pelo nock
+ARM_POSES.rpg = { R: ARM_POSES.rifle.R, L: { ...copyPose(ARM_POSES.ak47.L), wrist: [0.27, -0.06, -0.035] } };
 ARM_POSES.bow = { R: ARM_POSES.rifle.R, L: { wrist: [-0.33, -0.07, -0.02], fingers: [1, 0.45, 0.1], palm: [0, -0.6, 1], forearm: [-1, -0.35, -0.35], size: 0.17,
   curl: { index: [1.2, 1.2, 0.7], middle: [1.25, 1.2, 0.7], ring: [1.35, 1.2, 0.7], pinky: [1.5, 1.3, 0.8], thumb: [1.1, 0.9, 0.6] } } };
 // faca: mão fechada no cabo (mesmo ponto da empunhadura das armas); granada: mão menos fechada, segurando a bola
