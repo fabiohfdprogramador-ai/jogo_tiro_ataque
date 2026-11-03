@@ -12,3 +12,20 @@ Os arquivos foram otimizados (texturas reduzidas e comprimidas) e encaixados no 
 
 Baixados mas não usados no momento:
 - "Insurgent. Low poly Game ready" por badbih337 (o arquivo veio com as partes em escalas erradas)
+
+Objetos do mapa (pasta props) — Poly Haven (https://polyhaven.com), licença CC0 (domínio público), texturas reduzidas e comprimidas:
+- "Metal Trash Can" (metal_trash_can.glb): latas de lixo das calçadas
+- "Trashbag" (trashbag.glb): sacos de lixo
+- "Covered Car" (covered_car.glb): carros cobertos com capa
+
+Objetos do mapa (pasta props) — Sketchfab, licença Creative Commons Attribution 4.0, otimizados (texturas reduzidas, alguns simplificados):
+- "Palm Trees" por YadroGames — https://sketchfab.com/3d-models/55690379305145488e20afb05fc687e6 (palms.glb)
+- "Coconut Tree" por sujirour — https://sketchfab.com/3d-models/d141941578044b0f861ca83b36d4c411 (coconut.glb)
+- "Banana Plant" por evolveduk — https://sketchfab.com/3d-models/85695b82c7ba4b3497a663616cc3bf25 (banana.glb)
+- "Trees Low Poly" por Igor_K. — https://sketchfab.com/3d-models/1d2dcca2ccb1496c85b7cc5789a2a261 (trees.glb)
+- "Generic 80s european car" por Henry VIII — https://sketchfab.com/3d-models/af108d4773df4722a62420f65dd5b8fe (car80s.glb)
+- "Kiri '10 - Low poly model" por Daniel Zhabotinsky — https://sketchfab.com/3d-models/7fd6e15785fa4aa9bfd6e31eb7c97ba6 (kiri.glb)
+- "Sanremo '70 - Low poly model" por Daniel Zhabotinsky — https://sketchfab.com/3d-models/b2261c471645417a8b7e5882d541c248 (sanremo.glb)
+- "Pickup Truck" por 00amza — https://sketchfab.com/3d-models/047615f53e2d45b9a1a2a4dd203d459c (pickup.glb)
+- "Low Poly Motorcycle 001" por ROH3D — https://sketchfab.com/3d-models/38a3b1f8cdb24a049d2430520eb9882a (moto.glb)
+- "Low Poly | Dumpsters" por Anna Denisova — https://sketchfab.com/3d-models/b9ec48bea3544743a72590a979c68a63 (dumpster.glb)

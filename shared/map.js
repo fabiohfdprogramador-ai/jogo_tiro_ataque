@@ -424,20 +424,21 @@ function buildBairro() {
 
   // carros estacionados (cobertura): rente às calçadas, sem fechar o meio da rua
   const car = (x, z, alongZ, hex, kind = 'car') => {
-    const L = kind === 'kombi' ? 4.3 : 4.1, Wd = kind === 'kombi' ? 1.75 : 1.7, h = kind === 'kombi' ? 1.95 : 1.45;
+    const L = kind === 'kombi' ? 4.3 : kind === 'pickup' ? 4.9 : 4.1, Wd = kind === 'kombi' ? 1.75 : kind === 'pickup' ? 1.9 : 1.7, h = kind === 'kombi' ? 1.95 : kind === 'pickup' ? 1.8 : 1.45;
     prop(x, z, alongZ ? Wd : L, alongZ ? L : Wd, h, 'car', { hex, kind, dir: alongZ ? (x > 10 ? 1 : -1) : 0 });
   };
   car(1.3, FZ + 7.5, true, 0x2e4a40); car(1.3, FZ + 12.6, true, 0x5c6064); car(1.3, FZ + 18.2, true, 0xb8bcc0);   // Acácias (muro da igreja)
   car(22.9, IZ0 + 4, true, 0xc9b98a); car(22.9, IZ0 + 19.5, true, 0x6a6460); car(22.9, IZ0 + 24.6, true, 0xb4b8bc); car(22.9, IZ0 + 29.2, true, 0x7ab0d8);   // Papoulas (lado da igreja)
   car(25.6, IZ0 + 8.5, true, 0xb8bab8); car(25.6, IZ0 + 13.6, true, 0xf2f0ea, 'kombi');                                // Papoulas (lado das lojas)
-  car(-28.9, 70, true, 0xb8bcc0); car(-12.5, 80, true, 0xf2f2f0);                                                  // carros parados na Flor de Lis e na Violetas
+  car(-28.9, 70, true, 0xb8bcc0, 'covered'); car(-12.5, 80, true, 0xf2f2f0);                                                  // carros parados na Flor de Lis e na Violetas
   prop(-33.5, 49.85, 1.8, 0.45, 0.9, 'bench', { black: 1 }); prop(-30.6, 50.3, 0.62, 0.62, 0.95, 'bin', { blue: 1 });   // banco preto e tambor azul na calçada
   car(-24, IZ1 + 4.6, false, 0x2a5a6a); car(-20, IZ1 + 1.6, false, 0xb8bcc0);                                       // carros parados na Vitória Régia (fotos 67 e 7)
   car(17.5, IZ1 + 1.95, false, 0x2448a8); car(12.4, IZ1 + 1.95, false, 0xeeeeee); car(7.3, IZ1 + 1.95, false, 0x6a6460);   // Vitória Régia (foto 3)
   car(25.6, -22, true, 0x30343a);
   car(26.0, 14.0, true, 0xeeeeee); car(26.0, -2.6, true, 0x2a5aa8);                                                   // parados na frente dos quiosques (foto da praça)                                                                                       // Papoulas, perto da rua da praça
-  car(-22, -52.7, false, 0xc8ccd0, 'kombi'); car(3, -52.7, false, 0xf2f2f0);                                         // Cravos: furgão na Assembleia, picape na Arena
-  car(-11.5, -34.6, false, 0xf4f4f2);                                                                                   // picape no gramado atrás da quadra
+  car(-22, -52.7, false, 0xc8ccd0, 'kombi'); car(3, -52.7, false, 0xf2f2f0, 'pickup');                                         // Cravos: furgão na Assembleia, picape na Arena
+  car(-11.5, -34.6, false, 0xf4f4f2, 'covered');
+  prop(27.2, 38.4, 0.6, 1.8, 1.1, 'moto', { dir: 1 }); prop(27.35, 18.6, 0.6, 1.8, 1.1, 'moto', { dir: -1 });       // motos na calçada das lojinhas e dos quiosques                                                                                   // picape no gramado atrás da quadra
 
   // lojinhas do outro lado da Papoulas (portas de enrolar, barraca de palha, toldo azul)
   const [LX0] = W(B_AREAS.lojas[0], 0), [LX1] = W(B_AREAS.lojas[2], 0);

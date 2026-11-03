@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { BAIRRO_WARP as BW } from '/shared/map.js';
+import { placeProps } from './props.js';
 
 function rand(seed) { let s = seed; return () => (s = (s * 16807) % 2147483647) / 2147483647; }
 
@@ -402,6 +403,7 @@ export function buildBairro(group, MAP, sunLight) {
 
   // ---- lotes de geometria juntados por material (poucos desenhos = leve)
   const batches = new Map();
+  const props = [];   // objetos 3D baixados (props.js): entram quando o arquivo termina de carregar
   const put = (mat, geo, shadow = true) => {
     const k = mat.uuid + (shadow ? 's' : 'n');
     if (!batches.has(k)) batches.set(k, { mat, geos: [], shadow });
@@ -649,6 +651,7 @@ export function buildBairro(group, MAP, sunLight) {
         for (let u = -1.3; u <= 1.3; u += 0.18) box(M.alu, E + 0.06, 0.1, mz + u - 0.015, E + 0.09, 2.2, mz + u + 0.015, 1, null, false);
         put(M.sand, xform(new THREE.ConeGeometry(1.6, 0.8, 12), [S.minX - 4, 0.4, vr[3] - 1.6]), true);        // areia e brita da obra
         put(M.concrete, xform(new THREE.ConeGeometry(1.2, 0.6, 10), [S.minX - 6.5, 0.3, vr[3] - 1.4]), true);
+        props.push({ kind: 'dumpster', x: S.minX - 11.6, z: vr[3] - 1.3, rot: 0.08 });                                // caçamba de entulho da obra
         for (let k = 0; k < 4; k++) box(M.brick, S.minX - 9 + k * 0.05, 0, vr[3] - 2.6 + k * 0.4, S.minX - 8.2, 0.9 - k * 0.15, vr[3] - 2.2 + k * 0.4, 1, 0xffffff);   // tijolos empilhados
         drawCar({ min: [S.minX - 12.4, 0, vr[1] + 1.5], max: [S.minX - 8.3, 1.45, vr[1] + 3.2], hex: 0xeeeeee, kind: 'car', dir: 0 });
         drawCar({ min: [S.minX - 17, 0, vr[1] + 1.5], max: [S.minX - 12.9, 1.45, vr[1] + 3.2], hex: 0xe8c838, kind: 'car', dir: 0 });
@@ -890,7 +893,9 @@ export function buildBairro(group, MAP, sunLight) {
         break;
       }
       case 'bollard': cyl(M.white, cx, 0, cz, 0.11, 0.1, 0.75, 10); break;
-      case 'trash': if (b.square) { box(M.beige, x0, 0, z0, x1, h, z1, 1); box(M.dark, x0 + 0.08, h - 0.02, z0 + 0.08, x1 - 0.08, h + 0.005, z1 - 0.08, 1, null, false); break; } cyl(M.beige, cx, 0, cz, 0.22, 0.26, 0.85, 14); cyl(M.dark, cx, 0.85, cz, 0.27, 0.27, 0.06, 14); break;
+      case 'trash': if (b.square) { box(M.beige, x0, 0, z0, x1, h, z1, 1); box(M.dark, x0 + 0.08, h - 0.02, z0 + 0.08, x1 - 0.08, h + 0.005, z1 - 0.08, 1, null, false); break; }
+        props.push({ kind: 'trashcan', x: cx, z: cz, rot: cx * 1.7 }, { kind: 'trashbag', x: cx + 0.55, z: cz + 0.25, rot: cz }, { kind: 'trashbag', x: cx + 0.35, z: cz - 0.5, rot: cx, s: 0.85 });   // lata de metal e sacos de lixo do lado
+        break;
       case 'sign':
         bar(M.alu, [cx, 0, cz], [cx, 2.62, cz], 0.04, true);
         if (b.park) { const g = new THREE.PlaneGeometry(0.64, 0.64); g.rotateY(Math.PI); g.translate(cx, 2.3, cz - 0.06); put(M.signPark, g, false); put(M.alu, xform(new THREE.CylinderGeometry(0.325, 0.325, 0.02, 24), [cx, 2.3, cz - 0.035], 0, Math.PI / 2), false); break; }   // plano virado para o norte (o texto não gira)
@@ -898,6 +903,7 @@ export function buildBairro(group, MAP, sunLight) {
         put(M.alu, xform(new THREE.CylinderGeometry(0.325, 0.325, 0.02, 24), [cx, 2.3, cz - 0.035], 0, Math.PI / 2), false);   // verso cinza
         break;
       case 'palm': palm(cx, cz, b.ph || 8); break;
+      case 'moto': props.push({ kind: 'moto', x: cx, z: cz, len: Math.max(x1 - x0, z1 - z0), rot: z1 - z0 > x1 - x0 ? (b.dir > 0 ? Math.PI / 2 : -Math.PI / 2) : 0 }); break;
       case 'stage': {   // quarto de círculo com o centro no canto de dentro (as duas caixas de colisão começam nele)
         if (!b.main) break;
         const r = b.r, th = [0, Math.PI / 2];
@@ -1072,7 +1078,8 @@ export function buildBairro(group, MAP, sunLight) {
         for (const uz of [z0 + 3.4, z0 + 9.2]) { cyl(M.white, x0 - 0.2, 0, uz, 0.035, 0.035, 2.2, 6); put(M.white, xform(new THREE.ConeGeometry(0.2, 1.3, 8), [x0 - 0.2, 1.85, uz]), false); }
         for (const [vx, vz] of [[x0 + 0.35, z1 - 0.6], [x0 + 0.35, z1 - 1.3], [x0 + 0.35, z0 + 6.9]]) { cyl(M.concrete, vx, 0, vz, 0.22, 0.28, 0.45, 10); put(M.foliage, xform(new THREE.IcosahedronGeometry(0.4, 0), [vx, 0.75, vz]), false); }
         box(M.crate, x0 - 1.0, 0, z0 - 1.6, x0 + 0.1, 0.8, z0 - 0.4, 1);
-        cyl(M.rust, x0 - 0.9, 0, z1 + 0.9, 0.25, 0.28, 0.75, 14);                                          // lixeira na esquina
+        props.push({ kind: 'trashcanRust', x: x0 - 0.9, z: z1 + 0.9, rot: 0.6 }, { kind: 'trashbag', x: x0 - 0.35, z: z1 + 1.35, rot: 2 },
+          { kind: 'trashbag', x: x0 - 1.45, z: z1 + 1.2, rot: 4, s: 0.9 }, { kind: 'trashbag', x: x0 - 0.6, z: z1 + 0.35, rot: 1, s: 0.8 });   // lata enferrujada na esquina e sacos de lixo
         // frente para a Margaridas: janela de madeira e porta de enrolar
         const wx = sx + 0.9;
         box(M.sill, wx - 0.55, 1.0, z1, wx + 0.55, 2.2, z1 + 0.05, 1, null, false); box(M.crate, wx - 0.48, 1.07, z1 + 0.05, wx + 0.48, 2.13, z1 + 0.07, 1, null, false);
@@ -1280,48 +1287,20 @@ export function buildBairro(group, MAP, sunLight) {
   if (lineGeo.length) { const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(lineGeo, 3)); group.add(new THREE.LineSegments(lg, M.cable)); }
 
   // ---- árvores e coqueiros
-  function tree(x, y, z, size = 1) {
-    cyl(M.trunk, x, y, z, 0.22 * size, 0.15 * size, 3.2 * size, 8);
-    const r3 = rand((x * 100 + z * 7) | 0 || 3);
-    for (let i = 0; i < 5; i++) {
-      const c = [x + (r3() - 0.5) * 2 * size, y + 3.2 * size + r3() * 1.4 * size, z + (r3() - 0.5) * 2 * size];
-      for (let k = 0; k < 3; k++) { const g = new THREE.PlaneGeometry(3.2 * size, 3.0 * size); g.rotateY(k * Math.PI / 3 + i); g.translate(...c); put(M.foliage, g, true); }
-    }
+  // ---- árvores, bananeiras, palmeiras e coqueiros: modelos baixados (props.js), escolhidos e girados pela posição
+  function pickBy(x, z) { return Math.abs(Math.sin(x * 12.9898 + z * 78.233) * 43758.5453) % 1; }
+  function tree(x, y, z, size = 1) {   // árvore de rua, com a altura que a árvore desenhada tinha (~6 m por tamanho)
+    const k = pickBy(x, z);
+    const m = MAP.size, inside = x > m.minX - 2 && x < m.maxX + 2 && z > m.minZ - 2 && z < m.maxZ + 2;   // fora da área de jogo: sem sombra (pesa muito)
+    props.push({ kind: k < 0.5 ? 'tree4' : 'tree6', x, y, z, h: 6 * size, rot: k * 40, noShadow: !inside });
   }
-  function areca(x, z) {   // touceira de palmeirinha
-    for (let k = 0; k < 7; k++) {
-      const a = k * 0.9, h = 1.6 + (k % 3) * 0.5, tx = x + Math.cos(a) * 0.25, tz = z + Math.sin(a) * 0.25;
-      bar(M.bananaTrunk, [x, 0, z], [tx, h, tz], 0.03, true);
-      const g = new THREE.PlaneGeometry(0.7, 1.6); g.translate(0, -0.8, 0); g.rotateX(-1.0); g.rotateY(a); g.translate(tx, h, tz); put(M.palmLeaf, g, true);
-      const g2 = new THREE.PlaneGeometry(0.6, 1.3); g2.translate(0, -0.65, 0); g2.rotateX(-1.1); g2.rotateY(a + Math.PI); g2.translate(tx, h, tz); put(M.palmLeaf, g2, true);
-    }
+  function areca(x, z) {   // touceira no quintal: bananeira
+    const k = pickBy(x, z);
+    props.push({ kind: 'banana', x, z, h: 2.3 + k * 0.6, rot: k * 40 });
   }
-  function palm(x, z, h) {
-    const lean = [(Math.sin(x * 3.1) * 0.5), 0, (Math.cos(z * 2.3) * 0.5)];
-    let prev = [x, 0, z];
-    for (let i = 1; i <= 6; i++) {
-      const t = i / 6, cur = [x + lean[0] * t * t * 2, h * t, z + lean[2] * t * t * 2];
-      const d = new THREE.Vector3(cur[0] - prev[0], cur[1] - prev[1], cur[2] - prev[2]);
-      const g = new THREE.CylinderGeometry(0.24 - 0.07 * t, 0.24 - 0.07 * (t - 1 / 6), d.length(), 8);
-      g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.clone().normalize()));
-      g.translate((cur[0] + prev[0]) / 2, (cur[1] + prev[1]) / 2, (cur[2] + prev[2]) / 2);
-      put(M.trunk, g, true); prev = cur;
-    }
-    for (let i = 0; i < 11; i++) {
-      const a = i / 11 * Math.PI * 2 + Math.sin(i * 7) * 0.2, tilt = 0.15 + ((i * 37) % 10) / 25;
-      const dir = new THREE.Vector3(Math.cos(a), 0, Math.sin(a));
-      const mid = new THREE.Vector3(...prev).addScaledVector(dir, 1.4).add(new THREE.Vector3(0, 0.6 - tilt, 0));
-      const tip = new THREE.Vector3(...prev).addScaledVector(dir, 3.0).add(new THREE.Vector3(0, -0.4 - tilt * 1.5, 0));
-      for (const [pa, pb] of [[new THREE.Vector3(...prev), mid], [mid, tip]]) {
-        const d = pb.clone().sub(pa);
-        const g = new THREE.PlaneGeometry(1.1, d.length());
-        const side = d.clone().cross(new THREE.Vector3(0, 1, 0)).normalize();
-        const up = side.clone().cross(d).normalize();
-        g.applyMatrix4(new THREE.Matrix4().makeBasis(side, d.clone().normalize(), up));
-        g.translate((pa.x + pb.x) / 2, (pa.y + pb.y) / 2, (pa.z + pb.z) / 2);
-        put(M.frond, g, true);
-      }
-    }
+  function palm(x, z, h) {   // palmeira (4 tipos) ou coqueiro; o tronco engorda menos que a altura
+    const k = pickBy(x, z), kind = ['palm1', 'palm2', 'palm3', 'palm4', 'coconut'][(k * 5) | 0], H = h + 1.5;
+    props.push({ kind, x, z, h: H, wide: H / 5 * 0.75, rot: k * 40 });
   }
   tree(C[0] - 0.8, 0, C[1] + 4, 1.3);
 
@@ -1336,6 +1315,11 @@ export function buildBairro(group, MAP, sunLight) {
       const h = new THREE.CylinderGeometry(0.17, 0.17, 0.24, 12); h.rotateX(Math.PI / 2); h.translate(x, 0.31, z); h.applyMatrix4(m); put(M.alu, h, false);
     };
     const hw = Wd / 2, hl = L / 2, col = b.hex ?? 0xb8bcc0;
+    if (b.kind !== 'kombi') {   // carros baixados (props.js): popular anos 80, hatch e sedã inventados, picape e carro com capa
+      const kind = b.kind === 'covered' ? 'coveredCar' : b.kind === 'pickup' ? 'pickup' : ['car80s', 'kiri', 'sanremo'][(pickBy(cx, cz) * 3) | 0];
+      props.push({ kind, x: cx, z: cz, len: L, rot: alongZ ? (b.dir > 0 ? Math.PI / 2 : -Math.PI / 2) : 0, hex: col });
+      return;
+    }
     if (b.kind === 'kombi') {   // Kombi: caixote alto, faixa de vidro e frente reta
       part(M.paint, -hl, 0.3, -hw, hl, 1.08, hw, col);
       part(M.glass, -hl + 0.15, 1.08, -hw + 0.03, hl - 0.05, 1.58, hw - 0.03);
@@ -1639,5 +1623,6 @@ export function buildBairro(group, MAP, sunLight) {
     mesh.castShadow = shadow; mesh.receiveShadow = true;
     group.add(mesh);
   }
+  placeProps(group, props);
   if (sunLight) { const sc = sunLight.shadow.camera; sc.left = -88; sc.right = 88; sc.top = 88; sc.bottom = -88; sc.updateProjectionMatrix(); }
 }
