@@ -885,11 +885,8 @@ export function buildBairro(group, MAP, sunLight) {
           break;
         }
         cyl(M.concrete, cx, 0, cz, 0.25, 0.25, 0.75); cyl(M.concrete, cx, 0.72, cz, 0.6, 0.6, 0.08, 16); for (let k = 0; k < 4; k++) cyl(M.concrete, cx + Math.cos(k * Math.PI / 2) * 0.95, 0, cz + Math.sin(k * Math.PI / 2) * 0.95, 0.18, 0.18, 0.45, 8); break;
-      case 'bench': {
-        const bm = b.blue ? M.blueMetal : b.black ? M.dark : b.yellow ? M.yellow : M.wood;
-        box(bm, x0, 0.42, z0, x1, 0.48, z1);
-        if (x1 - x0 > z1 - z0) { box(bm, x0, 0.48, z1 - 0.06, x1, 0.85, z1); for (const xx of [x0 + 0.15, x1 - 0.15]) box(M.dark, xx - 0.03, 0, z0 + 0.05, xx + 0.03, 0.42, z1 - 0.05); }
-        else { box(bm, x1 - 0.06, 0.48, z0, x1, 0.85, z1); for (const zz of [z0 + 0.15, z1 - 0.15]) box(M.dark, x0 + 0.05, 0, zz - 0.03, x1 - 0.05, 0.42, zz + 0.03); }
+      case 'bench': {   // banco de granito (props.js), no comprimento da caixa
+        props.push({ kind: 'granite', x: cx, z: cz, len: Math.max(x1 - x0, z1 - z0), rot: x1 - x0 > z1 - z0 ? 0 : Math.PI / 2 });
         break;
       }
       case 'bollard': cyl(M.white, cx, 0, cz, 0.11, 0.1, 0.75, 10); break;
@@ -1076,7 +1073,7 @@ export function buildBairro(group, MAP, sunLight) {
         for (let zz = gz0 + 0.6; zz < gz1 - 0.5; zz += 0.42) { const top = rise * (1 - Math.abs(zz - gm) / half); if (top > 0.7) box(M.dark, sx - 0.15, h + 0.35, zz - 0.04, sx - 0.13, h + 0.12 + Math.min(top - 0.25, 0.75), zz + 0.04, 1, null, false); }   // frisos (vãos de ventilação)
         // guarda-sóis fechados, vasos de planta e o carrinho de madeira
         for (const uz of [z0 + 3.4, z0 + 9.2]) { cyl(M.white, x0 - 0.2, 0, uz, 0.035, 0.035, 2.2, 6); put(M.white, xform(new THREE.ConeGeometry(0.2, 1.3, 8), [x0 - 0.2, 1.85, uz]), false); }
-        for (const [vx, vz] of [[x0 + 0.35, z1 - 0.6], [x0 + 0.35, z1 - 1.3], [x0 + 0.35, z0 + 6.9]]) { cyl(M.concrete, vx, 0, vz, 0.22, 0.28, 0.45, 10); put(M.foliage, xform(new THREE.IcosahedronGeometry(0.4, 0), [vx, 0.75, vz]), false); }
+        for (const [vx, vz] of [[x0 + 0.35, z1 - 0.6], [x0 + 0.35, z1 - 1.3], [x0 + 0.35, z0 + 6.9]]) { cyl(M.concrete, vx, 0, vz, 0.22, 0.28, 0.45, 10); props.push({ kind: 'tropical', x: vx, y: 0.43, z: vz, h: 0.75, rot: vz * 3 }); }
         box(M.crate, x0 - 1.0, 0, z0 - 1.6, x0 + 0.1, 0.8, z0 - 0.4, 1);
         props.push({ kind: 'trashcanRust', x: x0 - 0.9, z: z1 + 0.9, rot: 0.6 }, { kind: 'trashbag', x: x0 - 0.35, z: z1 + 1.35, rot: 2 },
           { kind: 'trashbag', x: x0 - 1.45, z: z1 + 1.2, rot: 4, s: 0.9 }, { kind: 'trashbag', x: x0 - 0.6, z: z1 + 0.35, rot: 1, s: 0.8 });   // lata enferrujada na esquina e sacos de lixo
@@ -1086,19 +1083,9 @@ export function buildBairro(group, MAP, sunLight) {
         box(M.rollup, x1 - 1.6, 0, z1, x1 - 0.3, 2.3, z1 + 0.04, 1, null, false);
         break;
       }
-      case 'pltable': {   // mesa de plástico com quatro cadeiras
-        const tm = new THREE.MeshStandardMaterial({ color: b.hex, roughness: 0.55 });
-        box(tm, x0, 0.7, z0, x1, 0.75, z1, 1);
-        for (const [px, pz] of [[x0 + 0.06, z0 + 0.06], [x1 - 0.06, z0 + 0.06], [x0 + 0.06, z1 - 0.06], [x1 - 0.06, z1 - 0.06]]) bar(tm, [px, 0, pz], [px, 0.7, pz], 0.03, false);
-        for (let k = 0; k < 4; k++) {
-          const a = k * Math.PI / 2, ox = cx + Math.cos(a) * 0.75, oz = cz + Math.sin(a) * 0.75, cm = k % 2 ? M.white : tm;
-          box(cm, ox - 0.2, 0.42, oz - 0.2, ox + 0.2, 0.46, oz + 0.2, 1, null, false);
-          const bx = ox + Math.cos(a) * 0.2, bz = oz + Math.sin(a) * 0.2, tx = Math.abs(Math.sin(a)) * 0.2 + 0.02, tz = Math.abs(Math.cos(a)) * 0.2 + 0.02;
-          box(cm, bx - tx, 0.46, bz - tz, bx + tx, 0.9, bz + tz, 1, null, false);
-          for (const [lx, lz] of [[-0.16, -0.16], [0.16, -0.16], [-0.16, 0.16], [0.16, 0.16]]) bar(cm, [ox + lx, 0, oz + lz], [ox + lx, 0.42, oz + lz], 0.015, false);
-        }
+      case 'pltable':   // mesa de bar com cadeiras (props.js): conjunto amarelo de boteco ou o de lanchonete, alternando
+        props.push({ kind: pickBy(cx, cz) < 0.5 ? 'barYellow' : 'cafe', x: cx, z: cz, rot: pickBy(cz, cx) * 6.28 });
         break;
-      }
       case 'mureta': box(M.paintWall, x0, 0, z0, x1, h, z1, 2.5, 0xeeeeea); break;
       case 'cubal': {   // bar de reboco cinza descascado: janela gradeada com cobogó em cima, placa preta, porta dupla de metal, faixa de cobogó
         box(M.plasterPeel, x0, 0, z0, x1, h, z1, 2.2, 0xa8acb0);
@@ -1159,7 +1146,7 @@ export function buildBairro(group, MAP, sunLight) {
         const r = rand(Math.round(z0 * 7) + 911);
         for (let z = z0 + 0.6; z < z1 - 0.6; z += 0.9 + r() * 1.6) {   // moitas na faixa de terra
           const n = 2 + ((r() * 4) | 0), bx = x0 - 0.5 - r() * 0.5;
-          for (let k = 0; k < n; k++) put(M.foliage, xform(new THREE.IcosahedronGeometry(0.35 + r() * 0.45, 0), [bx + (r() - 0.5) * 0.6, 0.3 + r() * 0.9, z + (r() - 0.5) * 0.9]), true);
+          props.push(n % 2 ? { kind: 'buxus', x: bx, z, h: 0.8 + n * 0.15 + r() * 0.3, rot: r() * 6.28 } : { kind: 'tropical', x: bx, z, h: 0.8 + r() * 0.4, rot: r() * 6.28 });   // arbusto podado ou planta tropical
           if (r() < 0.25) tree(bx - 0.1, 0, z, 0.7 + r() * 0.4);
         }
         if (!M.tag) M.tag = new THREE.MeshStandardMaterial({ map: canvasTexWH(512, 192, (g, w, hh) => {   // pichação roxa com contorno branco (sem fundo)
@@ -1227,20 +1214,8 @@ export function buildBairro(group, MAP, sunLight) {
         put(M.roof, xform(new THREE.ConeGeometry(1.3, 0.85, 4, 1), [cx, top + 0.14 + 0.42, cz], Math.PI / 4), true);
         break;
       }
-      case 'ptable':
-        if (b.white) {   // mesa e cadeiras brancas de plástico
-          box(M.plastic, x0 + 0.1, 0.7, z0 + 0.1, x1 - 0.1, 0.74, z1 - 0.1, 1, null, false);
-          for (const [ox, oz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) bar(M.plastic, [cx + ox * 0.3, 0, cz + oz * 0.3], [cx + ox * 0.3, 0.7, cz + oz * 0.3], 0.025);
-          for (const sz of [-1, 1]) {
-            const oz = cz + sz * 0.72;
-            box(M.plastic, cx - 0.22, 0.42, oz - 0.2, cx + 0.22, 0.46, oz + 0.2, 1, null, false);
-            box(M.plastic, cx - 0.22, 0.46, oz + sz * 0.18 - 0.02, cx + 0.22, 0.85, oz + sz * 0.18 + 0.02, 1, null, false);
-            for (const ox of [-0.2, 0.2]) for (const dz of [-0.17, 0.17]) bar(M.plastic, [cx + ox, 0, oz + dz], [cx + ox, 0.42, oz + dz], 0.02);
-          }
-          break;
-        }
-        box(M.yellow, x0, 0.71, z0, x1, 0.75, z1, 1, null, false); box(M.yellow, cx - 0.03, 0, cz - 0.03, cx + 0.03, 0.71, cz + 0.03, 1, null, false);
-        for (let k = 0; k < 4; k++) { const ox = cx + Math.cos(k * Math.PI / 2) * 0.7, oz = cz + Math.sin(k * Math.PI / 2) * 0.7; box(M.red, ox - 0.2, 0, oz - 0.2, ox + 0.2, 0.44, oz + 0.2, 1, null, false); }
+      case 'ptable':   // pizzaria (white): mesa alta com banquetas ou mesa de lanchonete; bar: conjunto de boteco ou de lanchonete
+        props.push({ kind: b.white ? (pickBy(cx, cz) < 0.5 ? 'barHigh' : 'cafe') : (pickBy(cx, cz) < 0.5 ? 'barYellow' : 'cafe'), x: cx, z: cz, rot: pickBy(cz, cx) * 6.28 });
         break;
       case 'dumpster': box(M.orange, x0, 0, z0, x1, h, z1); box(M.dirt, x0 + 0.1, h, z0 + 0.1, x1 - 0.1, h + 0.25, z1 - 0.1, 1, null, false); break;
       case 'brickwall':
@@ -1315,8 +1290,8 @@ export function buildBairro(group, MAP, sunLight) {
       const h = new THREE.CylinderGeometry(0.17, 0.17, 0.24, 12); h.rotateX(Math.PI / 2); h.translate(x, 0.31, z); h.applyMatrix4(m); put(M.alu, h, false);
     };
     const hw = Wd / 2, hl = L / 2, col = b.hex ?? 0xb8bcc0;
-    if (b.kind !== 'kombi') {   // carros baixados (props.js): popular anos 80, hatch e sedã inventados, picape e carro com capa
-      const kind = b.kind === 'covered' ? 'coveredCar' : b.kind === 'pickup' ? 'pickup' : ['car80s', 'kiri', 'sanremo'][(pickBy(cx, cz) * 3) | 0];
+    if (b.kind !== 'kombi') {   // carros baixados (props.js): hatch e sedã inventados, picape e carro com capa
+      const kind = b.kind === 'covered' ? 'coveredCar' : b.kind === 'pickup' ? 'pickup' : (pickBy(cx, cz) < 0.5 ? 'kiri' : 'sanremo');
       props.push({ kind, x: cx, z: cz, len: L, rot: alongZ ? (b.dir > 0 ? Math.PI / 2 : -Math.PI / 2) : 0, hex: col });
       return;
     }
@@ -1528,12 +1503,11 @@ export function buildBairro(group, MAP, sunLight) {
       houseWindow([Math.min(x0 + 8.5, x1 - 2.2), 1.8, z + 2.6], [0, 0, -1], 1.6, 1.0, 'grade', M.alu);
       box(M.cobogo, x1 - 4.5, 2.1, z + 2.55, x1 - 3.5, 2.7, z + 2.6, 0.45, null, false);
       for (const [ax, az] of [[x1 - 1.4, z + 0.6], [x1 - 2.3, z + 0.7], [x1 - 0.7, z + 0.75]]) areca(ax, az);   // palmeirinhas atrás da cerca, do lado do portão
-      for (let k = 0; k < 5; k++) { const bx = Math.min(x0 + 6, x1 - 6.2) + k * 1.3; put(M.foliage, xform(new THREE.IcosahedronGeometry(0.6, 0), [bx, 0.6, z + 0.7]), true); }   // arbustos com flor
+      for (let k = 0; k < 5; k++) { const bx = Math.min(x0 + 6, x1 - 6.2) + k * 1.3; props.push({ kind: k % 2 ? 'flowerB' : 'flowerA', x: bx, z: z + 0.7, h: 1.1 + (k % 3) * 0.15, rot: k * 1.9 }); }   // arbustos com flor
       const fx = Math.min(x0 + 7.5, x1 - 2.5), fz = z + 1.8;   // flamboyant: árvore grande com flores laranja
       tree(fx, 0, fz, 1.8);
       const r = rand(91);
       for (let k = 0; k < 160; k++) put(M.flower, xform(new THREE.IcosahedronGeometry(0.07 + r() * 0.07, 0), [fx + (r() - 0.5) * 6, 4.8 + r() * 3.2, fz + (r() - 0.5) * 5]), false);
-      for (let k = 0; k < 30; k++) put(M.flower, xform(new THREE.IcosahedronGeometry(0.06, 0), [Math.min(x0 + 6, x1 - 6.2) + r() * 5.6, 0.7 + r() * 0.6, z + 0.55]), false);
     } else if (d.type === 'areca') { areca(d.x, d.z);
     } else if (d.type === 'palmtall') { palm(d.x, d.z, 8 + (d.z % 3));
     } else if (d.type === 'drum') {   // tambor plástico preto de água

@@ -38,3 +38,6 @@ Fuzil Tático (tac_1-2.wav): feito a partir das gravações da AWP acima (CC0), 
 (estouro abafado, estalo curto, sopro do gás e eco mais curto). Recarga e sacar usam os sons da AWP.
 AR-H470 (ar470_1-2.wav): a gravação da M4 acima (CC0), mais curta, com uma camada elétrica feita por código (tom descendo e chiado).
 A recarga usa a da M4.
+
+Recarga da bazuca (reload_rpg.wav): montada no ritmo da animação com "Gun loading" (#1988) e "Metal box lid" (#0053) de
+BigSoundBank (CC0), "Gun reload sounds" de SpringySpringo (shotguncock, OpenGameArt, CC0) e o sacar da AWP (acima).

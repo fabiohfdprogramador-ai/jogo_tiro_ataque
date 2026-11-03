@@ -53,6 +53,9 @@
   "reload_awp": [
     "reload_awp.wav"
   ],
+  "reload_rpg": [
+    "reload_rpg.wav"
+  ],
   "reload_tac": [
     "reload_awp.wav"
   ],

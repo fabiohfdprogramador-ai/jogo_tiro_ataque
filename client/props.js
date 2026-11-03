@@ -8,6 +8,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 // file: arquivo em /models/props; pick: grupos usados (alguns arquivos trazem variações lado a lado)
 // yaw: giro para a frente do modelo apontar para +x; keepY: mantém a altura do arquivo (raiz enterrada no chão)
 // paint: material da lataria que recebe a cor de cada cópia; skip: materiais que ficam de fora (fundo do carro, que não aparece)
+// side: o arquivo traz dois arbustos lado a lado; -1 fica com as peças à esquerda (x < 0), 1 com as da direita
 const DEFS = {
   trashcan: { file: 'metal_trash_can', pick: ['metal_trash_can', 'metal_trash_can_handle_left', 'metal_trash_can_handle_right'] },
   trashcanRust: { file: 'metal_trash_can', pick: ['metal_trash_can_rust', 'metal_trash_can_rust_handle_left', 'metal_trash_can_rust_handle_right'] },
@@ -18,12 +19,15 @@ const DEFS = {
   coconut: { file: 'coconut' },
   banana: { file: 'banana' },
   tree4: { file: 'trees', pick: ['tree4'] }, tree6: { file: 'trees', pick: ['tree6'] },
-  car80s: { file: 'car80s', yaw: Math.PI / 2 },
   kiri: { file: 'kiri', paint: 'Kiri10_bodymat', skip: ['UCB_BOTTOM_LT'] },
   sanremo: { file: 'sanremo', paint: 'Sanremo70_Bodymat', skip: ['UCB_BOTTOM_LT'] },
   pickup: { file: 'pickup', yaw: Math.PI / 2 },
   moto: { file: 'moto' },
   dumpster: { file: 'dumpster', pick: ['Dumpster_01'] },
+  granite: { file: 'granite' },
+  buxus: { file: 'buxus' }, tropical: { file: 'tropical' },
+  flowerA: { file: 'flowerbush', side: -1 }, flowerB: { file: 'flowerbush', side: 1 },
+  barYellow: { file: 'bar_yellow' }, barHigh: { file: 'bar_high', skip: ['studio'] }, cafe: { file: 'cafe' },
 };
 
 const files = {}, templates = {};
@@ -48,7 +52,9 @@ function prepare(key, def, gltf) {
     if (o.geometry.index) g.setIndex(o.geometry.index.clone());
     g.applyMatrix4(o.matrixWorld);
     if (def.yaw) g.rotateY(def.yaw);
-    g.computeBoundingBox(); box.union(g.boundingBox);
+    g.computeBoundingBox();
+    if (def.side && Math.sign(g.boundingBox.min.x + g.boundingBox.max.x) !== def.side) return;
+    box.union(g.boundingBox);
     const mat = o.material;
     if (mat.transparent && mat.map) { mat.transparent = false; mat.alphaTest = 0.45; }   // folhas: recorte em vez de transparência (sem erro de ordem)
     parts.push({ geometry: g, material: mat, paint: def.paint && mat.name === def.paint });
