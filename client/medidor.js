@@ -58,10 +58,36 @@
   setInterval(function () { if (!document.hidden) medePing(); }, 2000);
   medePing();
 
-  // ---- painel na tela
+  // ---- painel na tela: canto superior direito; F8 (ou o botão) oculta/mostra
+  var oculto = false;
+  try { oculto = localStorage.getItem('ataque_medidor_oculto') === '1'; } catch (e) {}
   var box = document.createElement('div');
-  box.style.cssText = 'position:fixed;left:14px;top:244px;z-index:99999;pointer-events:none;background:rgba(8,9,12,.78);color:#e8e6df;' +
-    'font:12px/1.45 ui-monospace,Consolas,monospace;padding:8px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.15);white-space:pre;min-width:230px';
+  box.style.cssText = 'position:fixed;right:14px;top:14px;z-index:99999;background:rgba(8,9,12,.78);color:#e8e6df;' +
+    'font:12px/1.45 ui-monospace,Consolas,monospace;padding:8px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.15);white-space:pre;user-select:none';
+  var cab = document.createElement('div');
+  cab.style.cssText = 'display:flex;align-items:center;gap:10px;justify-content:space-between';
+  var titulo = document.createElement('b');
+  var botao = document.createElement('button');
+  botao.type = 'button';
+  botao.style.cssText = 'font:11px ui-monospace,Consolas,monospace;color:#e8e6df;background:#23252b;border:1px solid rgba(255,255,255,.25);border-radius:4px;padding:1px 7px;cursor:pointer';
+  cab.append(titulo, botao);
+  var corpo = document.createElement('div');
+  corpo.style.marginTop = '4px';
+  box.append(cab, corpo);
+  botao.addEventListener('click', function (e) { e.stopPropagation(); alterna(); });
+  botao.addEventListener('mousedown', function (e) { e.stopPropagation(); });
+  addEventListener('keydown', function (e) { if (e.code === 'F8') { e.preventDefault(); alterna(); } }, true);
+
+  function alterna() {
+    oculto = !oculto;
+    try { localStorage.setItem('ataque_medidor_oculto', oculto ? '1' : '0'); } catch (e) {}
+    desenha();
+  }
+  // o placar de abates (#feed) também fica no canto direito: desce para baixo do medidor
+  function ajustaFeed() {
+    var feed = document.getElementById('feed');
+    if (feed) feed.style.top = (box.getBoundingClientRect().bottom + 8) + 'px';
+  }
   function cor(v, bom, ruim) { return v <= bom ? '#9fd27a' : v <= ruim ? '#f0c060' : '#ff6a5a'; }
   function linha(txt, c) { return '<span style="color:' + c + '">' + txt + '</span>'; }
   function desenha() {
@@ -70,20 +96,30 @@
     while (ev.length && ev[0][0] < t - JANELA) ev.shift();
     var n = { tela: 0, servidor: 0, rede: 0 };
     ev.forEach(function (x) { n[x[1]]++; });
-    var jogando = msgsSeg > 0;
-    box.innerHTML =
-      '<b>MEDIDOR</b>  <span style="opacity:.6">(?medidor=0 desliga)</span>\n' +
-      linha('FPS ' + fps + '  (pior quadro ' + Math.round(piorQuadro) + ' ms)', cor(-fps, -55, -30)) + '\n' +
-      linha('Ping ' + (ping || '–') + ' ms', cor(ping, 120, 250)) + '\n' +
-      (jogando
-        ? linha('Servidor ' + msgsSeg + '/s (ideal 30)', cor(30 - msgsSeg, 2, 8)) + '\n' +
-          linha('Última volta do servidor ' + Math.round(atrasoSrv) + ' ms', cor(atrasoSrv, 45, 80)) + '\n'
-        : 'Servidor: entre numa partida\n') +
-      '\nTravadas no último minuto:\n' +
-      linha('  tela (computador) ' + n.tela + '   pior ' + Math.round(pior.quadro) + ' ms', n.tela ? '#f0c060' : '#9fd27a') + '\n' +
-      linha('  servidor (CPU)    ' + n.servidor + '   pior ' + Math.round(pior.servidor) + ' ms', n.servidor ? '#ff6a5a' : '#9fd27a') + '\n' +
-      linha('  rede (internet)   ' + n.rede + '   pior ' + Math.round(pior.rede) + ' ms', n.rede ? '#f0c060' : '#9fd27a');
+    var total = n.tela + n.servidor + n.rede;
+    botao.textContent = oculto ? 'mostrar (F8)' : 'ocultar (F8)';
+    if (oculto) {
+      titulo.innerHTML = linha('● ', total ? (n.servidor ? '#ff6a5a' : '#f0c060') : '#9fd27a') + 'MEDIDOR';
+      corpo.style.display = 'none';
+    } else {
+      titulo.textContent = 'MEDIDOR';
+      corpo.style.display = '';
+      var jogando = msgsSeg > 0;
+      corpo.innerHTML =
+        linha('FPS ' + fps + '  (pior quadro ' + Math.round(piorQuadro) + ' ms)', cor(-fps, -55, -30)) + '\n' +
+        linha('Ping ' + (ping || '–') + ' ms', cor(ping, 120, 250)) + '\n' +
+        (jogando
+          ? linha('Servidor ' + msgsSeg + '/s (ideal 30)', cor(30 - msgsSeg, 2, 8)) + '\n' +
+            linha('Última volta do servidor ' + Math.round(atrasoSrv) + ' ms', cor(atrasoSrv, 45, 80)) + '\n'
+          : 'Servidor: entre numa partida\n') +
+        '\nTravadas no último minuto:\n' +
+        linha('  tela (computador) ' + n.tela + '   pior ' + Math.round(pior.quadro) + ' ms', n.tela ? '#f0c060' : '#9fd27a') + '\n' +
+        linha('  servidor (CPU)    ' + n.servidor + '   pior ' + Math.round(pior.servidor) + ' ms', n.servidor ? '#ff6a5a' : '#9fd27a') + '\n' +
+        linha('  rede (internet)   ' + n.rede + '   pior ' + Math.round(pior.rede) + ' ms', n.rede ? '#f0c060' : '#9fd27a') + '\n' +
+        '<span style="opacity:.55">?medidor=0 no endereço desliga</span>';
+    }
     piorQuadro = 0;
+    ajustaFeed();
   }
   setInterval(desenha, 1000);
 })();
