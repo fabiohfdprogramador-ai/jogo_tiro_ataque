@@ -135,4 +135,16 @@ export class RemotePlayers {
   }
   chest(id) { const r = this.map.get(id); if (!r) return null; return [r.p[0], r.p[1] + bodyHeight(r.crouch) - 0.45, r.p[2]]; }
   get(id) { return this.map.get(id); }
+  // fala do bot: balão em cima da cabeça por uns 2,5 s. O do inimigo não aparece através das paredes
+  bark(id, text) {
+    const r = this.map.get(id); if (!r || !r.alive) return;
+    if (r.bark) { r.model.root.remove(r.bark); r.bark.material.map.dispose(); r.bark.material.dispose(); }
+    const mine = r.team === this.myTeam;
+    const s = nameSprite(text, mine ? '#d8f0ff' : '#ffe08a');
+    s.material.depthTest = mine ? false : true;
+    s.scale.set(1.6, 0.4, 1); s.position.y = mine ? 2.45 : 2.2;
+    r.model.root.add(s); r.bark = s;
+    clearTimeout(r.barkTimer);
+    r.barkTimer = setTimeout(() => { if (r.bark === s) { r.model.root.remove(s); s.material.map.dispose(); s.material.dispose(); r.bark = null; } }, 2500);
+  }
 }

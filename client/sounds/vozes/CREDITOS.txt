@@ -1,0 +1,16 @@
+Falas dos bots geradas com ElevenLabs (https://elevenlabs.io), modelo eleven_v4.
+Voz: "Fernando Machado" (biblioteca de vozes do ElevenLabs, voz masculina carioca).
+
+- macaca_invadir.mp3  "VAI, VAI, PORRA! BORA MATAR ESSES ALEMÃO!!!"  (Bonde da Macaca invadindo o bombsite)
+- macaca_arrasta.mp3  gargalhada + "FOI DE ARRASTA! SEU VERME!!!"     (Bonde da Macaca depois de um abate)
+- macaca_bomba_plantada.mp3  "A BOMBA TÁ PLANTADA, PORRA! SEGURA O BOMBSITE!!!"  (anúncio para o Bonde da Macaca)
+- campo_bomba_plantada.mp3   "PLANTARAM A BOMBA! CORRE PRO BOMBSITE, CARALHO!!!" (anúncio para o Bonde do Campo; voz "Túlio Souza")
+- macaca_round.mp3  "É O BONDE DA MACACA NA PISTA! BORA, BORA, BORA!!!"  (começo do round, Bonde da Macaca)
+- campo_round.mp3   "BONDE DO CAMPO! FECHA TUDO, NINGUÉM PASSA!!!"       (começo do round, Bonde do Campo; voz "Túlio Souza")
+- macaca_vitoria.mp3  gargalhada + "É O BONDE DA MACACA, PORRA! CHORA NÃO!!!"  (Macaca venceu o round)
+- macaca_derrota.mp3  "CARALHO! VOLTA, VOLTA! REORGANIZA ESSA PORRA!!!"          (Macaca perdeu o round)
+- campo_vitoria.mp3   "O CAMPO É NOSSO! AQUI NÃO ENTRA NINGUÉM!!!"               (Campo venceu o round; voz "Túlio Souza")
+  (campo_derrota.mp3 ainda não existe: o jogo usa a voz do navegador até ele ser gravado)
+
+ATENÇÃO: gerado no plano grátis do ElevenLabs. Antes de ganhar dinheiro com o jogo, confira se o
+plano permite uso comercial (o grátis normalmente não permite e pede crédito "ElevenLabs").

@@ -7,7 +7,8 @@ import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { MAP, MAPS, useMap } from '../shared/map.js';
-import { PHYS, NADE, PROJ, stepProj, moveBody, raycastWorld, rayPlayer, lineOfSight, dirFromAngles, eyeHeight, bodyHeight, stepNade, smokeBlocks, flashAmount, crossesFence } from '../shared/physics.js';
+import { buildNav } from './nav.js';
+import { PHYS, NADE, PROJ, stepProj, moveBody, raycastWorld, rayPlayer, lineOfSight, dirFromAngles, eyeHeight, bodyHeight, stepNade, smokeBlocks, flashAmount, crossesFence, isSeeThrough } from '../shared/physics.js';
 import { WEAPONS, ITEMS, NADES, MAX_HP, BOMB, computeDamage, fireInterval, defaultPistol } from '../shared/weapons.js';
 
 const PORT = Number(process.env.PORT || 3000);
@@ -59,15 +60,36 @@ const MACACA_NAMES = ['Patrick', 'Borozinho', 'Toshiba', 'Nadinho', 'Diego Gagui
 // mapa em uso (o primeiro jogador escolhe no menu; com o servidor vazio dá para trocar)
 let mapId = MAPS[process.env.MAP] ? process.env.MAP : 'bairro';
 let NODE_IDS = [], ADJ = {};
+// malha de navegação dos mapas planos (montada uma vez por mapa); a ilha usa a rede de pontos
+const NAVS = {};
+let NAV = null;
 function loadMap(id) {
   mapId = MAPS[id] ? id : 'bairro';
   useMap(mapId);
   NODE_IDS = Object.keys(MAP.nodes);
   ADJ = Object.fromEntries(NODE_IDS.map(n => [n, []]));
   for (const [a, b] of MAP.links) { ADJ[a].push(b); ADJ[b].push(a); }
+  NAV = null;
+  if (!MAP.campaign && process.env.NAV !== '0') {   // NAV=0 volta para a rede de pontos antiga (comparar)
+    if (!NAVS[mapId]) {
+      NAVS[mapId] = buildNav(MAP.boxes, { isSeeThrough });
+      const n = NAVS[mapId];
+      // "aquece" o A* agora (no carregamento), para a primeira busca da partida não pesar
+      const ids = Object.keys(MAP.nodes);
+      for (let i = 0; i < Math.min(40, ids.length * 2); i++) { const a = MAP.nodes[ids[i % ids.length]], c = MAP.nodes[ids[(i * 7 + 3) % ids.length]]; n.findPath(a[0], a[1], c[0], c[1]); }
+      console.log(`  Malha dos bots (${mapId}): ${n.W}x${n.H} células, ${n.covers} coberturas, ${n.buildMs.toFixed(0)} ms`);
+    }
+    NAV = NAVS[mapId];
+  }
 }
 loadMap(mapId);
 
+// jeito de cada bot (sorteado uma vez): reage mais rápido ou devagar, mira melhor ou pior, é mais
+// corajoso (sai mais da cobertura, vai atrás) ou mais paciente (fica escondido mais tempo)
+function newTrait() {
+  const r = (a, b) => a + Math.random() * (b - a);
+  return { react: r(0.75, 1.35), aim: r(0.8, 1.3), courage: Math.random(), patience: r(0.7, 1.5), turn: r(0.8, 1.2), talk: r(0.5, 1) };
+}
 function newPlayer(name, team, isBot, ws = null) {
   const pl = {
     id: nextId++, name, team, isBot, ws,
@@ -75,7 +97,7 @@ function newPlayer(name, team, isBot, ws = null) {
     hp: MAX_HP, armor: 0, helmet: false, alive: false, money: CFG.startMoney,
     slots: { 1: null, 2: defaultPistol(team), 3: 'knife', 4: null, 5: null }, bag4: [], nades: {}, cur: 2, ammo: {},
     kills: 0, deaths: 0, hsk: 0, dmg: 0, lastShot: 0, reloadEnd: 0, reloadKey: null, lostGear: true, lastPosT: now(), using: false,
-    bot: isBot ? { path: [], target: null, react: 0, nextShot: 0, burst: 0, strafe: 1, strafeT: 0, stuckT: 0, lastP: [0, 0, 0], alert: null, alertUntil: 0, alertMove: false, cover: null, coverUntil: 0, crouchT: 0, goals: [], pushAt: 0, blind: 0, obj: null, objT: 0, nadeT: 0, staging: null } : null,
+    bot: isBot ? { trait: newTrait(), ayv: 0, apv: 0, stagger: 0, pauseUntil: 0, barkT: 0, path: [], target: null, react: 0, nextShot: 0, burst: 0, strafe: 1, strafeT: 0, stuckT: 0, lastP: [0, 0, 0], alert: null, alertUntil: 0, alertMove: false, cover: null, coverUntil: 0, crouchT: 0, goals: [], pushAt: 0, blind: 0, obj: null, objT: 0, nadeT: 0, staging: null } : null,
   };
   giveWeapon(pl, pl.slots[2]);
   return pl;
@@ -256,6 +278,7 @@ function fireShot(pl, o, d, key, rt = 0) {
   const e = [o[0] + d[0] * best, o[1] + d[1] * best, o[2] + d[2] * best].map(v => +v.toFixed(3));
   const worldHit = !hit && wr.t < W.range;
   broadcast({ t: 'shot', id: pl.id, w: key, o: o.map(v => +v.toFixed(3)), e, hp: hit ? hit.q.id : 0, n: worldHit ? wr.normal : null, hs: hit && hit.zone === 'head' ? 1 : 0 });
+  if (!W.melee) hearShot(pl, t);   // os bots inimigos por perto ouvem o tiro
   if (hit) applyDamage(pl, hit.q, key, hit.zone, best, crossesFence(o, d, best, MAP.boxes) ? 0.5 : 1);   // atrás da tela: metade do dano
   return true;
 }
@@ -269,7 +292,17 @@ function applyDamage(att, vic, key, zone, dist, mul = 1) {
   if (vic.armor === 0) vic.helmet = false;
   send(vic, { t: 'hurt', from: att.p, dmg: r.hp });
   send(att, { t: 'hitmark', hs: zone === 'head' ? 1 : 0, kill: vic.hp <= 0 ? 1 : 0 });
-  if (vic.bot) { vic.bot.alert = [...att.p]; vic.bot.alertUntil = now() + 2.5; }
+  if (vic.bot) {
+    const V = vic.bot, t = now();
+    V.alert = [...att.p]; V.alertUntil = t + 2.5;
+    if (NAV && vic.hp > 0) {
+      // tranco: a mira pula, o bot cambaleia e demora um pouco para atirar de novo
+      V.ayv += (Math.random() - 0.5) * 5; V.apv += 1.5 + Math.random() * 1.5;
+      V.stagger = t + 0.3; V.nextShot = Math.max(V.nextShot, t + 0.2);
+      if (vic.hp < MAX_HP * 0.4) bark(vic, 'ferido', 0.6);
+      if (!V.engage && att !== vic && att.team !== vic.team) V.engage = { id: att.id, p: [...att.p], t: t - 1 };   // levou tiro de quem não viu: procura abrigo contra ele
+    }
+  }
   if (vic.hp <= 0) kill(att, vic, key, zone === 'head');
 }
 
@@ -291,6 +324,14 @@ function kill(att, vic, key, hs) {
     if (!q.bot || !q.alive || q.team !== vic.team || q.bot.target) continue;
     if (Math.hypot(q.p[0] - vic.p[0], q.p[2] - vic.p[2]) > 30) continue;
     q.bot.alert = [...vic.p]; q.bot.alertUntil = now() + 6; q.bot.alertMove = true;
+  }
+  if (NAV && att !== vic && att.team !== vic.team) {
+    if (att.bot) {
+      if (att.team === 'T' && Math.random() < 0.35) bark(att, 'arrasta', 1, true);   // gargalhada + "foi de arrasta!" (1 em cada 3)
+      else bark(att, 'matou', 0.5);
+    }
+    const mate = [...players.values()].find(q => q.bot && q.alive && q.team === vic.team && Math.hypot(q.p[0] - vic.p[0], q.p[2] - vic.p[2]) < 25);
+    if (mate) bark(mate, 'colega', 0.6);
   }
   if (att !== vic && att.team !== vic.team) {
     att.kills++; if (hs) att.hsk++;
@@ -536,8 +577,12 @@ function findPath(from, to) {
   const out = []; for (let n = to; n; n = prev[n]) out.unshift(n);
   return out;
 }
+// lugar para se esconder do inimigo: { p: [x, z], crouch }. Na malha: atrás de muro/carro/caixa de verdade
+// (crouch = obstáculo baixo, precisa agachar). Na ilha: o ponto da rede mais perto que o inimigo não vê.
 function coverNode(b, foe) {
-  const cur = nearestNode(b.p), eye = [foe.p[0], foe.p[1] + eyeHeight(foe.crouch), foe.p[2]];
+  const eye = [foe.p[0], foe.p[1] + eyeHeight(foe.crouch), foe.p[2]];
+  if (NAV) return NAV.findCover(b.p[0], b.p[2], eye, (a, q) => lineOfSight(a, q, MAP.boxes));
+  const cur = nearestNode(b.p);
   let best = null, bd = Infinity;
   for (const id of [cur, ...(ADJ[cur] || [])]) {
     const [x, z] = MAP.nodes[id];
@@ -545,10 +590,247 @@ function coverNode(b, foe) {
     if (d > 14 || d >= bd || lineOfSight(eye, [x, 1.2, z], MAP.boxes)) continue;
     best = id; bd = d;
   }
-  return best;
+  return best ? { p: MAP.nodes[best], crouch: false } : null;
 }
-function botGoTo(b, goal) { b.bot.path = findPath(nearestNode(b.p), goal); b.bot.goalNode = goal; }
+
+// Rota até o ponto [x, z] como lista de pontos [x, z]. Na malha: A* + caminho esticado.
+// Na ilha: a rede de pontos. null = acabou o orçamento de buscas desta volta (tenta na próxima).
+let pathBudget = 0;   // buscas de rota por volta do servidor: protege a CPU fraca
+function route(p, goal) {
+  if (NAV) {
+    if (pathBudget <= 0) return null;
+    pathBudget--;
+    return NAV.findPath(p[0], p[2], goal[0], goal[1]) || [];
+  }
+  const pts = findPath(nearestNode(p), nearestNodeTo([goal[0], 0, goal[1]])).map(id => MAP.nodes[id]);
+  const last = pts[pts.length - 1];
+  if (!last || Math.hypot(last[0] - goal[0], last[1] - goal[1]) > 1) pts.push([goal[0], goal[1]]);
+  return pts;
+}
+function botGoTo(b, goal) {
+  const [x, z] = MAP.nodes[goal];
+  // na malha cada bot mira um ponto um pouco diferente: não chegam todos em fila no mesmo lugar
+  const a = (b.id * 2.4) % (Math.PI * 2), r = NAV ? 1.2 : 0;
+  const pts = route(b.p, [x + Math.cos(a) * r, z + Math.sin(a) * r]);
+  if (pts === null) return false;
+  b.bot.path = pts; b.bot.goalNode = goal;
+  return true;
+}
+// direção para ir até [x, z], virando aos poucos (faz curva em vez de girar na hora).
+// look = true: também olha para onde está indo (fora de combate)
+function steer(b, [x, z], dt, look = true) {
+  const B = b.bot, dx = x - b.p[0], dz = z - b.p[2];
+  const want = Math.atan2(dz, dx);
+  B.head = B.head === undefined ? want : B.head + Math.max(-8 * dt, Math.min(8 * dt, angleDiff(want, B.head)));
+  if (look) { b.yaw = turnTo(b.yaw, Math.atan2(-dx, -dz), 5 * dt); b.pitch = turnTo(b.pitch, 0, 3 * dt); }
+  return [Math.cos(B.head), Math.sin(B.head)];
+}
+// segue uma rota (lista de pontos, consumida aos poucos); devolve a direção desejada
+function follow(b, path, dt, look = true) {
+  if (!path || !path.length) return [0, 0];
+  // já dá para ir reto ao ponto seguinte? corta caminho (é o que deixa a curva natural)
+  if (NAV && path.length > 1 && NAV.walkLine(b.p[0], b.p[2], path[1][0], path[1][1])) path.shift();
+  const [nx, nz] = path[0];
+  if (Math.hypot(nx - b.p[0], nz - b.p[2]) < (path.length > 1 ? 1.0 : 0.6)) { path.shift(); if (!path.length) return [0, 0]; }
+  return steer(b, path[0], dt, look);
+}
 const pick = (a) => a[(Math.random() * a.length) | 0];
+
+// ---------------------------------------------------------------- tática de combate (estilo Far Cry)
+// Só nos mapas com malha. O bot luta a partir da cobertura: corre para trás de um muro/carro/caixa,
+// espera (e recarrega), sai de lado ou levanta para atirar e volta. Troca de cobertura quando ela deixa
+// de proteger. Avisa o time onde está o inimigo, um colega dá a volta (flanqueia) e, quando o inimigo
+// some, vai procurar no último lugar onde foi visto. Tiros e passos de corrida por perto chamam atenção.
+const losBoxes = (a, c) => lineOfSight(a, c, MAP.boxes);
+
+// Falas dos bots (aparecem num balão em cima da cabeça), como os gritos dos inimigos nos jogos de ação.
+const BARKS = {
+  contato: ['Contato!', 'Achei um!', 'Ali, ali!', 'Inimigo na frente!', 'Tô vendo ele!'],
+  cobertura: ['Me cobre!', 'Vou pro abrigo!', 'Segura aí!'],
+  recarga: ['Recarregando!', 'Tô sem bala!', 'Troca de pente!'],
+  granada: ['Granada!', 'Toma essa!', 'Sai daí!'],
+  flanco: ['Vou pela lateral!', 'Dando a volta!', 'Pega ele por trás!'],
+  procura: ['Cadê ele?', 'Sumiu...', 'Procurem ele!', 'Fica esperto...', 'Ele tá por aqui...'],
+  ouviu: ['Ouviu isso?', 'Barulho ali!', 'Tiro! Por ali!'],
+  ferido: ['Tô ferido!', 'Ai! Me acertaram!', 'Ele tá forte!'],
+  matou: ['Abatido!', 'Um a menos!', 'Derrubei!'],
+  colega: ['Perdemos um!', 'Derrubaram o nosso!', 'Homem no chão!'],
+  supressao: ['Fogo nele!', 'Não deixa ele sair!', 'Mantém ele abaixado!'],
+};
+// Falas gravadas (MP3 em client/sounds/vozes/): tocam com som 3D no lugar da voz do navegador.
+// Só os bots do time indicado usam (são falas do Bonde da Macaca).
+const VOICE_LINES = {
+  invadir: { team: 'T', audio: 'macaca_invadir', text: 'VAI, VAI, PORRA! BORA MATAR ESSES ALEMÃO!!!' },
+  arrasta: { team: 'T', audio: 'macaca_arrasta', text: 'HA HA HA! FOI DE ARRASTA! SEU VERME!!!' },
+};
+let barkGlobalT = 0;
+function bark(b, kind, chance = 1, force = false) {
+  const B = b.bot, t = now();
+  if (!B || !b.alive) return;
+  if (!force && (t < B.barkT || t < barkGlobalT || Math.random() > chance * B.trait.talk)) return;
+  B.barkT = t + 3 + Math.random() * 3; barkGlobalT = t + 0.5;
+  const line = VOICE_LINES[kind];
+  if (line && line.team !== b.team) return;
+  const text = line ? line.text : pick(BARKS[kind]);
+  broadcast(line ? { t: 'bark', id: b.id, text, audio: line.audio } : { t: 'bark', id: b.id, text });
+  if (DEBUG) console.log(`[fala] ${b.name}: ${text}`);
+}
+
+// Mira de gente: o bot não gira em velocidade fixa e para seco no alvo. Ele acelera, passa um pouco
+// do ponto e corrige (mola), com um leve tremor. Quem tem mira pior treme mais.
+function aimAt(b, wantYaw, wantPitch, dt) {
+  const B = b.bot, T = B.trait;
+  const k = 42 / T.turn, c = 2 * Math.sqrt(k) * 0.72;   // mola um pouco "solta": passa do ponto
+  const jit = 0.012 * T.aim;
+  const ey = angleDiff(wantYaw + (Math.random() - 0.5) * jit, b.yaw), ep = wantPitch + (Math.random() - 0.5) * jit - b.pitch;
+  B.ayv += (k * ey - c * B.ayv) * dt; B.apv += (k * ep - c * B.apv) * dt;
+  B.ayv = Math.max(-9, Math.min(9, B.ayv)); B.apv = Math.max(-6, Math.min(6, B.apv));
+  b.yaw += B.ayv * dt; b.pitch = Math.max(-1.4, Math.min(1.4, b.pitch + B.apv * dt));
+}
+
+// atira na direção que está olhando (com o erro de mira de cada bot); devolve true se saiu tiro
+function botFire(b, eye, key, W, dist, extra = 0) {
+  const B = b.bot, t = now();
+  const inacc = (0.018 + Math.min(B.burst, 8) * 0.005 + (W.auto ? 0 : 0.004) + dist * 0.0002 + (b.speed > 2.5 ? 0.02 : 0) + extra) * B.trait.aim;
+  const d = dirFromAngles(b.yaw + (Math.random() - 0.5) * inacc * 2, b.pitch + (Math.random() - 0.5) * inacc * 2);
+  if (!fireShot(b, eye, d, key)) return false;
+  B.burst++;
+  B.nextShot = t + fireInterval(key) + (W.auto ? 0 : 0.15 + Math.random() * 0.25);
+  if (W.auto && B.burst >= 4 + Math.random() * 6) { B.nextShot += 0.3 + Math.random() * 0.35; B.burst = 0; }
+  return true;
+}
+const tatica = { cobertura: 0, espiou: 0, flanco: 0, procura: 0, aviso: 0, ouviu: 0 };   // contagem (PERF=1 mostra)
+
+// ponto ao lado do inimigo (10 a 13 m), do lado de fora da linha de tiro de quem avisou
+function flankPoint(b, foe) {
+  const dx = b.p[0] - foe.p[0], dz = b.p[2] - foe.p[2], d = Math.hypot(dx, dz) || 1;
+  const side = Math.random() < 0.5 ? 1 : -1, r = 10 + Math.random() * 3;
+  const px = foe.p[0] + (-dz / d * side * 0.85 - dx / d * 0.5) * r, pz = foe.p[2] + (dx / d * side * 0.85 - dz / d * 0.5) * r;
+  return NAV.snapPoint(px, pz);
+}
+
+// avisa os colegas bots (até 45 m) onde está o inimigo; o primeiro livre vai flanquear, os outros vêm ajudar
+function callout(b, foe, t) {
+  const B = b.bot;
+  if (t < (B.calloutT || 0)) return;
+  B.calloutT = t + 2; tatica.aviso++;
+  bark(b, 'contato', 0.8);
+  let flankers = 0;
+  for (const q of players.values()) {
+    if (q === b || !q.bot || !q.alive || q.team !== b.team || q.bot.target || q.bot.engage) continue;
+    if (Math.hypot(q.p[0] - b.p[0], q.p[2] - b.p[2]) > 45) continue;
+    const Q = q.bot;
+    Q.alert = [...foe.p]; Q.alertUntil = t + 6;
+    if (Q.obj) { Q.alertMove = false; continue; }   // quem está cuidando da bomba não larga o objetivo
+    if (!flankers && !Q.flank && Math.random() < 0.75) {
+      const f = flankPoint(b, foe);
+      if (f) { Q.flank = { p: f, foe: [...foe.p], until: t + 18, path: null }; flankers++; tatica.flanco++; bark(q, 'flanco', 0.8); continue; }
+    }
+    Q.alertMove = Math.random() < 0.6;
+  }
+}
+
+// ouviu tiro: vira para o barulho e, às vezes, vai checar
+function hearShot(pl, t) {
+  if (!NAV) return;
+  for (const q of players.values()) {
+    if (!q.bot || !q.alive || q.team === pl.team || q.bot.target || q.bot.engage) continue;
+    const d = Math.hypot(q.p[0] - pl.p[0], q.p[2] - pl.p[2]);
+    if (d > 40) continue;
+    const Q = q.bot;
+    if (Q.alert && t < Q.alertUntil && Q.alertMove) continue;
+    Q.alert = [...pl.p]; Q.alertUntil = t + 4; tatica.ouviu++;
+    Q.alertMove = !Q.obj && !Q.flank && d < 28 && Math.random() < 0.3 + Q.trait.courage * 0.4;
+    bark(q, 'ouviu', 0.35);
+  }
+}
+
+// escolhe uma cobertura contra o inimigo em foePos; null se não tem nenhuma perto
+function pickCover(b, foePos, t) {
+  const c = NAV.findCover(b.p[0], b.p[2], [foePos[0], foePos[1] + 1.6, foePos[2]], losBoxes, 11);
+  if (!c) return null;
+  tatica.cobertura++;
+  return { p: c.p, crouch: c.crouch, path: route(b.p, c.p), phase: 'go', until: t + 4, peekP: null, misses: 0 };
+}
+
+// de onde espiar: obstáculo baixo = só levantar; alto = um passo para o lado, de onde dá para ver o inimigo
+function peekPoint(fc, foePos) {
+  if (fc.crouch) return fc.p;
+  const dx = foePos[0] - fc.p[0], dz = foePos[2] - fc.p[1], d = Math.hypot(dx, dz) || 1;
+  const foeEye = [foePos[0], foePos[1] + 1.2, foePos[2]];
+  for (const s of Math.random() < 0.5 ? [1, -1] : [-1, 1]) for (const r of [1.1, 1.9]) {
+    const x = fc.p[0] - dz / d * s * r, z = fc.p[1] + dx / d * s * r;
+    if (NAV.walkLine(fc.p[0], fc.p[1], x, z) && losBoxes([x, 1.55, z], foeEye)) return [x, z];
+  }
+  return null;
+}
+
+// perdeu o inimigo de vista: vai procurar no último lugar onde ele foi visto
+function startSearch(b, t) {
+  const B = b.bot, E = B.engage;
+  B.engage = null; B.fc = null;
+  if (!E) return;
+  tatica.procura++;
+  bark(b, 'procura', 0.7);
+  B.alert = [...E.p]; B.alertUntil = t + 9;
+  B.alertMove = b.hp >= MAX_HP * 0.35 && !B.obj;
+  B.apathFor = null;
+}
+
+// movimento da luta pela cobertura. seeing = está vendo o inimigo agora.
+// Devolve { wish, run } ou null (sem cobertura útil: luta do jeito antigo, no aberto)
+function coverFight(b, dt, t, seeing) {
+  const B = b.bot, E = B.engage;
+  if (!E) return null;
+  if (Math.hypot(E.p[0] - b.p[0], E.p[2] - b.p[2]) < 6) { B.fc = null; return null; }   // muito perto: briga no aberto
+  let fc = B.fc;
+  // sem cobertura, ou o inimigo está enxergando o bot escondido (deu a volta): procura outra
+  if (!fc || (fc.phase === 'hide' && seeing)) {
+    if (t < (B.fcRetry || 0)) return null;
+    B.fcRetry = t + 1.5;
+    fc = B.fc = pickCover(b, E.p, t);
+    if (!fc) return null;
+  }
+  const lookFoe = () => { if (!seeing) b.yaw = turnTo(b.yaw, Math.atan2(-(E.p[0] - b.p[0]), -(E.p[2] - b.p[2])), 6 * dt); };
+  const dc = Math.hypot(fc.p[0] - b.p[0], fc.p[1] - b.p[2]);
+  if (fc.phase === 'go') {
+    b.crouch = false;
+    if (dc > 0.7 && t < fc.until) return { wish: fc.path && fc.path.length ? follow(b, fc.path, dt, false) : steer(b, fc.p, dt, false), run: true, look: lookFoe() };
+    fc.phase = 'hide'; fc.until = t + (0.7 + Math.random() * 1.0) * B.trait.patience;
+    bark(b, 'cobertura', 0.25);
+  }
+  if (fc.phase === 'hide') {
+    b.crouch = fc.crouch;
+    lookFoe();
+    const k = b.slots[b.cur], Wk = WEAPONS[k], a = b.ammo[k];
+    if (a && Wk && !Wk.melee && a.mag < Wk.mag * 0.6 && a.res > 0 && !b.reloadEnd) { startReload(b); bark(b, 'recarga', 0.5); }   // recarrega escondido
+    // o inimigo está entocado faz um tempo: joga granada para tirar ele de lá
+    const hid = t - E.t, dE = Math.hypot(E.p[0] - b.p[0], E.p[2] - b.p[2]);
+    if (hid > 2 && hid < 8 && dE > 8 && dE < 26 && t > B.nadeT && Math.random() < 0.06) {
+      const kind = b.nades.he > 0 ? 'he' : b.nades.flash > 0 ? 'flash' : null;
+      if (kind) { B.nadeT = t + 10; botThrow(b, kind, E.p); bark(b, 'granada', 0.9); }
+    }
+    if (b.reloadEnd > t || (b.hp < MAX_HP * 0.25 && Math.random() < 0.5)) fc.until = Math.max(fc.until, t + 0.4);   // ferido: demora mais para sair
+    if (t < fc.until) return { wish: dc > 0.4 ? steer(b, fc.p, dt, false) : [0, 0] };
+    fc.peekP = peekPoint(fc, E.p);
+    if (!fc.peekP) { B.fc = null; B.fcRetry = t + 0.8; return null; }   // daqui não dá para espiar: procura outra
+    tatica.espiou++;
+    fc.phase = 'peek'; fc.until = t + (1.1 + Math.random() * 1.2) * (0.8 + B.trait.courage * 0.5);
+  }
+  if (fc.phase === 'peek') {
+    b.crouch = false;
+    lookFoe();
+    if (t >= fc.until) {
+      fc.misses = seeing ? 0 : fc.misses + 1;
+      if (fc.misses >= 2) { startSearch(b, t); return null; }   // espiou duas vezes e nada: vai procurar
+      fc.phase = 'go'; fc.until = t + 3; fc.path = null;          // volta para trás da cobertura
+      return { wish: steer(b, fc.p, dt, false) };
+    }
+    const dp = Math.hypot(fc.peekP[0] - b.p[0], fc.peekP[1] - b.p[2]);
+    return { wish: dp > 0.3 ? steer(b, fc.peekP, dt, false) : [0, 0] };
+  }
+  return null;
+}
 
 function botBuyAndPlan(b) {
   if (b.money >= ITEMS.helmet.price && b.armor < 100) { b.money -= ITEMS.helmet.price; b.armor = 100; b.helmet = true; }
@@ -564,7 +846,8 @@ function botBuyAndPlan(b) {
     B.staging = pick(MAP.staging[game.plan]);
     B.goals = [B.staging];
   } else B.goals = [pick(MAP.botCT)];
-  B.path = [];
+  B.path = []; B.opath = null; B.opathFor = null; B.apath = null; B.apathFor = null; B.cpath = null; B.head = undefined;
+  B.engage = null; B.fc = null; B.flank = null; B.fcRetry = 0; B.calloutT = 0;
 }
 
 function angleDiff(a, b) { let d = a - b; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; return d; }
@@ -611,6 +894,9 @@ function checkPush() {
   }
   if (near >= Math.ceil(alive.length * 0.7) || CFG.roundTime - game.timer > 40) {
     game.go = true;
+    // um bot do Bonde da Macaca grita a invasão
+    const shout = alive.filter(q => q.isBot);
+    if (NAV && shout.length) bark(pick(shout), 'invadir', 1, true);
     const s = MAP.sites[game.plan], c = [(s.min[0] + s.max[0]) / 2, 0, (s.min[1] + s.max[1]) / 2];
     for (const q of alive) {
       if (!q.isBot) continue;
@@ -644,13 +930,14 @@ function updateBot(b, dt) {
   const fwd = dirFromAngles(b.yaw, 0);
 
   // procura inimigo visível (não enxerga através da fumaça nem cego)
-  let target = null, tdist = Infinity, aimPt = null;
+  let target = null, tdist = Infinity, aimPt = null, steps = null;
   if ((game.phase === 'live' || game.phase === 'end') && t >= B.blind) {
     for (const q of players.values()) {
       if (!q.alive || q.team === b.team) continue;
       const h = bodyHeight(q.crouch);
       const pt = [q.p[0], q.p[1] + h - 0.45, q.p[2]];
       const dx = pt[0] - eye[0], dz = pt[2] - eye[2], dist = Math.hypot(dx, dz);
+      if (NAV && dist < 14 && q.speed > 6.5) steps = q;   // passos de alguém correndo por perto
       if (dist > 85 || dist >= tdist) continue;
       const facing = (dx * fwd[0] + dz * fwd[2]) / (dist || 1);
       if (facing < 0.45 && dist > 7 && !(B.alert && t < B.alertUntil)) continue;
@@ -660,18 +947,36 @@ function updateBot(b, dt) {
   }
   B.objT -= dt;
   if (B.objT <= 0) { B.objT = 0.5; B.obj = bombObjective(b); }
+  if (NAV) {
+    if (target) {
+      // viu o inimigo: guarda onde ele está e avisa o time (só quando acabou de ver)
+      if (!B.engage || B.engage.id !== target.id) callout(b, target, t);
+      B.engage = { id: target.id, p: [...target.p], t };
+      B.flank = null;
+    } else if (B.engage) {
+      const foe = players.get(B.engage.id);
+      if (!foe || !foe.alive) { B.engage = null; B.fc = null; }
+      else if (t - B.engage.t > 6) startSearch(b, t);   // faz tempo que não vê: vai procurar
+    }
+    if (!target && steps && !(B.alert && t < B.alertUntil)) { B.alert = [...steps.p]; B.alertUntil = t + 2.5; B.alertMove = false; }
+  }
 
   let wish = [0, 0];
   // bot corre quando está só se deslocando; anda quando sabe que tem inimigo perto
   let speed = (B.alert && t < B.alertUntil ? PHYS.walkSpeed : PHYS.runSpeed) * (W ? W.speed : 1);
   if (target) {
-    if (B.target !== target.id) { B.target = target.id; B.react = t + 0.38 + Math.random() * 0.45; }
+    if (B.target !== target.id) { B.target = target.id; B.react = t + (0.38 + Math.random() * 0.45) * B.trait.react; }
     if (Math.random() < 0.3) aimPt[1] += 0.3;
     const dx = aimPt[0] - eye[0], dy = aimPt[1] - eye[1], dz = aimPt[2] - eye[2];
     const wantYaw = Math.atan2(-dx, -dz), wantPitch = Math.atan2(dy, Math.hypot(dx, dz));
-    b.yaw = turnTo(b.yaw, wantYaw, 7 * dt);
-    b.pitch = turnTo(b.pitch, wantPitch, 5 * dt);
+    if (NAV) aimAt(b, wantYaw, wantPitch, dt);
+    else { b.yaw = turnTo(b.yaw, wantYaw, 7 * dt); b.pitch = turnTo(b.pitch, wantPitch, 5 * dt); }
     const err = Math.abs(angleDiff(wantYaw, b.yaw)) + Math.abs(wantPitch - b.pitch);
+    const cf = NAV && W && !W.melee && !B.obj ? coverFight(b, dt, t, true) : null;
+    if (cf) {
+      wish = cf.wish;
+      speed = (cf.run ? PHYS.runSpeed * 0.85 : PHYS.walkSpeed * 0.7) * (W ? W.speed : 1);
+    } else {
     B.strafeT -= dt;
     if (B.strafeT <= 0) { B.strafe = Math.random() < 0.5 ? -1 : 1; B.strafeT = 0.5 + Math.random() * 0.9; if (Math.random() < 0.3) B.strafe = 0; }
     if (!WEAPONS[key].scope) { wish = [Math.cos(b.yaw) * B.strafe, -Math.sin(b.yaw) * B.strafe]; speed *= 0.45; }
@@ -682,12 +987,20 @@ function updateBot(b, dt) {
     // ferido ou recarregando: anda de costas até um canto onde o inimigo não enxerga, sem parar de mirar
     const hurt = b.hp < MAX_HP * 0.35 || b.reloadEnd > t || (b.ammo[key] && !W.melee && b.ammo[key].mag === 0);
     if (hurt && !(W && W.melee)) {
-      if (!B.cover || t > B.coverUntil) { B.cover = coverNode(b, target); B.coverUntil = t + 2.5; }
-      if (B.cover) {
-        const [cx, cz] = MAP.nodes[B.cover], dx = cx - b.p[0], dz = cz - b.p[2], d = Math.hypot(dx, dz);
-        if (d > 0.6) { wish = [dx / d, dz / d]; speed = PHYS.runSpeed * (W ? W.speed : 1) * 0.85; b.crouch = false; }
+      if (!B.cover || t > B.coverUntil) {
+        B.cover = coverNode(b, target); B.coverUntil = t + 2.5;
+        B.cpath = B.cover && NAV ? route(b.p, B.cover.p) : null;
       }
-    } else B.cover = null;
+      if (B.cover) {
+        const [cx, cz] = B.cover.p, dx = cx - b.p[0], dz = cz - b.p[2], d = Math.hypot(dx, dz);
+        if (d > 0.6) {
+          // vai até a cobertura pela rota (contornando o que tiver no meio), sem parar de mirar
+          wish = B.cpath && B.cpath.length ? follow(b, B.cpath, dt, false) : [dx / d, dz / d];
+          speed = PHYS.runSpeed * (W ? W.speed : 1) * 0.85; b.crouch = false;
+        } else if (B.cover.crouch) { b.crouch = true; wish = [0, 0]; }   // atrás de obstáculo baixo: agacha para recarregar
+      }
+    } else { B.cover = null; B.cpath = null; }
+    }
     if (key && W.melee && !W.grenade) { wish = [fwd[0], fwd[2]]; speed = PHYS.runSpeed; }
     // granada explosiva em inimigo a média distância (às vezes)
     if (t > B.nadeT && b.nades.he > 0 && tdist > 8 && tdist < 26 && Math.random() < 0.02) { B.nadeT = t + 8; botThrow(b, 'he', target.p); }
@@ -697,20 +1010,40 @@ function updateBot(b, dt) {
       if (a.res > 0) startReload(b);
       else b.cur = b.cur === 1 || b.cur === 4 ? 2 : 3;
     } else if (t >= B.react && err < 0.12 && t >= B.nextShot && (!W.melee || tdist < 2)) {
-      const inacc = 0.018 + Math.min(B.burst, 8) * 0.005 + (W.auto ? 0 : 0.004) + tdist * 0.0002;
-      const d = dirFromAngles(b.yaw + (Math.random() - 0.5) * inacc * 2, b.pitch + (Math.random() - 0.5) * inacc * 2);
-      if (fireShot(b, eye, d, key)) {
-        B.burst++;
-        B.nextShot = t + fireInterval(key) + (W.auto ? 0 : 0.15 + Math.random() * 0.25);
-        if (W.auto && B.burst >= 4 + Math.random() * 6) { B.nextShot += 0.3 + Math.random() * 0.35; B.burst = 0; }
-      }
+      botFire(b, eye, key, W, tdist);
     }
   } else {
     B.target = null; B.burst = 0;
+    B.ayv *= 0.6; B.apv *= 0.6;   // sem alvo a "mola" da mira descansa
     b.crouch = false;
-    if (B.alert && t < B.alertUntil) {
+    const cf = NAV && B.engage && !B.obj ? coverFight(b, dt, t, false) : null;
+    if (cf) {
+      // escondido atrás da cobertura (recarregando) ou indo espiar
+      wish = cf.wish;
+      speed = (cf.run ? PHYS.runSpeed * 0.85 : PHYS.walkSpeed * 0.7) * (W ? W.speed : 1);
+      // espiando e o inimigo acabou de se esconder: atira onde ele estava para ele não sair (supressão)
+      const E = B.engage, a = b.ammo[key];
+      if (E && B.fc && B.fc.phase === 'peek' && W && W.auto && a && a.mag > 5 && t - E.t < 2.5 && B.trait.courage > 0.35) {
+        const pt = [E.p[0], E.p[1] + 1.2, E.p[2]], dx = pt[0] - eye[0], dy = pt[1] - eye[1], dz = pt[2] - eye[2];
+        aimAt(b, Math.atan2(-dx, -dz), Math.atan2(dy, Math.hypot(dx, dz)), dt);
+        if (t >= B.nextShot && Math.random() < 0.6) { botFire(b, eye, key, W, Math.hypot(dx, dz), 0.03); bark(b, 'supressao', 0.15); }
+      }
+    } else if (NAV && B.flank && !B.obj && t < B.flank.until) {
+      // dando a volta pelo lado do inimigo, correndo; chegando, vai procurar onde ele estava
+      const F = B.flank;
+      if (!F.path) F.path = route(b.p, F.p);
+      if (F.path && F.path.length) { wish = follow(b, F.path, dt); speed = PHYS.runSpeed * (W ? W.speed : 1); }
+      else if (F.path) { B.flank = null; B.alert = F.foe; B.alertUntil = t + 8; B.alertMove = true; B.apathFor = null; }
+    } else if (B.alert && t < B.alertUntil) {
+      if (B.flank) B.flank = null;
       const da = Math.hypot(B.alert[0] - b.p[0], B.alert[2] - b.p[2]);
-      if (B.alertMove && b.hp >= MAX_HP * 0.35 && da > 4) wish = moveToward(b, B.alert, dt);
+      if (B.alertMove && b.hp >= MAX_HP * 0.35 && da > 4) {
+        // vai investigar onde ouviu/viu o inimigo pelo caminho de verdade (não em linha reta pela parede)
+        if (NAV && B.apathFor !== B.alert) { const r = route(b.p, [B.alert[0], B.alert[2]]); if (r) { B.apath = r; B.apathFor = B.alert; } }
+        wish = NAV && B.apath && B.apath.length ? follow(b, B.apath, dt, false) : moveToward(b, B.alert, dt);
+        if (NAV && t > B.pauseUntil + 1.5 && Math.random() < 0.25 * dt) B.pauseUntil = t + 0.4 + Math.random() * 0.6;   // para e escuta
+        if (NAV) b.yaw = turnTo(b.yaw, Math.atan2(-(B.alert[0] - b.p[0]), -(B.alert[2] - b.p[2])), 5 * dt);   // anda de olho no lugar
+      } else if (NAV && B.alertMove) b.yaw += Math.sin(t * 1.3 + b.id) * 1.6 * dt;   // chegou e não achou: olha em volta
       else b.yaw = turnTo(b.yaw, Math.atan2(-(B.alert[0] - b.p[0]), -(B.alert[2] - b.p[2])), 6 * dt);
       // aproveita a pausa para recarregar
       const a = b.ammo[key];
@@ -721,37 +1054,39 @@ function updateBot(b, dt) {
       const acting = (bomb.state === 'carried' && bomb.carrier === b.id && siteAt(b.p) && near < 3) || (bomb.state === 'planted' && b.team === 'CT' && near < 1.2);
       if (acting) { b.using = true; b.pitch = turnTo(b.pitch, -0.6, 3 * dt); }
       else {
-        const goal = nearestNodeTo(B.obj);
-        if (B.goalNode !== goal || !B.path.length) {
-          if (Math.hypot(MAP.nodes[goal][0] - b.p[0], MAP.nodes[goal][1] - b.p[2]) > 2 && B.goalNode !== goal) botGoTo(b, goal);
-          if (!B.path.length) wish = moveToward(b, B.obj, dt);
+        // recalcula a rota quando o objetivo muda de lugar (bomba caiu, outro ponto do bombsite...)
+        if (!B.opathFor || Math.hypot(B.opathFor[0] - B.obj[0], B.opathFor[2] - B.obj[2]) > 1.5) {
+          const r = route(b.p, [B.obj[0], B.obj[2]]); if (r) { B.opath = r; B.opathFor = B.obj; }
         }
-        if (B.path.length) {
-          const [nx, nz] = MAP.nodes[B.path[0]];
-          if (Math.hypot(nx - b.p[0], nz - b.p[2]) < 1.3) B.path.shift();
-          else wish = moveToward(b, [nx, 0, nz], dt);
-        }
+        wish = B.opath && B.opath.length ? follow(b, B.opath, dt) : moveToward(b, B.obj, dt);
       }
     } else {
-      if (!B.path.length && B.goals.length) botGoTo(b, B.goals.shift());
+      if (!B.path.length && B.goals.length && botGoTo(b, B.goals[0])) B.goals.shift();
       if (b.team === 'T' && !game.go && !B.path.length) checkPush();
       if (b.team === 'CT' && !B.path.length && !B.goals.length && game.phase === 'live' && game.timer < B.pushAt && bomb.state !== 'planted') {
         B.goals = [pick(MAP.botPush)]; B.pushAt = -Infinity;
       }
-      if (B.path.length) {
-        const [nx, nz] = MAP.nodes[B.path[0]];
-        const dist = Math.hypot(nx - b.p[0], nz - b.p[2]);
-        if (dist < 1.3) B.path.shift();
-        else wish = moveToward(b, [nx, 0, nz], dt);
-      } else b.yaw += Math.sin(t * 0.5 + b.id) * 0.6 * dt;   // segurando posição: olha ao redor devagar
+      if (B.path.length) wish = follow(b, B.path, dt);
+      else b.yaw += Math.sin(t * 0.5 + b.id) * 0.6 * dt;   // segurando posição: olha ao redor devagar
       const a = b.ammo[key];
       if (a && !W.melee && a.mag < W.mag * 0.4 && a.res > 0) startReload(b);
       if ((b.cur === 3 || b.cur === 5) && b.slots[2] && b.ammo[b.slots[2]]?.mag > 0) b.cur = b.slots[1] ? 1 : 2;
     }
   }
 
-  // física
-  b.v[0] = wish[0] * speed; b.v[2] = wish[1] * speed;
+  // física: o bot ganha e perde velocidade aos poucos (não arranca nem para de uma vez)
+  if (t < B.stagger) speed *= 0.4;            // acabou de levar tiro: cambaleia
+  if (t < B.pauseUntil) wish = [0, 0];        // parou um instante para checar a esquina
+  let wx = wish[0] * speed, wz = wish[1] * speed;
+  if (NAV) {   // abre espaço para o colega do lado em vez de grudar nele
+    for (const q of players.values()) {
+      if (q === b || !q.alive || q.team !== b.team) continue;
+      const ox = b.p[0] - q.p[0], oz = b.p[2] - q.p[2], od = Math.hypot(ox, oz);
+      if (od > 0.01 && od < 1.2) { const k = (1.2 - od) / 1.2 * 3; wx += ox / od * k; wz += oz / od * k; }
+    }
+  }
+  const acc = (wx || wz ? 30 : 40) * dt, ddx = wx - b.v[0], ddz = wz - b.v[2], dl = Math.hypot(ddx, ddz);
+  if (dl <= acc) { b.v[0] = wx; b.v[2] = wz; } else { b.v[0] += ddx / dl * acc; b.v[2] += ddz / dl * acc; }
   b.v[1] -= PHYS.gravity * dt;
   const before = [...b.p];
   moveBody(b.p, b.v, dt, bodyHeight(b.crouch), MAP.boxes);
@@ -764,8 +1099,14 @@ function updateBot(b, dt) {
     const moved = Math.hypot(b.p[0] - B.lastP[0], b.p[2] - B.lastP[2]);
     if (moved < 0.4 && (wish[0] || wish[1]) && !target) {
       if (b.p[1] <= 0.01) b.v[1] = PHYS.jumpV;
-      const cur = nearestNode(b.p);
-      if (ADJ[cur] && ADJ[cur].length) B.path = [pick(ADJ[cur]), ...B.path];
+      B.head = undefined;
+      if (NAV) {   // na malha: recalcula a rota a partir de onde está
+        const last = B.path[B.path.length - 1];
+        if (last) { const r = route(b.p, last); if (r && r.length) B.path = r; }
+      } else {
+        const cur = nearestNode(b.p);
+        if (ADJ[cur] && ADJ[cur].length) B.path = [MAP.nodes[pick(ADJ[cur])], ...B.path];
+      }
     }
     B.stuckT = 0; B.lastP = [...b.p];
   }
@@ -784,13 +1125,16 @@ setInterval(() => {
   else if (game.phase === 'end' && game.timer <= 0) startRound();
   else if (game.phase === 'matchover' && game.timer <= 0) { resetMatch(); startRound(); }
 
+  const tick0 = performance.now();
+  pathBudget = 3;   // no máximo 3 cálculos de rota por volta (os outros bots esperam a próxima)
+  if (!MAP.campaign && game.phase === 'live') checkPush();   // o Bonde da Macaca invade quando se reunir (ou depois de 40 s), mesmo com bots ocupados
   for (const pl of players.values()) {
     if (pl.reloadEnd && t >= pl.reloadEnd) {
       const a = pl.ammo[pl.reloadKey], W = WEAPONS[pl.reloadKey];
       if (a) { const take = Math.min(W.mag - a.mag, a.res); a.mag += take; a.res -= take; }
       pl.reloadEnd = 0;
     }
-    if (pl.isBot && (pl.id + tickNo) % 2 === 0) updateBot(pl, dt * 2);   // bots pensam a 15 por segundo (metade em cada volta): alivia o servidor fraco
+    if (pl.isBot && (pl.id + tickNo) % 2 === 0) { const b0 = performance.now(); updateBot(pl, dt * 2); perf.bots += performance.now() - b0; }   // bots pensam a 15 por segundo (metade em cada volta): alivia o servidor fraco
     if (pl.alive) autoPickup(pl, t);
     (pl.hist ||= []).push([t, pl.p[0], pl.p[1], pl.p[2], pl.crouch ? 1 : 0]);
     while (pl.hist.length && pl.hist[0][0] < t - 1) pl.hist.shift();
@@ -800,7 +1144,7 @@ setInterval(() => {
   nadesTick(dt);
   projsTick(dt);
   if (DEBUG && game.phase === 'live' && Math.floor(t / 4) !== Math.floor((t - dt) / 4)) {
-    console.log(`[t=${game.timer.toFixed(0)} bomba=${bomb.state} go=${game.go} plano=${game.plan}] ` + [...players.values()].map(q => `${q.name.slice(4)}${q.team}(${q.p[0].toFixed(0)},${q.p[2].toFixed(0)})${q.alive ? '' : '†'}${q.bot ? ':' + (q.bot.path[0] || '-') : ''}`).join(' '));
+    console.log(`[t=${game.timer.toFixed(0)} bomba=${bomb.state} go=${game.go} plano=${game.plan}] ` + [...players.values()].map(q => `${q.name.slice(4)}${q.team}(${q.p[0].toFixed(0)},${q.p[2].toFixed(0)})${q.alive ? '' : '†'}${q.bot ? ':' + (q.bot.path[0] ? q.bot.path[0].map(v => v.toFixed(0)).join(',') : '-') : ''}`).join(' '));
   }
 
   const dropsPub = drops.map(d => ({ id: d.id, key: d.key, p: d.p, yaw: d.yaw }));
@@ -818,7 +1162,13 @@ setInterval(() => {
       me: { hp: pl.hp, ar: pl.armor, hm: pl.helmet ? 1 : 0, m: pl.money, sl: pl.slots, b4: pl.bag4, nd: pl.nades, cur: pl.cur, am: pl.ammo, a: pl.alive ? 1 : 0, rl: pl.reloadEnd ? 1 : 0, team: pl.team },
     });
   }
+  perf.tick += performance.now() - tick0; perf.n++;
+  if (process.env.PERF && perf.n >= TICK * 10) {   // PERF=1: mostra a cada 10 s quanto a volta do servidor custa
+    console.log(`[perf] volta média ${(perf.tick / perf.n).toFixed(2)} ms · bots ${(perf.bots / perf.n).toFixed(2)} ms · malha ${NAV ? 'sim' : 'não'} · tática ${JSON.stringify(tatica)}`);
+    perf.tick = perf.bots = perf.n = 0;
+  }
 }, 1000 / TICK);
+const perf = { tick: 0, bots: 0, n: 0 };
 
 // ---------------------------------------------------------------- WebSocket
 const wss = new WebSocketServer({ server });

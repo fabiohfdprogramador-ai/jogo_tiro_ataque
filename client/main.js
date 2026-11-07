@@ -13,6 +13,7 @@ import { Effects } from './effects.js';
 import { Sound } from './audio2.js';
 import { createComposer } from './post.js';
 import { Hud } from './hud.js';
+import { falar, tocarGravacao, tocarAnuncio } from './vozes.js';
 
 const $ = (id) => document.getElementById(id);
 function lockPointer() { try { const p = renderer.domElement.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch { /* sem pointer lock */ } }
@@ -218,8 +219,17 @@ function onMessage(m) {
         hud.banner(`Round ${m.round}`, '', 2.5);
       } else if (m.phase === 'live') {
         sound.roundStart(); hud.notice('Vai! Vai! Vai!', 1.5);
+        if (!MAP.campaign) tocarAnuncio(sound, me.team === 'T' ? 'macaca_round' : 'campo_round', 0.25);   // grito do seu time
       } else if (m.phase === 'end' || m.phase === 'matchover') {
-        if (m.phase === 'end') hud.banner(m.msg, m.winner === 'T' ? 't' : 'ct', 4.5);
+        if (m.phase === 'end') {
+          hud.banner(m.msg, m.winner === 'T' ? 't' : 'ct', 4.5);
+          // grito do seu time no fim do round (vitória ou derrota); sem gravação, usa a voz do navegador
+          if (!MAP.campaign && me.team) {
+            const won = m.winner === me.team, nome = (me.team === 'T' ? 'macaca_' : 'campo_') + (won ? 'vitoria' : 'derrota');
+            const FALA = { campo_derrota: 'Perdemo essa! Cabeça no lugar, o próximo é nosso!' };
+            tocarAnuncio(sound, nome, 0.6).then(ok => { if (!ok && FALA[nome]) setTimeout(() => falar(99, FALA[nome], 0, settings.vol), 600); });
+          }
+        }
         else { buyOpen = false; hud.matchOver(m, me.id, me.team); }
         sound.roundEnd(m.winner === me.team);
       }
@@ -243,6 +253,17 @@ function onMessage(m) {
       break;
     case 'hitmark': hud.hitmark(m.hs); sound.hit(m.hs); if (curKey() === 'knife') sound.knifeHit(null); break;
     case 'msg': hud.notice(m.text); break;
+    case 'bark': {   // fala dos bots: balão em cima da cabeça + voz (mais baixa de longe)
+      remotes.bark(m.id, m.text);
+      const r = remotes.get(m.id);
+      if (r && r.alive) {
+        const dist = Math.hypot(r.p[0] - me.p[0], r.p[2] - me.p[2]);
+        // fala gravada (MP3): som 3D vindo do bot; se não tiver, usa a voz do navegador
+        if (m.audio) tocarGravacao(sound, m.audio, [r.p[0], r.p[1] + 1.6, r.p[2]], dist).then(ok => { if (!ok) falar(m.id, m.text, dist, settings.vol, r.name); });
+        else falar(m.id, m.text, dist, settings.vol, r.name);
+      }
+      break;
+    }
     case 'bought': {
       sound.buy();
       const W = WEAPONS[m.item];
@@ -298,7 +319,11 @@ function onMessage(m) {
       if (m.ev === 'given') hud.notice('Você está com a bomba! Plante no bombsite A ou B segurando F', 4);
       else if (m.ev === 'picked') hud.notice('Você pegou a bomba', 2);
       else if (m.ev === 'dropped' && me.alive) hud.notice('A bomba caiu! Pegue-a', 2.5);
-      else if (m.ev === 'planted') { sound.planted(); hud.banner(`Bomba plantada no ${m.site}!`, 't', 3); beepT = 0; }
+      else if (m.ev === 'planted') {
+        sound.planted(); hud.banner(`Bomba plantada no ${m.site}!`, 't', 3); beepT = 0;
+        // anúncio gritado: o Bonde da Macaca comemora, o Bonde do Campo é chamado para desarmar
+        tocarAnuncio(sound, me.team === 'T' ? 'macaca_bomba_plantada' : 'campo_bomba_plantada', 0.35);
+      }
       else if (m.ev === 'defused') { sound.defused(); }
       else if (m.ev === 'exploded') {
         const d = Math.hypot(m.p[0] - camera.position.x, m.p[2] - camera.position.z);

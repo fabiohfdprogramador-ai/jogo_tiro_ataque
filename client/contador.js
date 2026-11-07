@@ -3,6 +3,8 @@
 // Guarda só um número aleatório do navegador; país/cidade vêm do Cloudflare (o IP não é guardado).
 (function () {
   var local = /^(localhost|127\.|\[::1\])/.test(location.hostname);
+  // no seu PC o contador fica desligado (não suja o console); para testar o contador local, abra com ?contador
+  if (local && !/[?&]contador\b/.test(location.search)) return;
   var API = local ? 'http://localhost:8788' : 'https://ataque-contador.pages.dev';
 
   function novoId() {
