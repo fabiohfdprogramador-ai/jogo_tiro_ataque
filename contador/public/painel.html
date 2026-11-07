@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Painel · Ataque</title>
+<style>
+  :root { --bg: #0d0d0f; --card: #17181b; --card2: #1f2024; --line: #2b2c31; --text: #ecebe7; --muted: #a3a29c; --sand: #e8c78a; --ok: #9fd27a; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { margin: 0 0 16px; font-style: italic; color: var(--sand); }
+  h2 { margin: 0 0 10px; font-size: 16px; font-style: italic; color: var(--sand); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px; min-width: 0; }
+  form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 18px; }
+  input, select, button { font: inherit; color: var(--text); background: var(--card2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+  button { cursor: pointer; border-color: var(--sand); color: var(--sand); font-weight: 600; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 18px; }
+  .kpi { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+  .kpi b { display: block; font-size: 28px; color: var(--ok); font-variant-numeric: tabular-nums; }
+  .kpi span { color: var(--muted); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; }
+  .scroll { overflow-x: auto; max-height: 420px; overflow-y: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { color: var(--muted); font-weight: 600; position: sticky; top: 0; background: var(--card); }
+  td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
+  .bar { height: 6px; background: var(--sand); border-radius: 3px; opacity: .7; }
+  #erro { color: #f0a07a; }
+  .muted { color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Painel do Ataque</h1>
+  <form id="f">
+    <input id="chave" type="password" placeholder="Chave do painel" autocomplete="current-password" required>
+    <select id="dias">
+      <option value="1">Hoje (24 h)</option>
+      <option value="7">7 dias</option>
+      <option value="30" selected>30 dias</option>
+      <option value="365">1 ano</option>
+    </select>
+    <button>Ver</button>
+    <span id="erro" role="alert"></span>
+  </form>
+  <div id="conteudo" hidden>
+    <div class="kpis" id="kpis"></div>
+    <div class="grid">
+      <section class="card"><h2>Por dia</h2><div class="scroll" id="porDia"></div></section>
+      <section class="card"><h2>Países</h2><div class="scroll" id="paises"></div></section>
+      <section class="card"><h2>Cidades</h2><div class="scroll" id="cidades"></div></section>
+      <section class="card"><h2>De onde vieram (site anterior)</h2><div class="scroll" id="origens"></div></section>
+      <section class="card"><h2>Mapas jogados</h2><div class="scroll" id="mapas"></div></section>
+      <section class="card"><h2>Online agora</h2><div class="scroll" id="online"></div></section>
+    </div>
+    <p class="muted">"Pessoas" = navegadores diferentes (um número aleatório guardado no navegador). Quem limpa os dados do navegador ou usa aba anônima conta de novo.</p>
+  </div>
+</div>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const fmt = (n) => (n ?? 0).toLocaleString("pt-BR");
+  let nomes;
+  try { nomes = new Intl.DisplayNames(["pt-BR"], { type: "region" }); } catch {}
+  const pais = (cc) => { try { return /^[A-Z]{2}$/.test(cc) && nomes ? nomes.of(cc) : cc; } catch { return cc; } };
+  const MAPAS = { bairro: "VR Divineia", deserto: "Deserto", fundao: "Ilha do Fundão" };
+  const ESTADOS = { site: "no menu", carregando: "conectando", menu: "no menu", partida: "em partida" };
+
+  function tabela(el, cols, linhas, barra) {
+    if (!linhas.length) { el.innerHTML = '<p class="muted">Nada ainda.</p>'; return; }
+    const max = barra ? Math.max(...linhas.map((l) => l[barra] || 0), 1) : 0;
+    const t = document.createElement("table");
+    const h = t.createTHead().insertRow();
+    cols.forEach(([, titulo, n]) => { const th = document.createElement("th"); th.textContent = titulo; if (n) th.className = "n"; h.append(th); });
+    if (barra) h.append(document.createElement("th"));
+    const b = t.createTBody();
+    linhas.forEach((l) => {
+      const r = b.insertRow();
+      cols.forEach(([k, , n, f]) => { const c = r.insertCell(); c.textContent = f ? f(l[k], l) : (n ? fmt(l[k]) : (l[k] ?? "")); if (n) c.className = "n"; });
+      if (barra) { const c = r.insertCell(); c.style.width = "30%"; const d = document.createElement("div"); d.className = "bar"; d.style.width = (100 * (l[barra] || 0) / max) + "%"; c.append(d); }
+    });
+    el.replaceChildren(t);
+  }
+
+  async function carregar() {
+    $("erro").textContent = "";
+    try {
+      const r = await fetch("/api/painel?dias=" + $("dias").value, { headers: { "X-Chave": $("chave").value } });
+      const d = await r.json();
+      if (!r.ok) { $("erro").textContent = d.erro || "Erro " + r.status; return; }
+      try { sessionStorage.setItem("painel_chave", $("chave").value); } catch {}
+      const soma = (k) => d.porDia.reduce((a, l) => a + (l[k] || 0), 0);
+      const pessoas = d.paises.reduce((a, l) => a + l.pessoas, 0);
+      const online = d.online.reduce((a, l) => a + l.n, 0);
+      $("kpis").innerHTML = "";
+      [[online, "online agora"], [pessoas, "pessoas"], [soma("visitas"), "visitas"], [soma("jogaram"), "clicaram em Jogar"], [soma("partidas"), "partidas iniciadas"]]
+        .forEach(([v, t]) => { const k = document.createElement("div"); k.className = "kpi"; k.innerHTML = "<b></b><span></span>"; k.querySelector("b").textContent = fmt(v); k.querySelector("span").textContent = t; $("kpis").append(k); });
+      tabela($("porDia"), [["dia", "Dia", 0, (v) => v.split("-").reverse().join("/")], ["pessoas", "Pessoas", 1], ["visitas", "Visitas", 1], ["jogaram", "Jogaram", 1], ["partidas", "Partidas", 1]], d.porDia);
+      tabela($("paises"), [["pais", "País", 0, pais], ["pessoas", "Pessoas", 1], ["partidas", "Partidas", 1]], d.paises, "pessoas");
+      tabela($("cidades"), [["cidade", "Cidade", 0, (v) => v || "?"], ["regiao", "Estado/região"], ["pais", "País"], ["pessoas", "Pessoas", 1]], d.cidades, "pessoas");
+      tabela($("origens"), [["origem", "Site"], ["pessoas", "Pessoas", 1]], d.origens, "pessoas");
+      tabela($("mapas"), [["mapa", "Mapa", 0, (v) => MAPAS[v] || v || "?"], ["partidas", "Partidas", 1]], d.mapas, "partidas");
+      tabela($("online"), [["estado", "Onde", 0, (v) => ESTADOS[v] || v], ["pais", "País", 0, pais], ["n", "Quantos", 1]], d.online);
+      $("conteudo").hidden = false;
+    } catch (e) { $("erro").textContent = "Não consegui carregar: " + e.message; }
+  }
+  $("f").addEventListener("submit", (e) => { e.preventDefault(); carregar(); });
+  $("dias").addEventListener("change", () => { if ($("chave").value) carregar(); });
+  try { const c = sessionStorage.getItem("painel_chave"); if (c) { $("chave").value = c; carregar(); } } catch {}
+  setInterval(() => { if (!$("conteudo").hidden && !document.hidden) carregar(); }, 60000);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+# Contador de visitas do Ataque (Cloudflare Pages + D1). O jogo continua no Render.
+name = "ataque-contador"
+pages_build_output_dir = "public"
+compatibility_date = "2026-10-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "ataque-contador"
+database_id = "aba86ef0-615c-4ce6-b983-4297a8896677"
