@@ -230,7 +230,15 @@ function onMessage(m) {
             tocarAnuncio(sound, nome, 0.6).then(ok => { if (!ok && FALA[nome]) setTimeout(() => falar(99, FALA[nome], 0, settings.vol), 600); });
           }
         }
-        else { buyOpen = false; hud.matchOver(m, me.id, me.team); }
+        else {
+          buyOpen = false; hud.matchOver(m, me.id, me.team);
+          // fim da partida: todo mundo ouve o time campeão comemorando
+          if (!MAP.campaign) {
+            const nome = m.winner === 'T' ? 'macaca_campea' : 'campo_campeao';
+            const FALA = { macaca_campea: 'O Bonde da Macaca é campeão! Quem manda aqui é nóis!', campo_campeao: 'Acabou! O Bonde do Campo é campeão!' };
+            tocarAnuncio(sound, nome, 0.8).then(ok => { if (!ok) setTimeout(() => falar(98, FALA[nome], 0, settings.vol), 800); });
+          }
+        }
         sound.roundEnd(m.winner === me.team);
       }
       break;
@@ -324,7 +332,13 @@ function onMessage(m) {
         // anúncio gritado: o Bonde da Macaca comemora, o Bonde do Campo é chamado para desarmar
         tocarAnuncio(sound, me.team === 'T' ? 'macaca_bomba_plantada' : 'campo_bomba_plantada', 0.35);
       }
-      else if (m.ev === 'defused') { sound.defused(); }
+      else if (m.ev === 'defused') {
+        sound.defused();
+        // bomba desarmada: o Bonde da Macaca xinga, o Bonde do Campo comemora
+        const nome = me.team === 'T' ? 'macaca_desarmou' : 'campo_desarmou';
+        const FALA = { macaca_desarmou: 'Puta que pariu! Desarmaram a bomba!', campo_desarmou: 'Desarmei! O Campo segurou!' };
+        tocarAnuncio(sound, nome, 0.3).then(ok => { if (!ok) setTimeout(() => falar(97, FALA[nome], 0, settings.vol), 300); });
+      }
       else if (m.ev === 'exploded') {
         const d = Math.hypot(m.p[0] - camera.position.x, m.p[2] - camera.position.z);
         fx.explosion(new THREE.Vector3(...m.p), true); sound.boom(m.p, true); me.shake = Math.min(1.2, me.shake + Math.max(0.2, 1.4 - d / 40));

@@ -10,7 +10,11 @@ Voz: "Fernando Machado" (biblioteca de vozes do ElevenLabs, voz masculina carioc
 - macaca_vitoria.mp3  gargalhada + "É O BONDE DA MACACA, PORRA! CHORA NÃO!!!"  (Macaca venceu o round)
 - macaca_derrota.mp3  "CARALHO! VOLTA, VOLTA! REORGANIZA ESSA PORRA!!!"          (Macaca perdeu o round)
 - campo_vitoria.mp3   "O CAMPO É NOSSO! AQUI NÃO ENTRA NINGUÉM!!!"               (Campo venceu o round; voz "Túlio Souza")
-  (campo_derrota.mp3 ainda não existe: o jogo usa a voz do navegador até ele ser gravado)
+- campo_derrota.mp3   "PERDEMO ESSA! CABEÇA NO LUGAR, O PRÓXIMO É NOSSO!!!"       (Campo perdeu o round; voz "Túlio Souza")
+- macaca_desarmou.mp3 "PUTA QUE PARIU! DESARMARAM A BOMBA!!!"                    (Macaca ouve a bomba ser desarmada)
+- campo_desarmou.mp3  "DESARMEI! O CAMPO SEGUROU, PORRA!!!"                      (Campo desarmou; voz "Túlio Souza")
+- macaca_campea.mp3   gargalhada + "O BONDE DA MACACA É CAMPEÃO! QUEM MANDA AQUI É NÓIS!!!" (fim da partida)
+- campo_campeao.mp3   "ACABOU! O BONDE DO CAMPO É CAMPEÃO, PORRA!!!"             (fim da partida; voz "Túlio Souza")
 
 ATENÇÃO: gerado no plano grátis do ElevenLabs. Antes de ganhar dinheiro com o jogo, confira se o
 plano permite uso comercial (o grátis normalmente não permite e pede crédito "ElevenLabs").
