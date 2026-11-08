@@ -90,6 +90,29 @@
 
   .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(20px); background: var(--verde); color: #111; font-weight: 700; padding: 10px 18px; border-radius: 8px; opacity: 0; transition: .25s; pointer-events: none; }
   .toast.show { opacity: 1; transform: translateX(-50%); }
+  [hidden] { display: none !important; }
+  /* doação */
+  .btn .coracao { color: #ff6b81; }
+  .fundo-modal { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: none; align-items: center; justify-content: center; padding: 16px; z-index: 10; }
+  .fundo-modal.on { display: flex; }
+  .modal { background: var(--card); border: 1px solid #3a3f4a; border-radius: 14px; padding: 24px; width: 100%; max-width: 470px; max-height: calc(100vh - 32px); overflow-y: auto; overflow-x: hidden; scrollbar-color: #3a3f4a transparent; }
+  .modal h3 { font-size: 22px; margin-bottom: 8px; }
+  .modal > p { margin: 0 0 16px; }
+  .opcao { background: var(--card2); border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; }
+  .opcao b { font-style: italic; font-size: 16px; }
+  .opcao small { display: block; color: var(--suave); font-size: 13px; margin: 2px 0 10px; }
+  .pix { display: flex; gap: 14px; align-items: center; }
+  #qr { background: #fff; border-radius: 8px; padding: 8px; flex: none; line-height: 0; }
+  #qr img, #qr canvas { width: 132px; height: 132px; image-rendering: pixelated; }
+  .pix .lado { display: flex; flex-direction: column; gap: 8px; min-width: 0; flex: 1; }
+  .chave { font: 12.5px Consolas, monospace; background: var(--fundo); border-radius: 6px; padding: 6px 8px; word-break: break-all; color: #cfd0d4; }
+  .btn.cheio { background: rgba(240,192,96,.12); border-color: var(--ouro); color: var(--ouro); justify-content: center; }
+  .btn.cheio:hover { background: rgba(240,192,96,.22); }
+  .btn[disabled], .btn.off { opacity: .45; cursor: default; pointer-events: none; }
+  .embreve { color: var(--suave); font-size: 13.5px; font-style: italic; }
+  .fechar { display: flex; justify-content: flex-end; margin-top: 6px; }
+  @media (max-width: 460px) { .pix { flex-direction: column; align-items: stretch; } #qr { align-self: center; } }
+
   footer { margin-top: 26px; text-align: center; font-size: 12.5px; color: #6d7079; }
 
   @media (max-width: 820px) {
@@ -110,6 +133,7 @@
     <div class="acoes">
       <button class="btn" data-ir="novidades">☰ Novidades</button>
       <button class="btn" id="convidar">🔗 Chamar amigos</button>
+      <button class="btn doar" id="doar"><span class="coracao">❤</span> Doar</button>
     </div>
   </header>
 
@@ -226,7 +250,42 @@
 </div>
 <div class="toast" id="toast">Link copiado! Mande para os amigos.</div>
 
+<div class="fundo-modal" id="modal-doar" role="dialog" aria-modal="true" aria-labelledby="titulo-doar">
+  <div class="modal">
+    <h3 id="titulo-doar">Apoie o Ataque</h3>
+    <p>O jogo é de graça e vai continuar sendo. As doações ajudam a pagar o servidor e a criar mapas, armas e vozes novas. Todo mundo joga igual: ninguém compra vantagem.</p>
+
+    <div class="opcao">
+      <b>Pix</b><small>Para quem está no Brasil. Cai na hora, sem taxa.</small>
+      <div class="pix" id="pix-on" hidden>
+        <div id="qr"></div>
+        <div class="lado">
+          <button class="btn cheio" id="copiar-pix">Copiar Pix copia e cola</button>
+          <span style="font-size:12.5px;color:var(--suave)">ou use a chave:</span>
+          <div class="chave" id="pix-chave"></div>
+        </div>
+      </div>
+      <div class="embreve" id="pix-off">Em breve.</div>
+    </div>
+
+    <div class="opcao">
+      <b>Ko-fi</b><small>From outside Brazil: card or PayPal. / De fora do Brasil: cartão ou PayPal.</small>
+      <a class="btn cheio" id="kofi" target="_blank" rel="noopener" style="width:100%">Doar no Ko-fi / Donate on Ko-fi</a>
+      <div class="embreve" id="kofi-off">Em breve.</div>
+    </div>
+
+    <div class="fechar"><button class="btn" id="fechar-doar">Agora não</button></div>
+  </div>
+</div>
+
 <script>
+  // ================= DOAÇÃO: preencha aqui quando tiver as contas =================
+  // pixChave: a chave aleatória do Pix (ex.: '1a2b3c4d-....'). Vazia = mostra "Em breve".
+  // pixNome:  seu nome como está no banco (até 25 letras, sem acento é melhor).
+  // pixCidade: sua cidade (até 15 letras).
+  // kofi: o link da sua página (ex.: 'https://ko-fi.com/jogoataque'). Vazio = "Em breve".
+  var DOACAO = { pixChave: '73e1a4fb-89a9-440e-b97b-d99fcea69b66', pixNome: '', pixCidade: '', kofi: '' };
+  // ==============================================================================
   var JOGO = 'https://jogo-tiro-ataque.onrender.com/';
   // na Cloudflare a API está no mesmo endereço; abrindo o arquivo no PC, busca a de verdade
   var API = /pages\.dev$/.test(location.hostname) ? '/api/stats' : 'https://ataque-contador.pages.dev/api/stats';
@@ -252,9 +311,69 @@
     });
   });
 
-  // Enter = Jogar
+  // Enter = Jogar (menos com a janela de doação aberta, onde Esc fecha)
+  var modal = document.getElementById('modal-doar');
   document.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter' && !e.target.closest('input,textarea')) location.href = JOGO;
+    if (modal.classList.contains('on')) { if (e.key === 'Escape') fecharDoar(); return; }
+    if (e.key === 'Enter' && !e.target.closest('input,textarea,button,a')) location.href = JOGO;
+  });
+
+  // ---------- Doar ----------
+  function semAcento(s, max) {
+    return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9 ]/g, '').toUpperCase().trim().slice(0, max);
+  }
+  // "Pix copia e cola" (BR Code do Banco Central) a partir da chave
+  function campo(id, v) { return id + String(v.length).padStart(2, '0') + v; }
+  function crc16(s) {
+    var c = 0xFFFF;
+    for (var i = 0; i < s.length; i++) {
+      c ^= s.charCodeAt(i) << 8;
+      for (var j = 0; j < 8; j++) c = (c & 0x8000) ? ((c << 1) ^ 0x1021) & 0xFFFF : (c << 1) & 0xFFFF;
+    }
+    return c.toString(16).toUpperCase().padStart(4, '0');
+  }
+  function pixCopiaCola(d) {
+    var s = campo('00', '01') +
+      campo('26', campo('00', 'br.gov.bcb.pix') + campo('01', d.pixChave.trim())) +
+      campo('52', '0000') + campo('53', '986') + campo('58', 'BR') +
+      campo('59', semAcento(d.pixNome, 25) || 'ATAQUE') +
+      campo('60', semAcento(d.pixCidade, 15) || 'RIO DE JANEIRO') +
+      campo('62', campo('05', '***')) + '6304';
+    return s + crc16(s);
+  }
+  var codigoPix = '', qrFeito = false;
+  if (DOACAO.pixChave.trim()) {
+    codigoPix = pixCopiaCola(DOACAO);
+    document.getElementById('pix-chave').textContent = DOACAO.pixChave.trim();
+    document.getElementById('pix-on').hidden = false;
+    document.getElementById('pix-off').hidden = true;
+  }
+  var kofi = document.getElementById('kofi');
+  if (DOACAO.kofi.trim()) { kofi.href = DOACAO.kofi.trim(); document.getElementById('kofi-off').hidden = true; }
+  else kofi.hidden = true;
+
+  function desenharQR() {   // a biblioteca do QR só é baixada quando alguém abre a janela
+    if (qrFeito || !codigoPix) return;
+    qrFeito = true;
+    var s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js';
+    s.onload = function () {
+      var q = qrcode(0, 'M'); q.addData(codigoPix); q.make();
+      document.getElementById('qr').innerHTML = q.createImgTag(4, 0);
+    };
+    s.onerror = function () { qrFeito = false; };
+    document.head.appendChild(s);
+  }
+  function abrirDoar() { modal.classList.add('on'); desenharQR(); document.getElementById('fechar-doar').focus(); }
+  function fecharDoar() { modal.classList.remove('on'); }
+  document.getElementById('doar').addEventListener('click', abrirDoar);
+  document.getElementById('fechar-doar').addEventListener('click', fecharDoar);
+  modal.addEventListener('click', function (e) { if (e.target === modal) fecharDoar(); });
+  document.getElementById('copiar-pix').addEventListener('click', function () {
+    var b = this;
+    var ok = function () { b.textContent = 'Copiado! Cole no app do banco'; setTimeout(function () { b.textContent = 'Copiar Pix copia e cola'; }, 2500); };
+    if (navigator.clipboard) navigator.clipboard.writeText(codigoPix).then(ok, function () { prompt('Copie:', codigoPix); });
+    else prompt('Copie:', codigoPix);
   });
 
   // Chamar amigos: copia o link desta página
