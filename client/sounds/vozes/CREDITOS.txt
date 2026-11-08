@@ -16,5 +16,9 @@ Voz: "Fernando Machado" (biblioteca de vozes do ElevenLabs, voz masculina carioc
 - macaca_campea.mp3   gargalhada + "O BONDE DA MACACA É CAMPEÃO! QUEM MANDA AQUI É NÓIS!!!" (fim da partida)
 - campo_campeao.mp3   "ACABOU! O BONDE DO CAMPO É CAMPEÃO, PORRA!!!"             (fim da partida; voz "Túlio Souza")
 
+Falas de combate dos bots (uma gravação por frase e por time: macaca_<tipo>_<n>.mp3 / campo_<tipo>_<n>.mp3).
+O número é a posição da frase na lista BARKS do server/index.js. Frase sem gravação usa a voz do navegador.
+Já gravadas: contato 1-5, recarga 1-3, granada 1-3, matou 1-3 (os dois times); procura 1-2 (Macaca).
+
 ATENÇÃO: gerado no plano grátis do ElevenLabs. Antes de ganhar dinheiro com o jogo, confira se o
 plano permite uso comercial (o grátis normalmente não permite e pede crédito "ElevenLabs").

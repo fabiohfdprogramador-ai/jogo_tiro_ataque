@@ -664,6 +664,16 @@ const VOICE_LINES = {
   arrasta: { team: 'T', audio: 'macaca_arrasta', text: 'HA HA HA! FOI DE ARRASTA! SEU VERME!!!' },
 };
 let barkGlobalT = 0;
+// quais gravações existem em client/sounds/vozes (confere de novo a cada 20 s: MP3 novo entra sem reiniciar)
+const VOICE_DIR = path.join(ROOT, 'client', 'sounds', 'vozes');
+let voiceFiles = new Set(), voiceT = 0;
+function hasVoice(nome) {
+  if (Date.now() > voiceT) {
+    voiceT = Date.now() + 20000;
+    try { voiceFiles = new Set(fs.readdirSync(VOICE_DIR).filter(f => f.endsWith('.mp3')).map(f => f.slice(0, -4))); } catch { voiceFiles = new Set(); }
+  }
+  return voiceFiles.has(nome);
+}
 function bark(b, kind, chance = 1, force = false) {
   const B = b.bot, t = now();
   if (!B || !b.alive) return;
@@ -671,8 +681,16 @@ function bark(b, kind, chance = 1, force = false) {
   B.barkT = t + 3 + Math.random() * 3; barkGlobalT = t + 0.5;
   const line = VOICE_LINES[kind];
   if (line && line.team !== b.team) return;
-  const text = line ? line.text : pick(BARKS[kind]);
-  broadcast(line ? { t: 'bark', id: b.id, text, audio: line.audio } : { t: 'bark', id: b.id, text });
+  let text, audio = null;
+  if (line) { text = line.text; audio = line.audio; }
+  else {
+    // frase sorteada; se já existir a gravação dela para o time do bot (ex.: macaca_contato_2.mp3), vai junto
+    const i = (Math.random() * BARKS[kind].length) | 0;
+    text = BARKS[kind][i];
+    const nome = (b.team === 'T' ? 'macaca_' : 'campo_') + kind + '_' + (i + 1);
+    if (hasVoice(nome)) audio = nome;
+  }
+  broadcast(audio ? { t: 'bark', id: b.id, text, audio } : { t: 'bark', id: b.id, text });
   if (DEBUG) console.log(`[fala] ${b.name}: ${text}`);
 }
 
